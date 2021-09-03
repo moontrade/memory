@@ -1,10 +1,8 @@
-//go:build !tinygo.wasm
-// +build !tinygo.wasm
+//go:build !tinygo.wasm && !wasm
 
 package runtime
 
 import (
-	"sync"
 	"unsafe"
 )
 
@@ -13,13 +11,12 @@ type Pool struct {
 	heapStart    uintptr
 	heapEnd      uintptr
 	segments     [][]byte
-	pages        int
 	heapSize     int64
 	allocSize    int64
 	maxAllocSize int64
 	freeSize     int64
+	pages        int
 	allocs       int32
-	mu           sync.Mutex
 }
 
 func NewPool(pages int) *Pool {
@@ -45,16 +42,11 @@ func NewPool(pages int) *Pool {
 		}
 	}
 
-	var (
-		memStart = rootOffset + tlsf_ROOT_SIZE
-	)
-	addMemory(p, memStart, p.heapStart+uintptr(len(page)))
+	addMemory(p, rootOffset+tlsf_ROOT_SIZE, p.heapStart+uintptr(len(page)))
 	return p
 }
 
 func (p *Pool) Grow(pages int) (uintptr, uintptr) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
 	if pages <= 0 {
 		pages = 1
 	}

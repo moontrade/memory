@@ -1,5 +1,4 @@
 //go:build !tinygo.wasm
-// +build !tinygo.wasm
 
 package runtime
 
@@ -14,9 +13,7 @@ var (
 )
 
 const (
-	tlsf_ALIGNOF_U32   = 2
-	tlsf_ALIGNOF_USIZE = 3
-	wasmPageSize       = 64 * 1024
+	wasmPageSize = 64 * 1024
 )
 
 func maybeFreeBlock(p *Pool, block *tlsfBlock) {
@@ -26,8 +23,8 @@ func maybeFreeBlock(p *Pool, block *tlsfBlock) {
 func tlsfPrintInfo() {
 	//println("heapStart		", int64(heapStart))
 	//println("heapEnd			", int64(heapEnd))
-	println("ALIGNOF_U32		", int64(tlsf_ALIGNOF_U32))
-	println("ALIGNOF_USIZE	", int64(tlsf_ALIGNOF_USIZE))
+	println("ALIGNOF_U32		", int64(tlsf_ALIGN_U32))
+	println("ALIGNOF_USIZE	", int64(tlsf_ALIGN_SIZE_LOG2))
 	println("U32_MAX			", ^uint32(0))
 	println("PTR_MAX			", ^uintptr(0))
 	println("AL_BITS			", int64(tlsf_AL_BITS))
@@ -71,7 +68,20 @@ func memzero(ptr unsafe.Pointer, size uintptr) {
 		Len:  int(size),
 		Cap:  int(size),
 	}))
-	for i := 0; i < len(b); i++ {
-		b[i] = 0
+	switch {
+	case size < 8:
+		for i := 0; i < len(b); i++ {
+			b[i] = 0
+		}
+	case size == 8:
+		*(*uint64)(unsafe.Pointer(&b[0])) = 0
+	default:
+		var i = 0
+		for ; i <= len(b)-8; i += 8 {
+			*(*uint64)(unsafe.Pointer(&b[i])) = 0
+		}
+		for ; i < len(b); i++ {
+			b[i] = 0
+		}
 	}
 }

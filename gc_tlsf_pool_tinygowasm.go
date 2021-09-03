@@ -1,5 +1,4 @@
-//go:build tinygo.wasm
-// +build tinygo.wasm
+//go:build (tinygo.wasm && gc.extalloc) || wasm
 
 package runtime
 
@@ -7,21 +6,16 @@ import (
 	"unsafe"
 )
 
-const (
-	tlsf_ALIGNOF_U32   = 2
-	tlsf_ALIGNOF_USIZE = 2
-)
-
 type Pool struct {
 	root         *Root
 	heapStart    uintptr
 	heapEnd      uintptr
-	pages        int
 	heapSize     int64
 	allocSize    int64
 	maxAllocSize int64
 	freeSize     int64
 	allocs       int32
+	pages        int
 }
 
 func NewPool(pages int) *Pool {
@@ -31,7 +25,7 @@ func NewPool(pages int) *Pool {
 	p := &Pool{}
 
 	before := wasm_memory_size(0)
-	wasm_memory_grow(0, pages)
+	wasm_memory_grow(0, int32(pages))
 	after := wasm_memory_size(0)
 
 	p.pages = pages
@@ -51,7 +45,7 @@ func NewPool(pages int) *Pool {
 		}
 	}
 
-	addMemory(p, rootOffset+tlsf_ROOT_SIZE, p.heapStart+uintptr(len(page)))
+	addMemory(p, rootOffset+tlsf_ROOT_SIZE, uintptr(after)*uintptr(wasmPageSize))
 	return p
 }
 
@@ -61,11 +55,15 @@ func (p *Pool) Grow(pages int) (uintptr, uintptr) {
 	}
 	before := wasm_memory_size(0)
 	p.pages += pages
-	wasm_memory_grow(0, pages)
+	wasm_memory_grow(0, int32(pages))
 	after := wasm_memory_size(0)
+
+	start := uintptr(before * wasmPageSize)
+	end := uintptr(after * wasmPageSize)
 
 	p.heapSize += int64(end - start)
 	p.heapEnd = end
+	heapEnd = end
 	return start, end
 }
 
@@ -79,4 +77,10 @@ func (p *Pool) Realloc(ptr unsafe.Pointer, size uintptr) unsafe.Pointer {
 
 func (p *Pool) Free(ptr unsafe.Pointer) {
 	tlsffree(p, uintptr(ptr))
+}
+
+func maybeFreeBlock(p *Pool, block *tlsfBlock) {
+	if uintptr(unsafe.Pointer(block)) >= p.heapStart {
+		freeBlock(p, block)
+	}
 }

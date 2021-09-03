@@ -49,13 +49,10 @@ func initLazy(space *itcmsObject) *itcmsObject {
 	return space
 }
 
-var defaultPool = NewPool(1)
-var _ = initIncrementalGC()
-
-func initIncrementalGC() int {
-	itcmsFromSpace = initLazy((*itcmsObject)(defaultPool.Alloc(unsafe.Sizeof(itcmsObject{}))))
-	itcmsToSpace = initLazy((*itcmsObject)(defaultPool.Alloc(unsafe.Sizeof(itcmsObject{}))))
-	itcmsPinSpace = initLazy((*itcmsObject)(defaultPool.Alloc(unsafe.Sizeof(itcmsObject{}))))
+func initITCMS() int {
+	itcmsFromSpace = initLazy((*itcmsObject)(tlfsPool.Alloc(unsafe.Sizeof(itcmsObject{}))))
+	itcmsToSpace = initLazy((*itcmsObject)(tlfsPool.Alloc(unsafe.Sizeof(itcmsObject{}))))
+	itcmsPinSpace = initLazy((*itcmsObject)(tlfsPool.Alloc(unsafe.Sizeof(itcmsObject{}))))
 	itcmsIter = nil
 	return 0
 }
@@ -224,21 +221,8 @@ func visitRoots() {
 	}
 }
 
-// Visits all objects on the stack.
-func visitStack() {
-	//var ptr = heapStart // TODO __stack_pointer
-	//for ptr < heapStart {
-	//	mark(*(*uintptr)(unsafe.Pointer(ptr)))
-	//	ptr += _PTR_SIZE
-	//}
-}
-
 func itcmsVisitMembers(ptr uintptr) {
 	mark(ptr)
-}
-
-func visitGlobals() {
-	markRoots(globalsStart, globalsEnd)
 }
 
 var itcmsVisitCount = uintptr(0)
@@ -320,12 +304,12 @@ func itcmsStep() uintptr {
 }
 
 func itcmsFree(obj *itcmsObject) {
-	if uintptr(unsafe.Pointer(obj)) < defaultPool.heapStart {
+	if uintptr(unsafe.Pointer(obj)) < tlfsPool.heapStart {
 		obj.nextWithColor = 0 // may become linked again
 		obj.prev = 0
 	} else {
 		itcmsTotal -= obj.size()
-		defaultPool.Free(unsafe.Pointer(uintptr(unsafe.Pointer(obj)) + tlsf_BLOCK_OVERHEAD))
+		tlfsPool.Free(unsafe.Pointer(uintptr(unsafe.Pointer(obj)) + tlsf_BLOCK_OVERHEAD))
 	}
 }
 
@@ -336,7 +320,7 @@ func itcmsNew(size uintptr) uintptr {
 	if itcmsTotal >= itcmsThreshold {
 		itcmsInterrupt()
 	}
-	obj := (*itcmsObject)(unsafe.Pointer(uintptr(defaultPool.Alloc(itcms_OBJECT_OVERHEAD+size)) - tlsf_BLOCK_OVERHEAD))
+	obj := (*itcmsObject)(unsafe.Pointer(uintptr(tlfsPool.Alloc(itcms_OBJECT_OVERHEAD+size)) - tlsf_BLOCK_OVERHEAD))
 	obj.rtSize = uint32(size)
 	obj.linkTo(itcmsFromSpace, itcms_white) // inits next/prev
 	itcmsTotal += obj.size()

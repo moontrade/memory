@@ -21,7 +21,13 @@ import (
 // FL: first level, SL: second level, AL: alignment, SB: small block
 
 const (
-	tlsf_sizeofPointer = unsafe.Sizeof(uintptr(0))
+	tlsf_ALIGN_U32 = 2
+	// All allocation sizes and addresses are aligned to 4 or 8 bytes.
+	// 32bit = 2
+	// 64bit = 3
+	// <expr> = bits.UintSize / 8 / 4 + 1
+	tlsf_ALIGN_SIZE_LOG2 = ((32 << (^uint(0) >> 63)) / 8 / 4) + 1
+	tlsf_sizeofPointer   = unsafe.Sizeof(uintptr(0))
 
 	tlsf_AL_BITS uint32  = 4 // 16 bytes to fit up to v128
 	tlsf_AL_SIZE uintptr = 1 << uintptr(tlsf_AL_BITS)
@@ -39,6 +45,7 @@ const (
 	tlsf_BLOCK_MINSIZE = ((3*tlsf_sizeofPointer + tlsf_BLOCK_OVERHEAD + tlsf_AL_MASK) & ^tlsf_AL_MASK) - tlsf_BLOCK_OVERHEAD
 	// Maximum size of a memory manager block's payload.
 	tlsf_BLOCK_MAXSIZE = (1 << 30) - tlsf_BLOCK_OVERHEAD
+	//tlsf_BLOCK_MAXSIZE = (1 << ((tlsf_ALIGN_SIZE_LOG2 + 1)*10)) - tlsf_BLOCK_OVERHEAD
 
 	tlsf_SL_BITS uint32 = 4
 	tlsf_SL_SIZE uint32 = 1 << tlsf_SL_BITS
@@ -143,7 +150,7 @@ type Root struct {
 
 const (
 	tlsf_SL_START  = tlsf_sizeofPointer
-	tlsf_SL_END    = tlsf_SL_START + (uintptr(tlsf_FL_BITS) << tlsf_ALIGNOF_U32)
+	tlsf_SL_END    = tlsf_SL_START + (uintptr(tlsf_FL_BITS) << tlsf_ALIGN_U32)
 	tlsf_HL_START  = (tlsf_SL_END + tlsf_AL_MASK) &^ tlsf_AL_MASK
 	tlsf_HL_END    = tlsf_HL_START + uintptr(tlsf_FL_BITS)*uintptr(tlsf_SL_SIZE)*tlsf_sizeofPointer
 	tlsf_ROOT_SIZE = tlsf_HL_END + tlsf_sizeofPointer
@@ -151,24 +158,24 @@ const (
 
 // Gets the second level map of the specified first level.
 func getSL(root *Root, fl uintptr) uint32 {
-	return *(*uint32)(unsafe.Pointer(uintptr(unsafe.Pointer(root)) + (fl << tlsf_ALIGNOF_U32) + tlsf_SL_START))
+	return *(*uint32)(unsafe.Pointer(uintptr(unsafe.Pointer(root)) + (fl << tlsf_ALIGN_U32) + tlsf_SL_START))
 }
 
 // Sets the second level map of the specified first level.
 func setSL(root *Root, fl uintptr, slMap uint32) {
-	*(*uint32)(unsafe.Pointer(uintptr(unsafe.Pointer(root)) + (fl << tlsf_ALIGNOF_U32) + tlsf_SL_START)) = slMap
+	*(*uint32)(unsafe.Pointer(uintptr(unsafe.Pointer(root)) + (fl << tlsf_ALIGN_U32) + tlsf_SL_START)) = slMap
 }
 
 // Gets the head of the free list for the specified combination of first and second level.
 func getHead(root *Root, fl uintptr, sl uint32) *tlsfBlock {
 	return *(**tlsfBlock)(unsafe.Pointer(
-		uintptr(unsafe.Pointer(root)) + (((fl << tlsf_SL_BITS) + uintptr(sl)) << tlsf_ALIGNOF_USIZE) + tlsf_HL_START))
+		uintptr(unsafe.Pointer(root)) + (((fl << tlsf_SL_BITS) + uintptr(sl)) << tlsf_ALIGN_SIZE_LOG2) + tlsf_HL_START))
 }
 
 // Sets the head of the free list for the specified combination of first and second level.
 func setHead(root *Root, fl uintptr, sl uint32, head *tlsfBlock) {
 	*(*uintptr)(unsafe.Pointer(uintptr(
-		unsafe.Pointer(root)) + tlsf_HL_START + (((fl << tlsf_SL_BITS) + uintptr(sl)) << tlsf_ALIGNOF_USIZE))) = uintptr(unsafe.Pointer(head))
+		unsafe.Pointer(root)) + tlsf_HL_START + (((fl << tlsf_SL_BITS) + uintptr(sl)) << tlsf_ALIGN_SIZE_LOG2))) = uintptr(unsafe.Pointer(head))
 }
 
 // Gets the tail block.
@@ -254,6 +261,7 @@ func insertBlock(p *Pool, block *tlsfBlock) {
 	setSL(root, fl, getSL(root, fl)|(1<<sl))
 }
 
+//goland:noinspection GoVetUnsafePointer
 func removeBlock(root *Root, block *tlsfBlock) {
 	blockInfo := block.mmInfo
 	if tlsfDebug {
@@ -360,10 +368,10 @@ func searchBlock(root *Root, size uintptr) *tlsfBlock {
 			if tlsfDebug {
 				tlsfAssert(slMap != 0, "can't be zero if fl points here")
 			}
-			head = getHead(root, fl, ctzU32(slMap))
+			head = getHead(root, fl, ctz32(slMap))
 		}
 	} else {
-		head = getHead(root, fl, ctzU32(slMap))
+		head = getHead(root, fl, ctz32(slMap))
 	}
 
 	return head
@@ -372,7 +380,8 @@ func searchBlock(root *Root, size uintptr) *tlsfBlock {
 func prepareBlock(p *Pool, block *tlsfBlock, size uintptr) {
 	blockInfo := block.mmInfo
 	if tlsfDebug {
-		tlsfAssert(((size+tlsf_BLOCK_OVERHEAD)&tlsf_AL_MASK) == 0, "size must be aligned so the new block is")
+		tlsfAssert(((size+tlsf_BLOCK_OVERHEAD)&tlsf_AL_MASK) == 0,
+			"size must be aligned so the new block is")
 	}
 	// split if the block can hold another MINSIZE block incl. overhead
 	remaining := (blockInfo & ^tlsf_TAGS_MASK) - size
@@ -390,6 +399,7 @@ func prepareBlock(p *Pool, block *tlsfBlock, size uintptr) {
 	}
 }
 
+// growMemory grows the pool by a number of 64kb pages to fit the required size
 func growMemory(p *Pool, size uintptr) {
 	// Here, both rounding performed in searchBlock ...
 	const halfMaxSize = tlsf_BLOCK_MAXSIZE >> 1
@@ -406,7 +416,7 @@ func growMemory(p *Pool, size uintptr) {
 	}
 	size += tlsf_BLOCK_OVERHEAD << ((uintptr(pagesBefore) << 16) - offset)
 	var pagesNeeded = ((int32(size) + 0xffff) & ^0xffff) >> 16
-	var pagesWanted = maxI32(pagesBefore, pagesNeeded) // double memory
+	var pagesWanted = max32(pagesBefore, pagesNeeded) // double memory
 
 	start, end := p.Grow(int(pagesWanted))
 	if start == 0 {
@@ -418,6 +428,8 @@ func growMemory(p *Pool, size uintptr) {
 	addMemory(p, start, end)
 }
 
+// addMemory adds the newly allocated memory to the TLSF bitmaps
+//goland:noinspection GoVetUnsafePointer
 func addMemory(p *Pool, start, end uintptr) bool {
 	if tlsfDebug {
 		tlsfAssert(start <= end, "start must be <= end")
@@ -503,8 +515,6 @@ func allocateBlock(p *Pool, size uintptr) *tlsfBlock {
 		tlsfAssert((block.mmInfo & ^tlsf_TAGS_MASK) >= payloadSize, "must fit")
 	}
 
-	//p.allocSize += int64(payloadSize)
-
 	removeBlock(p.root, block)
 	prepareBlock(p, block, payloadSize)
 
@@ -515,7 +525,6 @@ func allocateBlock(p *Pool, size uintptr) *tlsfBlock {
 	}
 	p.freeSize -= int64(payloadSize)
 	p.allocs++
-	//if (isDefined(ASC_RTRACE)) onalloc(block);
 	return block
 }
 
@@ -549,7 +558,7 @@ func reallocateBlock(p *Pool, block *tlsfBlock, size uintptr) *tlsfBlock {
 		}
 	}
 
-	// otherwise move the block
+	// otherwise, move the block
 	return moveBlock(p, block, size)
 }
 
@@ -582,7 +591,7 @@ func min(l, r uintptr) uintptr {
 	return r
 }
 
-func maxI32(l, r int32) int32 {
+func max32(l, r int32) int32 {
 	if l > r {
 		return l
 	}
@@ -597,7 +606,7 @@ func ctz(value uintptr) uintptr {
 	return uintptr(bits.TrailingZeros(uint(value)))
 }
 
-func ctzU32(value uint32) uint32 {
+func ctz32(value uint32) uint32 {
 	return uint32(bits.TrailingZeros32(value))
 }
 
@@ -615,7 +624,6 @@ func tlsfAssert(truthy bool, message string) {
 	}
 }
 
-//export tlsfalloc
 func tlsfalloc(pool *Pool, size uintptr) uintptr {
 	p := uintptr(unsafe.Pointer(allocateBlock(pool, size)))
 	if p == 0 {
@@ -624,7 +632,6 @@ func tlsfalloc(pool *Pool, size uintptr) uintptr {
 	return p + tlsf_BLOCK_OVERHEAD
 }
 
-//export tslfrealloc
 func tlsfrealloc(p *Pool, ptr, size uintptr) uintptr {
 	if ptr < uintptr(unsafe.Pointer(p.root)) {
 		//if ptr < heapStart {
@@ -634,7 +641,6 @@ func tlsfrealloc(p *Pool, ptr, size uintptr) uintptr {
 	}
 }
 
-//export tlsffree
 func tlsffree(p *Pool, ptr uintptr) {
 	freeBlock(p, checkUsedBlock(ptr))
 }

@@ -21,36 +21,51 @@ func Test_Counts(t *testing.T) {
 }
 
 func Test_Stress(t *testing.T) {
-	stress(NewPool(1), 1000000, 100, 7000, 10000)
+	stress(NewPool(12), 1000000, 100, 7000, 10000,
+		randomSize(0.50, 24, 128),
+		randomSize(0.70, 128, 512),
+		//randomSize(0.15, 128, 512),
+		//randomSize(0.25, 512, 1024),
+	)
 }
 
-func stress(pool *Pool, iterations, allocsPerIteration, minAllocs, maxAllocs int) {
+type sizeClass struct {
+	pct      float64
+	min, max int
+	next     func() int
+}
+
+func randomSize(pct float64, min, max int) *sizeClass {
+	sz := &sizeClass{pct, min, max, nil}
+	sz.next = sz.nextRandom
+	return sz
+}
+
+func (s *sizeClass) nextRandom() int {
+	return rand.Intn(s.max-s.min) + s.min
+}
+
+func stress(pool *Pool, iterations, allocsPerIteration, minAllocs, maxAllocs int, sizeClasses ...*sizeClass) {
 	type allocation struct {
 		ptr  unsafe.Pointer
 		size int
 	}
 
 	sz := make([]int, 0, allocsPerIteration)
-	for i := 0; i < int(float64(allocsPerIteration)*0.99); i++ {
-		switch i % 3 {
-		case 0:
-			sz = append(sz, 128)
-		case 1:
-			sz = append(sz, 32)
-		case 2:
-			sz = append(sz, 64)
+	for _, sc := range sizeClasses {
+		for i := 0; i < int(float64(allocsPerIteration)*sc.pct); i++ {
+			sz = append(sz, sc.next())
 		}
-
-		//sz = append(sz, randomSize(8, 1024))
 	}
+
 	//for i := 0; i < int(float64(allocsPerIteration)*0.15); i++ {
-	//	sz = append(sz, randomSize(256, 2048))
+	//	sz = append(sz, randomRange(256, 2048))
 	//}
 	//for i := 0; i < int(float64(allocsPerIteration)*0.04); i++ {
-	//	sz = append(sz, randomSize(2049, 16384))
+	//	sz = append(sz, randomRange(2049, 16384))
 	//}
 	//for i := 0; i < int(float64(allocsPerIteration)*0.01); i++ {
-	//	sz = append(sz, randomSize(16385, 65536))
+	//	sz = append(sz, randomRange(16385, 65536))
 	//}
 
 	allocs := make([]allocation, 0, maxAllocs)
@@ -85,7 +100,7 @@ func stress(pool *Pool, iterations, allocsPerIteration, minAllocs, maxAllocs int
 		}
 
 		rand.Shuffle(len(allocs), func(i, j int) { allocs[i], allocs[j] = allocs[j], allocs[i] })
-		max := randomSize(minAllocs, maxAllocs)
+		max := randomRange(minAllocs, maxAllocs)
 		totalFrees += len(allocs) - max
 		for x := max; x < len(allocs); x++ {
 			alloc := allocs[x]
@@ -111,6 +126,7 @@ func stress(pool *Pool, iterations, allocsPerIteration, minAllocs, maxAllocs int
 }
 
 func Test_Allocator(t *testing.T) {
+	println("ALIGN_SIZE", 10<<3)
 	pool := NewPool(1)
 	tlsfPrintInfo()
 	ptr := pool.Alloc(16)
@@ -131,14 +147,16 @@ func BenchmarkAllocator_Alloc(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		if i%2 == 0 {
-			pool.Free(pool.Alloc(38))
+			b.SetBytes(1024)
+			pool.Free(pool.Alloc(1024))
 		} else {
-			pool.Free(pool.Alloc(16))
+			b.SetBytes(512)
+			pool.Free(pool.Alloc(512))
 		}
 	}
 }
 
-func randomSize(min, max int) int {
+func randomRange(min, max int) int {
 	return rand.Intn(max-min) + min
 }
 
@@ -150,5 +168,5 @@ func randomSize(min, max int) int {
 //}
 //
 //func getHeadOffset(fl uintptr, sl uint32) uintptr {
-//	return tlsf_HL_START + (((fl << tlsf_SL_BITS) + uintptr(sl)) << tlsf_ALIGNOF_USIZE)
+//	return tlsf_HL_START + (((fl << tlsf_SL_BITS) + uintptr(sl)) << tlsf_ALIGN_SIZE_LOG2)
 //}

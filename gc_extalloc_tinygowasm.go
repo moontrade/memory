@@ -1,5 +1,4 @@
-//go:build tinygo.wasm || gc.extalloc
-// +build tinygo.wasm gc.extalloc
+//go:build tinygo.wasm && gc.extalloc
 
 package runtime
 
@@ -7,15 +6,23 @@ import "unsafe"
 
 var tlsfPool *Pool
 
+func setHeapEnd(end uintptr) {
+	heapEnd = end
+}
+
+func initHeap() {
+	initTLSF()
+}
+
 // Attach TLSF to heapStart
-func initDefaultTLSF() {
+func initTLSF() {
 	var (
 		heapBase    = heapStart
 		pagesBefore = wasm_memory_size(0)
 	)
 
 	// Need to add a page?
-	if heapBase+unsafe.Sizeof(Pool{})+tlsf_ROOT_SIZE+tlsf_AL_MASK > uintptr(pagesBefore)*uintptr(wasmPageSize) {
+	if heapBase+unsafe.Sizeof(Pool{})+tlsf_ROOT_SIZE+tlsf_AL_MASK+16 > uintptr(pagesBefore)*uintptr(wasmPageSize) {
 		wasm_memory_grow(0, 1)
 	}
 
@@ -40,23 +47,31 @@ func initDefaultTLSF() {
 	}
 	var memStart = rootOffset + tlsf_ROOT_SIZE
 	memSize := uintptr(wasm_memory_size(0) * wasmPageSize)
-	addMemory(tlsfPool.root, memStart, memSize)
+	addMemory(tlsfPool, memStart, memSize)
 }
 
 func extalloc(size uintptr) unsafe.Pointer {
-	p := unsafe.Pointer(tlsfalloc(size))
-	//println("extalloc", uint(size), uint(uintptr(p)))
-	return p
+	addr := tlsfPool.Alloc(size)
+	//println("extalloc", uint(uintptr(size)), uint(uintptr(addr)))
+	return addr
 }
 
 func extfree(ptr unsafe.Pointer) {
 	//println("extfree", uint(uintptr(ptr)))
-	tlsffree(uintptr(ptr))
+	tlsfPool.Free(ptr)
 }
 
-func maybeFreeBlock(root *Root, block *tlsfBlock) {
-	if uintptr(unsafe.Pointer(block)) >= heapStart {
-		//if uintptr(unsafe.Pointer(block)) >= heapStart {
-		freeBlock(root, block)
-	}
+//export malloc
+func malloc(size uintptr) unsafe.Pointer {
+	return tlsfPool.Alloc(size)
+}
+
+//export realloc
+func realloc(ptr unsafe.Pointer, size uintptr) unsafe.Pointer {
+	return tlsfPool.Realloc(ptr, size)
+}
+
+//export free
+func mallocFree(ptr unsafe.Pointer) {
+	tlsfPool.Free(ptr)
 }
