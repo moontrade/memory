@@ -4,6 +4,7 @@ package runtime
 
 import (
 	"reflect"
+	"sync"
 	"unsafe"
 )
 
@@ -16,36 +17,42 @@ const (
 	wasmPageSize = 64 * 1024
 )
 
-func maybeFreeBlock(p *Pool, block *tlsfBlock) {
-	freeBlock(p, block)
+var _allocs = make(map[uintptr][]byte)
+var _allocsMu sync.Mutex
+
+func malloc(size uintptr) unsafe.Pointer {
+	b := make([]byte, size)
+	p := unsafe.Pointer(&b[0])
+	_allocsMu.Lock()
+	defer _allocsMu.Unlock()
+	_allocs[uintptr(p)] = b
+	return p
 }
 
-func tlsfPrintInfo() {
-	//println("heapStart		", int64(heapStart))
-	//println("heapEnd			", int64(heapEnd))
-	println("ALIGNOF_U32		", int64(tlsf_ALIGN_U32))
-	println("ALIGNOF_USIZE	", int64(tlsf_ALIGN_SIZE_LOG2))
-	println("U32_MAX			", ^uint32(0))
-	println("PTR_MAX			", ^uintptr(0))
-	println("AL_BITS			", int64(tlsf_AL_BITS))
-	println("AL_SIZE			", int64(tlsf_AL_SIZE))
-	println("AL_MASK			", int64(tlsf_AL_MASK))
-	println("BLOCK_OVERHEAD	", int64(tlsf_BLOCK_OVERHEAD))
-	println("BLOCK_MAXSIZE	", int64(tlsf_BLOCK_MAXSIZE))
-	println("SL_BITS			", int64(tlsf_SL_BITS))
-	println("SL_SIZE			", int64(tlsf_SL_SIZE))
-	println("SB_BITS			", int64(tlsf_SB_BITS))
-	println("SB_SIZE			", int64(tlsf_SB_SIZE))
-	println("FL_BITS			", int64(tlsf_FL_BITS))
-	println("FREE			", int64(tlsf_FREE))
-	println("LEFTFREE		", int64(tlsf_LEFTFREE))
-	println("TAGS_MASK		", int64(tlsf_TAGS_MASK))
-	println("BLOCK_MINSIZE	", int64(tlsf_BLOCK_MINSIZE))
-	println("SL_START		", int64(tlsf_SL_START))
-	println("SL_END			", int64(tlsf_SL_END))
-	println("HL_START		", int64(tlsf_HL_START))
-	println("HL_END			", int64(tlsf_HL_END))
-	println("ROOT_SIZE		", int64(tlsf_ROOT_SIZE))
+func realloc(ptr unsafe.Pointer, size uintptr) unsafe.Pointer {
+	_allocsMu.Lock()
+	old := _allocs[uintptr(ptr)]
+	_allocsMu.Unlock()
+	if old == nil {
+		return nil
+	}
+
+	b := make([]byte, size)
+	copy(b, old)
+	np := unsafe.Pointer(&b[0])
+	_allocsMu.Lock()
+	_allocs[uintptr(np)] = b
+	_allocsMu.Unlock()
+	return np
+}
+
+func free(ptr unsafe.Pointer) {
+	_allocsMu.Lock()
+	defer _allocsMu.Unlock()
+	b := _allocs[uintptr(ptr)]
+	if b != nil {
+		delete(_allocs, uintptr(ptr))
+	}
 }
 
 func memcpy(dst, src unsafe.Pointer, n uintptr) {

@@ -1,6 +1,6 @@
 package runtime
 
-var tlfsPool = NewPool(1)
+var tlfsPool = newTLSF(1)
 var _ = initITCMS()
 
 func visitGlobals() {

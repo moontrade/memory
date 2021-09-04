@@ -9,7 +9,7 @@ import (
 )
 
 func Test_Counts(t *testing.T) {
-	p := NewPool(1)
+	p := newTLSF(1)
 	p1 := p.Alloc(38)
 	println("alloc size", p.allocSize)
 	p2 := p.Alloc(81)
@@ -21,8 +21,8 @@ func Test_Counts(t *testing.T) {
 }
 
 func Test_Stress(t *testing.T) {
-	stress(NewPool(12), 1000000, 100, 7000, 10000,
-		randomSize(0.50, 24, 128),
+	stress(newTLSF(12), 1000000, 100, 7000, 10000,
+		randomSize(0.80, 24, 128),
 		randomSize(0.70, 128, 512),
 		//randomSize(0.15, 128, 512),
 		//randomSize(0.25, 512, 1024),
@@ -45,7 +45,7 @@ func (s *sizeClass) nextRandom() int {
 	return rand.Intn(s.max-s.min) + s.min
 }
 
-func stress(pool *Pool, iterations, allocsPerIteration, minAllocs, maxAllocs int, sizeClasses ...*sizeClass) {
+func stress(allocator *tlsf, iterations, allocsPerIteration, minAllocs, maxAllocs int, sizeClasses ...*sizeClass) {
 	type allocation struct {
 		ptr  unsafe.Pointer
 		size int
@@ -57,16 +57,6 @@ func stress(pool *Pool, iterations, allocsPerIteration, minAllocs, maxAllocs int
 			sz = append(sz, sc.next())
 		}
 	}
-
-	//for i := 0; i < int(float64(allocsPerIteration)*0.15); i++ {
-	//	sz = append(sz, randomRange(256, 2048))
-	//}
-	//for i := 0; i < int(float64(allocsPerIteration)*0.04); i++ {
-	//	sz = append(sz, randomRange(2049, 16384))
-	//}
-	//for i := 0; i < int(float64(allocsPerIteration)*0.01); i++ {
-	//	sz = append(sz, randomRange(16385, 65536))
-	//}
 
 	allocs := make([]allocation, 0, maxAllocs)
 	allocSize := 0
@@ -81,7 +71,7 @@ func stress(pool *Pool, iterations, allocsPerIteration, minAllocs, maxAllocs int
 
 		for _, size := range sz {
 			allocs = append(allocs, allocation{
-				ptr:  pool.Alloc(uintptr(size)), //tlsfalloc(uintptr(size)),
+				ptr:  allocator.Alloc(uintptr(size)), //tlsfalloc(uintptr(size)),
 				size: size,
 			})
 			allocSize += size
@@ -104,7 +94,7 @@ func stress(pool *Pool, iterations, allocsPerIteration, minAllocs, maxAllocs int
 		totalFrees += len(allocs) - max
 		for x := max; x < len(allocs); x++ {
 			alloc := allocs[x]
-			pool.Free(alloc.ptr)
+			allocator.Free(alloc.ptr)
 			allocSize -= alloc.size
 		}
 		allocs = allocs[:max]
@@ -115,19 +105,19 @@ func stress(pool *Pool, iterations, allocsPerIteration, minAllocs, maxAllocs int
 	println("total allocs		", totalAllocs)
 	println("total frees			", totalFrees)
 	println("total frees			", totalFrees)
-	println("memory pages		", pool.pages)
-	println("heap size			", pool.heapSize)
-	println("free size			", pool.freeSize)
-	println("alloc size			", pool.allocSize)
+	println("memory pages		", allocator.pages)
+	println("heap size			", allocator.heapSize)
+	println("free size			", allocator.freeSize)
+	println("alloc size			", allocator.allocSize)
 	//println("alloc size			", allocSize)
 	println("max allocs			", maxAllocCount)
-	println("max alloc size		", pool.maxAllocSize)
-	println("fragmentation		", fmt.Sprintf("%.2f", float64(pool.heapSize-pool.maxAllocSize)/float64(pool.heapSize)))
+	println("max alloc size		", allocator.maxAllocSize)
+	println("fragmentation		", fmt.Sprintf("%.2f", float64(allocator.heapSize-allocator.maxAllocSize)/float64(allocator.heapSize)))
 }
 
 func Test_Allocator(t *testing.T) {
 	println("ALIGN_SIZE", 10<<3)
-	pool := NewPool(1)
+	pool := newTLSF(1)
 	tlsfPrintInfo()
 	ptr := pool.Alloc(16)
 	ptr2 := pool.Alloc(49)
@@ -142,7 +132,7 @@ func Test_Allocator(t *testing.T) {
 }
 
 func BenchmarkAllocator_Alloc(b *testing.B) {
-	pool := NewPool(1)
+	pool := newTLSF(1)
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

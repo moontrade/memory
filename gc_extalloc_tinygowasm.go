@@ -1,77 +1,41 @@
-//go:build tinygo.wasm && gc.extalloc
+//go:build (tinygo.wasm || wasi) && gc.extalloc && gc.tlsf
+// +build tinygo.wasm wasi
+// +build gc.extalloc
+// +build gc.tlsf
 
 package runtime
 
 import "unsafe"
 
-var tlsfPool *Pool
+func initHeap() {
+	var (
+		heapBase    = heapStart
+		pagesBefore = wasm_memory_size(0)
+		pagesAfter  = pagesBefore
+	)
+
+	// Need to add a page?
+	if heapBase+unsafe.Sizeof(tlsf{})+tlsf_ROOT_SIZE+tlsf_AL_MASK+16 > uintptr(pagesBefore)*uintptr(wasmPageSize) {
+		wasm_memory_grow(0, 1)
+		pagesAfter = wasm_memory_size(0)
+	}
+
+	allocator = initTLSF(
+		heapStart,
+		uintptr(pagesAfter)*uintptr(wasmPageSize),
+		1,
+	)
+	heapEnd = allocator.heapEnd
+}
 
 func setHeapEnd(end uintptr) {
 	heapEnd = end
 }
 
-func initHeap() {
-	initTLSF()
-}
-
-// Attach TLSF to heapStart
-func initTLSF() {
-	var (
-		heapBase    = heapStart
-		pagesBefore = wasm_memory_size(0)
-	)
-
-	// Need to add a page?
-	if heapBase+unsafe.Sizeof(Pool{})+tlsf_ROOT_SIZE+tlsf_AL_MASK+16 > uintptr(pagesBefore)*uintptr(wasmPageSize) {
-		wasm_memory_grow(0, 1)
-	}
-
-	tlsfPool = (*Pool)(unsafe.Pointer(heapBase))
-	tlsfPool.pages = int(wasm_memory_size(0))
-	tlsfPool.heapStart = heapStart
-	tlsfPool.heapEnd = uintptr(tlsfPool.pages) * uintptr(wasmPageSize)
-
-	heapBase += unsafe.Sizeof(Pool{})
-	rootOffset := (heapBase + tlsf_AL_MASK) & ^tlsf_AL_MASK
-
-	heapEnd = uintptr(wasm_memory_size(0) * wasmPageSize)
-	tlsfPool.heapEnd = heapEnd
-	tlsfPool.root = (*Root)(unsafe.Pointer(rootOffset))
-	tlsfPool.root.flMap = 0
-	setTail(tlsfPool.root, nil)
-	for fl := uintptr(0); fl < uintptr(tlsf_FL_BITS); fl++ {
-		setSL(tlsfPool.root, fl, 0)
-		for sl := uint32(0); sl < tlsf_SL_SIZE; sl++ {
-			setHead(tlsfPool.root, fl, sl, nil)
-		}
-	}
-	var memStart = rootOffset + tlsf_ROOT_SIZE
-	memSize := uintptr(wasm_memory_size(0) * wasmPageSize)
-	addMemory(tlsfPool, memStart, memSize)
-}
-
 func extalloc(size uintptr) unsafe.Pointer {
-	addr := tlsfPool.Alloc(size)
-	//println("extalloc", uint(uintptr(size)), uint(uintptr(addr)))
-	return addr
+	return allocator.Alloc(size)
 }
 
 func extfree(ptr unsafe.Pointer) {
-	//println("extfree", uint(uintptr(ptr)))
-	tlsfPool.Free(ptr)
-}
-
-//export malloc
-func malloc(size uintptr) unsafe.Pointer {
-	return tlsfPool.Alloc(size)
-}
-
-//export realloc
-func realloc(ptr unsafe.Pointer, size uintptr) unsafe.Pointer {
-	return tlsfPool.Realloc(ptr, size)
-}
-
-//export free
-func mallocFree(ptr unsafe.Pointer) {
-	tlsfPool.Free(ptr)
+	allocator.Free(ptr)
 }

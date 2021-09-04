@@ -73,6 +73,91 @@ const (
 	tlsf_TAGS_MASK         = tlsf_FREE | tlsf_LEFTFREE
 )
 
+func tlsfPrintInfo() {
+	println("ALIGNOF_U32		", int64(tlsf_ALIGN_U32))
+	println("ALIGN_SIZE_LOG2)	", int64(tlsf_ALIGN_SIZE_LOG2))
+	println("U32_MAX			", ^uint32(0))
+	println("PTR_MAX			", ^uintptr(0))
+	println("AL_BITS			", int64(tlsf_AL_BITS))
+	println("AL_SIZE			", int64(tlsf_AL_SIZE))
+	println("AL_MASK			", int64(tlsf_AL_MASK))
+	println("BLOCK_OVERHEAD	", int64(tlsf_BLOCK_OVERHEAD))
+	println("BLOCK_MAXSIZE	", int64(tlsf_BLOCK_MAXSIZE))
+	println("SL_BITS			", int64(tlsf_SL_BITS))
+	println("SL_SIZE			", int64(tlsf_SL_SIZE))
+	println("SB_BITS			", int64(tlsf_SB_BITS))
+	println("SB_SIZE			", int64(tlsf_SB_SIZE))
+	println("FL_BITS			", int64(tlsf_FL_BITS))
+	println("FREE			", int64(tlsf_FREE))
+	println("LEFTFREE		", int64(tlsf_LEFTFREE))
+	println("TAGS_MASK		", int64(tlsf_TAGS_MASK))
+	println("BLOCK_MINSIZE	", int64(tlsf_BLOCK_MINSIZE))
+	println("SL_START		", int64(tlsf_SL_START))
+	println("SL_END			", int64(tlsf_SL_END))
+	println("HL_START		", int64(tlsf_HL_START))
+	println("HL_END			", int64(tlsf_HL_END))
+	println("ROOT_SIZE		", int64(tlsf_ROOT_SIZE))
+}
+
+var allocator *tlsf
+
+//export tlsfallocator
+func tlsfGetAllocator() *tlsf {
+	if allocator != nil {
+		return allocator
+	}
+	allocator = newTLSF(1)
+	return allocator
+}
+
+// tlsf
+type tlsf struct {
+	root         *tlsfRoot
+	heapStart    uintptr
+	heapEnd      uintptr
+	heapSize     int64
+	allocSize    int64
+	maxAllocSize int64
+	freeSize     int64
+	allocs       int32
+	pages        int32
+}
+
+//goland:noinspection GoVetUnsafePointer
+func initTLSF(start, end uintptr, pages int32) *tlsf {
+	// init allocator
+	a := (*tlsf)(unsafe.Pointer(start))
+	*a = tlsf{
+		pages:     pages,
+		heapStart: start,
+		heapEnd:   end,
+	}
+
+	// init root
+	rootOffset := (start + unsafe.Sizeof(tlsf{}) + tlsf_AL_MASK) & ^tlsf_AL_MASK
+	root := (*tlsfRoot)(unsafe.Pointer(rootOffset))
+	a.root = tlsfRootInit(root)
+
+	// add initial memory
+	tlsfAddMemory(a, rootOffset+tlsf_ROOT_SIZE, a.heapEnd)
+	return a
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p *tlsf) Alloc(size uintptr) unsafe.Pointer {
+	return unsafe.Pointer(tlsfalloc(p, size))
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p *tlsf) Realloc(ptr unsafe.Pointer, size uintptr) unsafe.Pointer {
+	return unsafe.Pointer(tlsfrealloc(p, uintptr(ptr), size))
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p *tlsf) Free(ptr unsafe.Pointer) {
+	tlsffree(p, uintptr(ptr))
+}
+
 // Memory manager
 
 // ╒════════════ Memory manager block layout (32-bit) ═════════════╕
@@ -114,12 +199,12 @@ type tlsfBlock struct {
 }
 
 // Gets the left block of a block. Only valid if the left block is free.
-func getFreeLeft(block *tlsfBlock) *tlsfBlock {
+func tlsfGetFreeLeft(block *tlsfBlock) *tlsfBlock {
 	return *(**tlsfBlock)(unsafe.Pointer(uintptr(unsafe.Pointer(block)) - tlsf_sizeofPointer))
 }
 
 // Gets the right block of a block by advancing to the right by its size.
-func getRight(block *tlsfBlock) *tlsfBlock {
+func tlsfGetRight(block *tlsfBlock) *tlsfBlock {
 	return (*tlsfBlock)(unsafe.Pointer(uintptr(unsafe.Pointer(block)) + tlsf_BLOCK_OVERHEAD + (block.mmInfo & ^tlsf_TAGS_MASK)))
 }
 
@@ -144,8 +229,20 @@ func getRight(block *tlsfBlock) *tlsfBlock {
 // │                             tail                              │ ◄────┘
 // └───────────────────────────────────────────────────────────────┘   SIZE   ┘
 // S: Small blocks map
-type Root struct {
+type tlsfRoot struct {
 	flMap uintptr
+}
+
+func tlsfRootInit(root *tlsfRoot) *tlsfRoot {
+	root.flMap = 0
+	tlsfSetTail(root, nil)
+	for fl := uintptr(0); fl < uintptr(tlsf_FL_BITS); fl++ {
+		tlsfSetSL(root, fl, 0)
+		for sl := uint32(0); sl < tlsf_SL_SIZE; sl++ {
+			tlsfSetHead(root, fl, sl, nil)
+		}
+	}
+	return root
 }
 
 const (
@@ -157,65 +254,65 @@ const (
 )
 
 // Gets the second level map of the specified first level.
-func getSL(root *Root, fl uintptr) uint32 {
+func tlsfGetSL(root *tlsfRoot, fl uintptr) uint32 {
 	return *(*uint32)(unsafe.Pointer(uintptr(unsafe.Pointer(root)) + (fl << tlsf_ALIGN_U32) + tlsf_SL_START))
 }
 
 // Sets the second level map of the specified first level.
-func setSL(root *Root, fl uintptr, slMap uint32) {
+func tlsfSetSL(root *tlsfRoot, fl uintptr, slMap uint32) {
 	*(*uint32)(unsafe.Pointer(uintptr(unsafe.Pointer(root)) + (fl << tlsf_ALIGN_U32) + tlsf_SL_START)) = slMap
 }
 
 // Gets the head of the free list for the specified combination of first and second level.
-func getHead(root *Root, fl uintptr, sl uint32) *tlsfBlock {
+func tlsfGetHead(root *tlsfRoot, fl uintptr, sl uint32) *tlsfBlock {
 	return *(**tlsfBlock)(unsafe.Pointer(
 		uintptr(unsafe.Pointer(root)) + (((fl << tlsf_SL_BITS) + uintptr(sl)) << tlsf_ALIGN_SIZE_LOG2) + tlsf_HL_START))
 }
 
 // Sets the head of the free list for the specified combination of first and second level.
-func setHead(root *Root, fl uintptr, sl uint32, head *tlsfBlock) {
+func tlsfSetHead(root *tlsfRoot, fl uintptr, sl uint32, head *tlsfBlock) {
 	*(*uintptr)(unsafe.Pointer(uintptr(
 		unsafe.Pointer(root)) + tlsf_HL_START + (((fl << tlsf_SL_BITS) + uintptr(sl)) << tlsf_ALIGN_SIZE_LOG2))) = uintptr(unsafe.Pointer(head))
 }
 
 // Gets the tail block.
-func getTail(root *Root) *tlsfBlock {
+func tlsfGetTail(root *tlsfRoot) *tlsfBlock {
 	return *(**tlsfBlock)(unsafe.Pointer(uintptr(unsafe.Pointer(root)) + tlsf_HL_END))
 }
 
 // Sets the tail block.
-func setTail(root *Root, tail *tlsfBlock) {
+func tlsfSetTail(root *tlsfRoot, tail *tlsfBlock) {
 	*(*uintptr)(unsafe.Pointer(uintptr(unsafe.Pointer(root)) + tlsf_HL_END)) = uintptr(unsafe.Pointer(tail))
 }
 
 // Inserts a previously used block back into the free list.
-func insertBlock(p *Pool, block *tlsfBlock) {
+func tlsfInsertBlock(p *tlsf, block *tlsfBlock) {
 	var (
 		root      = p.root
 		blockInfo = block.mmInfo
-		right     = getRight(block)
+		right     = tlsfGetRight(block)
 		rightInfo = right.mmInfo
 	)
 	//(blockInfo & FREE)
 
 	// merge with right block if also free
 	if rightInfo&tlsf_FREE != 0 {
-		removeBlock(root, right)
+		tlsfRemoveBlock(root, right)
 		blockInfo = blockInfo + tlsf_BLOCK_OVERHEAD + (rightInfo & ^tlsf_TAGS_MASK) // keep block tags
 		block.mmInfo = blockInfo
-		right = getRight(block)
+		right = tlsfGetRight(block)
 		rightInfo = right.mmInfo
 		// 'back' is set below
 	}
 
 	// merge with left block if also free
 	if blockInfo&tlsf_LEFTFREE != 0 {
-		left := getFreeLeft(block)
+		left := tlsfGetFreeLeft(block)
 		leftInfo := left.mmInfo
 		if tlsfDebug {
 			tlsfAssert(leftInfo&tlsf_FREE != 0, "must be free according to right tags")
 		}
-		removeBlock(root, left)
+		tlsfRemoveBlock(root, left)
 		block = left
 		blockInfo = leftInfo + tlsf_BLOCK_OVERHEAD + (blockInfo & ^tlsf_TAGS_MASK) // keep left tags
 		block.mmInfo = blockInfo
@@ -241,28 +338,28 @@ func insertBlock(p *Pool, block *tlsfBlock) {
 		sl = uint32(size >> tlsf_AL_BITS)
 	} else {
 		const inv = tlsf_sizeofPointer*8 - 1
-		boundedSize := min(size, tlsf_BLOCK_MAXSIZE)
-		fl = inv - clz(boundedSize)
+		boundedSize := tlsfMin(size, tlsf_BLOCK_MAXSIZE)
+		fl = inv - tlsfClz(boundedSize)
 		sl = uint32((boundedSize >> (fl - uintptr(tlsf_SL_BITS))) ^ (1 << tlsf_SL_BITS))
 		fl -= uintptr(tlsf_SB_BITS) - 1
 	}
 
 	// perform insertion
-	head := getHead(root, fl, sl)
+	head := tlsfGetHead(root, fl, sl)
 	block.prev = 0
 	block.next = uintptr(unsafe.Pointer(head))
 	if head != nil {
 		head.prev = uintptr(unsafe.Pointer(block))
 	}
-	setHead(root, fl, sl, block)
+	tlsfSetHead(root, fl, sl, block)
 
 	// update first and second level maps
 	root.flMap |= 1 << fl
-	setSL(root, fl, getSL(root, fl)|(1<<sl))
+	tlsfSetSL(root, fl, tlsfGetSL(root, fl)|(1<<sl))
 }
 
 //goland:noinspection GoVetUnsafePointer
-func removeBlock(root *Root, block *tlsfBlock) {
+func tlsfRemoveBlock(root *tlsfRoot, block *tlsfBlock) {
 	blockInfo := block.mmInfo
 	if tlsfDebug {
 		tlsfAssert(blockInfo&tlsf_FREE != 0, "must be free")
@@ -282,8 +379,8 @@ func removeBlock(root *Root, block *tlsfBlock) {
 		sl = uint32(size >> tlsf_AL_BITS)
 	} else {
 		const inv = tlsf_sizeofPointer*8 - 1
-		boundedSize := min(size, tlsf_BLOCK_MAXSIZE)
-		fl = inv - clz(boundedSize)
+		boundedSize := tlsfMin(size, tlsf_BLOCK_MAXSIZE)
+		fl = inv - tlsfClz(boundedSize)
 		sl = uint32((boundedSize >> (fl - uintptr(tlsf_SL_BITS))) ^ (1 << uintptr(tlsf_SL_BITS)))
 		fl -= uintptr(tlsf_SB_BITS) - 1
 	}
@@ -304,14 +401,14 @@ func removeBlock(root *Root, block *tlsfBlock) {
 	}
 
 	// update head if we are removing it
-	if block == getHead(root, fl, sl) {
-		setHead(root, fl, sl, (*tlsfBlock)(unsafe.Pointer(next)))
+	if block == tlsfGetHead(root, fl, sl) {
+		tlsfSetHead(root, fl, sl, (*tlsfBlock)(unsafe.Pointer(next)))
 
 		// clear second level map if head is empty now
 		if next == 0 {
-			slMap := getSL(root, fl)
+			slMap := tlsfGetSL(root, fl)
 			slMap &= ^(1 << sl)
-			setSL(root, fl, slMap)
+			tlsfSetSL(root, fl, slMap)
 
 			// clear first level map if second level is empty now
 			if slMap == 0 {
@@ -325,7 +422,7 @@ func removeBlock(root *Root, block *tlsfBlock) {
 }
 
 // Searches for a free block of at least the specified size.
-func searchBlock(root *Root, size uintptr) *tlsfBlock {
+func tlsfSearchBlock(root *tlsfRoot, size uintptr) *tlsfBlock {
 	// mapping_search
 	var (
 		fl uintptr
@@ -341,12 +438,12 @@ func searchBlock(root *Root, size uintptr) *tlsfBlock {
 
 		var requestSize uintptr
 		if size < halfMaxSize {
-			requestSize = size + (1 << (invRound - clz(size))) - 1
+			requestSize = size + (1 << (invRound - tlsfClz(size))) - 1
 		} else {
 			requestSize = size
 		}
 
-		fl = inv - clz(requestSize)
+		fl = inv - tlsfClz(requestSize)
 		sl = uint32((requestSize >> (fl - uintptr(tlsf_SL_BITS))) ^ (1 << tlsf_SL_BITS))
 		fl -= uintptr(tlsf_SB_BITS) - 1
 	}
@@ -355,7 +452,7 @@ func searchBlock(root *Root, size uintptr) *tlsfBlock {
 	}
 
 	// search second level
-	var slMap = getSL(root, fl) & (^uint32(0) << sl)
+	var slMap = tlsfGetSL(root, fl) & (^uint32(0) << sl)
 	var head *tlsfBlock
 	if slMap == 0 {
 		// search next larger first level
@@ -363,21 +460,21 @@ func searchBlock(root *Root, size uintptr) *tlsfBlock {
 		if flMap == 0 {
 			head = nil
 		} else {
-			fl = ctz(flMap)
-			slMap = getSL(root, fl)
+			fl = tlsfCtz(flMap)
+			slMap = tlsfGetSL(root, fl)
 			if tlsfDebug {
 				tlsfAssert(slMap != 0, "can't be zero if fl points here")
 			}
-			head = getHead(root, fl, ctz32(slMap))
+			head = tlsfGetHead(root, fl, tlsfCtz32(slMap))
 		}
 	} else {
-		head = getHead(root, fl, ctz32(slMap))
+		head = tlsfGetHead(root, fl, tlsfCtz32(slMap))
 	}
 
 	return head
 }
 
-func prepareBlock(p *Pool, block *tlsfBlock, size uintptr) {
+func tlsfPrepareBlock(p *tlsf, block *tlsfBlock, size uintptr) {
 	blockInfo := block.mmInfo
 	if tlsfDebug {
 		tlsfAssert(((size+tlsf_BLOCK_OVERHEAD)&tlsf_AL_MASK) == 0,
@@ -390,54 +487,54 @@ func prepareBlock(p *Pool, block *tlsfBlock, size uintptr) {
 
 		spare := (*tlsfBlock)(unsafe.Pointer(uintptr(unsafe.Pointer(block)) + tlsf_BLOCK_OVERHEAD + size))
 		spare.mmInfo = (remaining - tlsf_BLOCK_OVERHEAD) | tlsf_FREE // not LEFTFREE
-		insertBlock(p, spare)                                        // also sets 'back'
+		tlsfInsertBlock(p, spare)                                    // also sets 'back'
 
 		// otherwise tag block as no longer FREE and right as no longer LEFTFREE
 	} else {
 		block.mmInfo = blockInfo & ^tlsf_FREE
-		getRight(block).mmInfo &= ^tlsf_LEFTFREE
+		tlsfGetRight(block).mmInfo &= ^tlsf_LEFTFREE
 	}
 }
 
-// growMemory grows the pool by a number of 64kb pages to fit the required size
-func growMemory(p *Pool, size uintptr) {
+// tlsfGrowMemory grows the pool by a number of 64kb pages to fit the required size
+func tlsfGrowMemory(p *tlsf, size uintptr) {
 	// Here, both rounding performed in searchBlock ...
 	const halfMaxSize = tlsf_BLOCK_MAXSIZE >> 1
 	if size < halfMaxSize { // don't round last fl
 		const invRound = (tlsf_sizeofPointer*8 - 1) - uintptr(tlsf_SL_BITS)
-		size += (1 << (invRound - clz(size))) - 1
+		size += (1 << (invRound - tlsfClz(size))) - 1
 	}
 	// and additional BLOCK_OVERHEAD must be taken into account. If we are going
 	// to merge with the tail block, that's one time, otherwise it's two times.
 	var pagesBefore = int32(p.pages)
 	var offset uintptr = 0
-	if tlsf_BLOCK_OVERHEAD != uintptr(unsafe.Pointer(getTail(p.root))) {
+	if tlsf_BLOCK_OVERHEAD != uintptr(unsafe.Pointer(tlsfGetTail(p.root))) {
 		offset = 1
 	}
 	size += tlsf_BLOCK_OVERHEAD << ((uintptr(pagesBefore) << 16) - offset)
 	var pagesNeeded = ((int32(size) + 0xffff) & ^0xffff) >> 16
-	var pagesWanted = max32(pagesBefore, pagesNeeded) // double memory
+	var pagesWanted = tlsfMax32(pagesBefore, pagesNeeded) // double memory
 
-	start, end := p.Grow(int(pagesWanted))
+	start, end := p.Grow(pagesWanted)
 	if start == 0 {
-		start, end = p.Grow(int(pagesNeeded))
+		start, end = p.Grow(pagesNeeded)
 		if start == 0 {
 			panic("out of memory")
 		}
 	}
-	addMemory(p, start, end)
+	tlsfAddMemory(p, start, end)
 }
 
-// addMemory adds the newly allocated memory to the TLSF bitmaps
+// tlsfAddMemory adds the newly allocated memory to the TLSF bitmaps
 //goland:noinspection GoVetUnsafePointer
-func addMemory(p *Pool, start, end uintptr) bool {
+func tlsfAddMemory(p *tlsf, start, end uintptr) bool {
 	if tlsfDebug {
 		tlsfAssert(start <= end, "start must be <= end")
 	}
 	start = ((start + tlsf_BLOCK_OVERHEAD + tlsf_AL_MASK) & ^tlsf_AL_MASK) - tlsf_BLOCK_OVERHEAD
 	end &= ^tlsf_AL_MASK
 
-	var tail = getTail(p.root)
+	var tail = tlsfGetTail(p.root)
 	var tailInfo uintptr = 0
 	if tail != nil { // more memory
 		if tlsfDebug {
@@ -474,16 +571,16 @@ func addMemory(p *Pool, start, end uintptr) bool {
 	// tail is a zero-length used block
 	tail = (*tlsfBlock)(unsafe.Pointer(start + tlsf_BLOCK_OVERHEAD + leftSize))
 	tail.mmInfo = 0 | tlsf_LEFTFREE
-	setTail(p.root, tail)
+	tlsfSetTail(p.root, tail)
 
 	p.freeSize += int64(leftSize)
-	insertBlock(p, left) // also merges with free left before tail / sets 'back'
+	tlsfInsertBlock(p, left) // also merges with free left before tail / sets 'back'
 
 	return true
 }
 
 // Computes the size (excl. header) of a block.
-func computeSize(size uintptr) uintptr {
+func tlsfComputeSize(size uintptr) uintptr {
 	// Size must be large enough and aligned minus preceeding overhead
 	if size <= tlsf_BLOCK_MINSIZE {
 		return tlsf_BLOCK_MINSIZE
@@ -493,20 +590,20 @@ func computeSize(size uintptr) uintptr {
 }
 
 // Prepares and checks an allocation size.
-func prepareSize(size uintptr) uintptr {
+func tlsfPrepareSize(size uintptr) uintptr {
 	if size > tlsf_BLOCK_MAXSIZE {
 		panic("allocation too large")
 	}
-	return computeSize(size)
+	return tlsfComputeSize(size)
 }
 
 // Allocates a block of the specified size.
-func allocateBlock(p *Pool, size uintptr) *tlsfBlock {
-	var payloadSize = prepareSize(size)
-	var block = searchBlock(p.root, payloadSize)
+func tlsfAllocateBlock(p *tlsf, size uintptr) *tlsfBlock {
+	var payloadSize = tlsfPrepareSize(size)
+	var block = tlsfSearchBlock(p.root, payloadSize)
 	if block == nil {
-		growMemory(p, payloadSize)
-		block = searchBlock(p.root, payloadSize)
+		tlsfGrowMemory(p, payloadSize)
+		block = tlsfSearchBlock(p.root, payloadSize)
 		if tlsfDebug {
 			tlsfAssert(block != nil, "block must be found now")
 		}
@@ -515,9 +612,10 @@ func allocateBlock(p *Pool, size uintptr) *tlsfBlock {
 		tlsfAssert((block.mmInfo & ^tlsf_TAGS_MASK) >= payloadSize, "must fit")
 	}
 
-	removeBlock(p.root, block)
-	prepareBlock(p, block, payloadSize)
+	tlsfRemoveBlock(p.root, block)
+	tlsfPrepareBlock(p, block, payloadSize)
 
+	// update stats
 	payloadSize = block.mmInfo & ^tlsf_TAGS_MASK
 	p.allocSize += int64(payloadSize)
 	if p.allocSize > p.maxAllocSize {
@@ -525,17 +623,19 @@ func allocateBlock(p *Pool, size uintptr) *tlsfBlock {
 	}
 	p.freeSize -= int64(payloadSize)
 	p.allocs++
+
+	// return block
 	return block
 }
 
-func reallocateBlock(p *Pool, block *tlsfBlock, size uintptr) *tlsfBlock {
-	var payloadSize = prepareSize(size)
+func tlsfReallocateBlock(p *tlsf, block *tlsfBlock, size uintptr) *tlsfBlock {
+	var payloadSize = tlsfPrepareSize(size)
 	var blockInfo = block.mmInfo
 	var blockSize = blockInfo & ^tlsf_TAGS_MASK
 
 	// possibly split and update runtime size if it still fits
 	if payloadSize <= blockSize {
-		prepareBlock(p, block, payloadSize)
+		tlsfPrepareBlock(p, block, payloadSize)
 		//if (isDefined(ASC_RTRACE)) {
 		//	if (payloadSize != blockSize) onresize(block, BLOCK_OVERHEAD + blockSize);
 		//}
@@ -544,73 +644,74 @@ func reallocateBlock(p *Pool, block *tlsfBlock, size uintptr) *tlsfBlock {
 
 	// merge with right free block if merger is large enough
 	var (
-		right     = getRight(block)
+		right     = tlsfGetRight(block)
 		rightInfo = right.mmInfo
 	)
 	if rightInfo&tlsf_FREE != 0 {
 		mergeSize := blockSize + tlsf_BLOCK_OVERHEAD + (rightInfo & ^tlsf_TAGS_MASK)
 		if mergeSize >= payloadSize {
-			removeBlock(p.root, right)
+			tlsfRemoveBlock(p.root, right)
 			block.mmInfo = (blockInfo & tlsf_TAGS_MASK) | mergeSize
-			prepareBlock(p, block, payloadSize)
+			tlsfPrepareBlock(p, block, payloadSize)
 			//if (isDefined(ASC_RTRACE)) onresize(block, BLOCK_OVERHEAD + blockSize);
 			return block
 		}
 	}
 
 	// otherwise, move the block
-	return moveBlock(p, block, size)
+	return tlsfMoveBlock(p, block, size)
 }
 
-func moveBlock(p *Pool, block *tlsfBlock, newSize uintptr) *tlsfBlock {
-	var newBlock = allocateBlock(p, newSize)
+func tlsfMoveBlock(p *tlsf, block *tlsfBlock, newSize uintptr) *tlsfBlock {
+	var newBlock = tlsfAllocateBlock(p, newSize)
 
 	memcpy(unsafe.Pointer(uintptr(unsafe.Pointer(newBlock))+tlsf_BLOCK_OVERHEAD),
 		unsafe.Pointer(uintptr(unsafe.Pointer(block))+tlsf_BLOCK_OVERHEAD),
 		block.mmInfo & ^tlsf_TAGS_MASK)
 
-	maybeFreeBlock(p, block)
+	tlsfFreeBlock(p, block)
+	//maybeFreeBlock(p, block)
 
 	return newBlock
 }
 
-func freeBlock(p *Pool, block *tlsfBlock) {
+func tlsfFreeBlock(p *tlsf, block *tlsfBlock) {
 	size := block.mmInfo & ^tlsf_TAGS_MASK
 	p.freeSize += int64(size)
 	p.allocSize -= int64(size)
 	p.allocs--
 
 	block.mmInfo = block.mmInfo | tlsf_FREE
-	insertBlock(p, block)
+	tlsfInsertBlock(p, block)
 }
 
-func min(l, r uintptr) uintptr {
+func tlsfMin(l, r uintptr) uintptr {
 	if l < r {
 		return l
 	}
 	return r
 }
 
-func max32(l, r int32) int32 {
+func tlsfMax32(l, r int32) int32 {
 	if l > r {
 		return l
 	}
 	return r
 }
 
-func clz(value uintptr) uintptr {
+func tlsfClz(value uintptr) uintptr {
 	return uintptr(bits.LeadingZeros(uint(value)))
 }
 
-func ctz(value uintptr) uintptr {
+func tlsfCtz(value uintptr) uintptr {
 	return uintptr(bits.TrailingZeros(uint(value)))
 }
 
-func ctz32(value uint32) uint32 {
+func tlsfCtz32(value uint32) uint32 {
 	return uint32(bits.TrailingZeros32(value))
 }
 
-func checkUsedBlock(ptr uintptr) *tlsfBlock {
+func tlsfCheckUsedBlock(ptr uintptr) *tlsfBlock {
 	block := (*tlsfBlock)(unsafe.Pointer(ptr - tlsf_BLOCK_OVERHEAD))
 	if !(ptr != 0 && ((ptr & tlsf_AL_MASK) == 0) && ((block.mmInfo & tlsf_FREE) == 0)) {
 		panic("used block is not valid to be freed or reallocated")
@@ -624,23 +725,43 @@ func tlsfAssert(truthy bool, message string) {
 	}
 }
 
-func tlsfalloc(pool *Pool, size uintptr) uintptr {
-	p := uintptr(unsafe.Pointer(allocateBlock(pool, size)))
+func tlsfalloc(pool *tlsf, size uintptr) uintptr {
+	p := uintptr(unsafe.Pointer(tlsfAllocateBlock(pool, size)))
 	if p == 0 {
 		return 0
 	}
 	return p + tlsf_BLOCK_OVERHEAD
 }
 
-func tlsfrealloc(p *Pool, ptr, size uintptr) uintptr {
-	if ptr < uintptr(unsafe.Pointer(p.root)) {
-		//if ptr < heapStart {
-		return uintptr(unsafe.Pointer(moveBlock(p, checkUsedBlock(ptr), size))) + tlsf_BLOCK_OVERHEAD
-	} else {
-		return uintptr(unsafe.Pointer(reallocateBlock(p, checkUsedBlock(ptr), size))) + tlsf_BLOCK_OVERHEAD
-	}
+func tlsfrealloc(p *tlsf, ptr, size uintptr) uintptr {
+	//if ptr < uintptr(unsafe.Pointer(p.root)) {
+	//	//if ptr < heapStart {
+	//	return uintptr(unsafe.Pointer(tlsfMoveBlock(p, tlsfCheckUsedBlock(ptr), size))) + tlsf_BLOCK_OVERHEAD
+	//} else {
+	//	return uintptr(unsafe.Pointer(tlsfReallocateBlock(p, tlsfCheckUsedBlock(ptr), size))) + tlsf_BLOCK_OVERHEAD
+	//}
+
+	//return uintptr(unsafe.Pointer(tlsfReallocateBlock(p, tlsfCheckUsedBlock(ptr), size))) + tlsf_BLOCK_OVERHEAD
+	return uintptr(unsafe.Pointer(tlsfMoveBlock(p, tlsfCheckUsedBlock(ptr), size))) + tlsf_BLOCK_OVERHEAD
 }
 
-func tlsffree(p *Pool, ptr uintptr) {
-	freeBlock(p, checkUsedBlock(ptr))
+func tlsffree(p *tlsf, ptr uintptr) {
+	tlsfFreeBlock(p, tlsfCheckUsedBlock(ptr))
+}
+
+//export memalloc
+func memalloc(size uintptr) unsafe.Pointer {
+	p := allocator.Alloc(size)
+	memzero(p, size)
+	return p
+}
+
+//export memrealloc
+func memrealloc(ptr unsafe.Pointer, size uintptr) unsafe.Pointer {
+	return allocator.Realloc(ptr, size)
+}
+
+//export memfree
+func memfree(ptr unsafe.Pointer) {
+	allocator.Free(ptr)
 }
