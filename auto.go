@@ -30,6 +30,12 @@ type node struct {
 	first struct{}
 }
 
+func (a *Allocator) Scope(fn func(a Auto)) {
+	au := NewAuto(a)
+	defer au.Free()
+	fn(au)
+}
+
 func NewAuto(a *Allocator) Auto {
 	p := a.Alloc(autoSizeOfFirstNode)
 	h := (*header)(p)

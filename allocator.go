@@ -5,8 +5,29 @@ import (
 	"unsafe"
 )
 
-// Allocator
-// === The Allocator (Two-Level Segregate Fit) memory allocator ===
+// Allocator === TLSF (Two-Level Segregate Fit) memory allocator ===
+//
+// TLSF is a general purpose dynamic memory allocator specifically designed to
+// meet real-time requirements:
+//
+// 		Bounded Response Time - The worst-case execution time (WCET) of memory allocation
+//								and deallocation has got to be known in advance and be
+//								independent of application data. Allocator has a constant cost O(1).
+//
+//						 Fast - Additionally to a bounded cost, the allocator has to be efficient
+//								and fast enough. Allocator executes a maximum of 168 processor instructions
+//								in a x86 architecture. Depending on the compiler version and optimisation
+//								flags, it can be slightly lower or higher.
+//
+// 		Efficient Memory Use - 	Traditionally, real-time systems run for long periods of time and some
+//								(embedded applications), have strong constraints of memory size.
+//								Fragmentation can have a significant impact on such systems. It can increase
+//								dramatically, and degrade the system performance. A way to measure this
+//								efficiency is the memory fragmentation incurred by the allocator.
+//								Allocator has been tested in hundreds of different loads (real-time tasks,
+//								general purpose applications, etc.) obtaining an average fragmentation
+//								lower than 15 %. The maximum fragmentation measured is lower than 25%.
+//
 // see: http://www.gii.upv.es/tlsf/
 //
 // - `ffs(x)` is equivalent to `ctz(x)` with x != 0
@@ -19,6 +40,32 @@ import (
 // │ |                    FL                       │ SB = SL + AL  │ ◄─ usize
 // └───────────────────────────────────────────────┴───────╨───────┘
 // FL: first level, SL: second level, AL: alignment, SB: small block
+type Allocator struct {
+	root      *root
+	HeapStart uintptr
+	HeapEnd   uintptr
+	Grow      Grow
+	Stats
+}
+
+// Stats provides the metrics of an Allocator
+type Stats struct {
+	HeapSize     int64
+	AllocSize    int64
+	MaxUsedSize  int64
+	FreeSize     int64
+	Allocs       int32
+	InitialPages int32
+	Pages        int32
+	Grows        int32
+}
+
+// Grow provides the ability to grow the heap and allocate a contiguous
+// chunk of system memory to add to the allocator.
+type Grow func(pagesBefore, pagesNeeded int32, minSize uintptr) (pagesAdded int32, start, end uintptr)
+
+// Malloc provides the actual system allocation
+type Malloc func(size uintptr) unsafe.Pointer
 
 const (
 	tlsf_PAGE_SIZE = uintptr(64 * 1024)
@@ -72,90 +119,7 @@ const (
 	tlsf_TAGS_MASK         = tlsf_FREE | tlsf_LEFTFREE
 )
 
-func PrintDebugInfo() {
-	println("ALIGNOF_U32		", int64(tlsf_ALIGN_U32))
-	println("ALIGN_SIZE_LOG2	", int64(tlsf_ALIGN_SIZE_LOG2))
-	println("U32_MAX			", ^uint32(0))
-	println("PTR_MAX			", ^uintptr(0))
-	println("AL_BITS			", int64(tlsf_AL_BITS))
-	println("AL_SIZE			", int64(tlsf_AL_SIZE))
-	println("AL_MASK			", int64(tlsf_AL_MASK))
-	println("BLOCK_OVERHEAD	", int64(tlsf_BLOCK_OVERHEAD))
-	println("BLOCK_MAXSIZE	", int64(tlsf_BLOCK_MAXSIZE))
-	println("SL_BITS			", int64(tlsf_SL_BITS))
-	println("SL_SIZE			", int64(tlsf_SL_SIZE))
-	println("SB_BITS			", int64(tlsf_SB_BITS))
-	println("SB_SIZE			", int64(tlsf_SB_SIZE))
-	println("FL_BITS			", int64(tlsf_FL_BITS))
-	println("FREE			", int64(tlsf_FREE))
-	println("LEFTFREE		", int64(tlsf_LEFTFREE))
-	println("TAGS_MASK		", int64(tlsf_TAGS_MASK))
-	println("BLOCK_MINSIZE	", int64(tlsf_BLOCK_MINSIZE))
-	println("SL_START		", int64(tlsf_SL_START))
-	println("SL_END			", int64(tlsf_SL_END))
-	println("HL_START		", int64(tlsf_HL_START))
-	println("HL_END			", int64(tlsf_HL_END))
-	println("ROOT_SIZE		", int64(tlsf_ROOT_SIZE))
-}
-
-// Allocator === TLSF (Two-Level Segregate Fit) memory allocator ===
-//
-// TLSF is a general purpose dynamic memory allocator specifically designed to
-// meet real-time requirements:
-//
-// 		Bounded Response Time - The worst-case execution time (WCET) of memory allocation
-//								and deallocation has got to be known in advance and be
-//								independent of application data. Allocator has a constant cost O(1).
-//
-//						 Fast - Additionally to a bounded cost, the allocator has to be efficient
-//								and fast enough. Allocator executes a maximum of 168 processor instructions
-//								in a x86 architecture. Depending on the compiler version and optimisation
-//								flags, it can be slightly lower or higher.
-//
-// 		Efficient Memory Use - 	Traditionally, real-time systems run for long periods of time and some
-//								(embedded applications), have strong constraints of memory size.
-//								Fragmentation can have a significant impact on such systems. It can increase
-//								dramatically, and degrade the system performance. A way to measure this
-//								efficiency is the memory fragmentation incurred by the allocator.
-//								Allocator has been tested in hundreds of different loads (real-time tasks,
-//								general purpose applications, etc.) obtaining an average fragmentation
-//								lower than 15 %. The maximum fragmentation measured is lower than 25%.
-//
-// see: http://www.gii.upv.es/tlsf/
-//
-// - `ffs(x)` is equivalent to `ctz(x)` with x != 0
-// - `fls(x)` is equivalent to `sizeof(x) * 8 - clz(x) - 1`
-//
-// ╒══════════════ Block size interpretation (32-bit) ═════════════╕
-//    3                   2                   1
-//  1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0  bits
-// ├─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┴─┼─┴─┴─┴─╫─┴─┴─┴─┤
-// │ |                    FL                       │ SB = SL + AL  │ ◄─ usize
-// └───────────────────────────────────────────────┴───────╨───────┘
-// FL: first level, SL: second level, AL: alignment, SB: small block
-type Allocator struct {
-	root      *root
-	HeapStart uintptr
-	HeapEnd   uintptr
-	Grow      Grow
-	Stats
-}
-
-type Grow func(pagesBefore, pagesNeeded int32, minSize uintptr) (pagesAdded int32, start, end uintptr)
-
-type Malloc func(size uintptr) unsafe.Pointer
-
-type Stats struct {
-	HeapSize     int64
-	AllocSize    int64
-	MaxUsedSize  int64
-	FreeSize     int64
-	Allocs       int32
-	InitialPages int32
-	Pages        int32
-	Grows        int32
-}
-
+// Alloc allocates a block of memory that fits the size provided
 //goland:noinspection GoVetUnsafePointer
 func (a *Allocator) Alloc(size uintptr) unsafe.Pointer {
 	p := uintptr(unsafe.Pointer(a.allocateBlock(size)))
@@ -165,22 +129,24 @@ func (a *Allocator) Alloc(size uintptr) unsafe.Pointer {
 	return unsafe.Pointer(p + tlsf_BLOCK_OVERHEAD)
 }
 
+// Realloc determines the best way to resize an allocation.
 func (a *Allocator) Realloc(ptr unsafe.Pointer, size uintptr) unsafe.Pointer {
 	return unsafe.Pointer(uintptr(unsafe.Pointer(a.moveBlock(checkUsedBlock(uintptr(ptr)), size))) + tlsf_BLOCK_OVERHEAD)
 }
 
+// Free release the allocation back into the free list.
 func (a *Allocator) Free(ptr unsafe.Pointer) {
 	a.freeBlock(checkUsedBlock(uintptr(ptr)))
 }
 
-// InitTLSF bootstraps the Allocator allocator with the initial block of contiguous memory
+// Bootstrap bootstraps the Allocator with the initial block of contiguous memory
 // that at least fits the minimum required to fit the bitmap.
 //goland:noinspection GoVetUnsafePointer
-func InitTLSF(start, end uintptr, pages int32, grow Grow) *Allocator {
+func Bootstrap(start, end uintptr, pages int32, grow Grow) *Allocator {
 	start = (start + unsafe.Alignof(unsafe.Pointer(nil)) - 1) &^ (unsafe.Alignof(unsafe.Pointer(nil)) - 1)
 
 	//if a.T {
-	//	println("InitTLSF", "pages", pages, uint(start), uint(end), uint(end-start))
+	//	println("Bootstrap", "pages", pages, uint(start), uint(end), uint(end-start))
 	//}
 	// init allocator
 	a := (*Allocator)(unsafe.Pointer(start))
@@ -643,7 +609,7 @@ func (a *Allocator) addMemory(start, end uintptr) bool {
 }
 
 // Computes the size (excl. header) of a block.
-func tlsfComputeSize(size uintptr) uintptr {
+func computeSize(size uintptr) uintptr {
 	// Size must be large enough and aligned minus preceeding overhead
 	if size <= tlsf_BLOCK_MINSIZE {
 		return tlsf_BLOCK_MINSIZE
@@ -653,16 +619,16 @@ func tlsfComputeSize(size uintptr) uintptr {
 }
 
 // Prepares and checks an allocation size.
-func tlsfPrepareSize(size uintptr) uintptr {
+func prepareSize(size uintptr) uintptr {
 	if size > tlsf_BLOCK_MAXSIZE {
 		panic("allocation too large")
 	}
-	return tlsfComputeSize(size)
+	return computeSize(size)
 }
 
 // Allocates a block of the specified size.
 func (a *Allocator) allocateBlock(size uintptr) *tlsfBlock {
-	var payloadSize = tlsfPrepareSize(size)
+	var payloadSize = prepareSize(size)
 	var block = a.searchBlock(payloadSize)
 	if block == nil {
 		a.growMemory(payloadSize)
@@ -692,7 +658,7 @@ func (a *Allocator) allocateBlock(size uintptr) *tlsfBlock {
 }
 
 func (a *Allocator) reallocateBlock(block *tlsfBlock, size uintptr) *tlsfBlock {
-	var payloadSize = tlsfPrepareSize(size)
+	var payloadSize = prepareSize(size)
 	var blockInfo = block.mmInfo
 	var blockSize = blockInfo & ^tlsf_TAGS_MASK
 
@@ -779,4 +745,30 @@ func assert(truthy bool, message string) {
 	if !truthy {
 		panic(message)
 	}
+}
+
+func PrintDebugInfo() {
+	println("ALIGNOF_U32		", int64(tlsf_ALIGN_U32))
+	println("ALIGN_SIZE_LOG2	", int64(tlsf_ALIGN_SIZE_LOG2))
+	println("U32_MAX			", ^uint32(0))
+	println("PTR_MAX			", ^uintptr(0))
+	println("AL_BITS			", int64(tlsf_AL_BITS))
+	println("AL_SIZE			", int64(tlsf_AL_SIZE))
+	println("AL_MASK			", int64(tlsf_AL_MASK))
+	println("BLOCK_OVERHEAD	", int64(tlsf_BLOCK_OVERHEAD))
+	println("BLOCK_MAXSIZE	", int64(tlsf_BLOCK_MAXSIZE))
+	println("SL_BITS			", int64(tlsf_SL_BITS))
+	println("SL_SIZE			", int64(tlsf_SL_SIZE))
+	println("SB_BITS			", int64(tlsf_SB_BITS))
+	println("SB_SIZE			", int64(tlsf_SB_SIZE))
+	println("FL_BITS			", int64(tlsf_FL_BITS))
+	println("FREE			", int64(tlsf_FREE))
+	println("LEFTFREE		", int64(tlsf_LEFTFREE))
+	println("TAGS_MASK		", int64(tlsf_TAGS_MASK))
+	println("BLOCK_MINSIZE	", int64(tlsf_BLOCK_MINSIZE))
+	println("SL_START		", int64(tlsf_SL_START))
+	println("SL_END			", int64(tlsf_SL_END))
+	println("HL_START		", int64(tlsf_HL_START))
+	println("HL_END			", int64(tlsf_HL_END))
+	println("ROOT_SIZE		", int64(tlsf_ROOT_SIZE))
 }

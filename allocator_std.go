@@ -143,10 +143,10 @@ func GrowMin(malloc Malloc) Grow {
 	}
 }
 
-func NewTLSF(pages int32, grow Grow) *Allocator {
+func NewAllocator(pages int32, grow Grow) *Allocator {
 	if pages <= 0 {
 		pages = 1
 	}
 	pagesAdded, start, end := grow(0, pages, 0)
-	return InitTLSF(start, end, pagesAdded, grow)
+	return Bootstrap(start, end, pagesAdded, grow)
 }
