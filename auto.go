@@ -43,12 +43,6 @@ type autoNode struct {
 	first struct{}
 }
 
-func (a *Allocator) Scope(fn func(a Auto)) {
-	au := NewAuto(a, 32)
-	defer au.Free()
-	fn(au)
-}
-
 //goland:noinspection GoVetUnsafePointer
 func NewAuto(a *Allocator, nodeSize uintptr) Auto {
 	if nodeSize == 0 {

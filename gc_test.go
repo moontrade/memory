@@ -4,7 +4,38 @@ import (
 	"math/rand"
 	"testing"
 	"time"
+	"unsafe"
 )
+
+func TestGC(t *testing.T) {
+	a := NewAllocator(1)
+	roots := make(map[uintptr]struct{})
+	markGlobals := func(mark func(root uintptr), markRoots func(start uintptr, end uintptr)) {
+		for k := range roots {
+			mark(k)
+		}
+	}
+	gc := NewGC(a, 16, markGlobals, nil)
+
+	root := func(size uintptr) unsafe.Pointer {
+		p := gc.New(size)
+		roots[p] = struct{}{}
+		return unsafe.Pointer(p)
+	}
+	leak := func(size uintptr) unsafe.Pointer {
+		return unsafe.Pointer(gc.New(size))
+	}
+	root(64)
+	root(72)
+	gc.Free(leak(128))
+	leak(512)
+
+	gc.Print()
+	println()
+	gc.Collect()
+	gc.Print()
+	println()
+}
 
 func BenchmarkHashSet(b *testing.B) {
 	m := make(map[uintptr]struct{}, 16)

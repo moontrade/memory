@@ -28,9 +28,9 @@ const (
 	gc_TOTAL_OVERHEAD = tlsf_BLOCK_OVERHEAD + gc_OBJECT_OVERHEAD
 )
 
-// GC is a Two-Color Mark & Sweep collector on top of a Two-Level Segmented Fit (TLSF) allocator.
-// Similar features to the internal extalloc GC in TinyGo except GC uses a robinhood
-// hashset instead of a treap structure and without the need for a linked list.
+// GC is a Two-Color Mark & Sweep collector on top of a Two-Level Segmented Fit (TLSF)
+// allocator. Similar features to the internal extalloc GC in TinyGo except GC uses a
+// robinhood hashset instead of a treap structure and without the need for a linked list.
 // Instead, a single linear allocation is used for the hashset. Both colors reside in
 // the same hashset.
 //
@@ -55,8 +55,12 @@ type GC struct {
 	allocs      PointerSet
 	first, last uintptr
 	allocator   *Allocator
-	stats       GCStats
+	markGlobals MarkFn
+	markStack   MarkFn
+	GCStats
 }
+
+type MarkFn func(mark func(root uintptr), markRoots func(start, end uintptr))
 
 // GCStats provides all the monitoring metrics needed to see how the GC
 // is operating and performing.
@@ -102,14 +106,14 @@ type GCStats struct {
 
 func (s *GCStats) Print() {
 	println("Moon GC cycle")
-	println("\tlive:			", uint(s.Live))
-	println("\tlive bytes:		", uint(s.LiveBytes))
-	println("\tfrees:			", uint(s.Frees))
-	println("\tallocs:			", uint(s.TotalAllocs))
+	println("\tlive:				", uint(s.Live))
+	println("\tlive bytes:			", uint(s.LiveBytes))
+	println("\tfrees:				", uint(s.Frees))
+	println("\tallocs:				", uint(s.TotalAllocs))
 	println("\tfreed bytes:		", uint(s.FreedBytes))
 	println("\tsweep bytes:		", uint(s.SweepBytes))
 	println("\ttotal bytes:		", uint(s.TotalBytes))
-	println("\tlast sweep:		", uint(s.LastSweep))
+	println("\tlast sweep:			", uint(s.LastSweep))
 	println("\tlast sweep bytes:	", uint(s.LastSweepBytes))
 	println("\tlast mark time:		", toMicros(s.LastMarkRootsTime), microsSuffix)
 	println("\tlast graph time:	", toMicros(s.LastMarkGraphTime), microsSuffix)
@@ -125,14 +129,20 @@ func GCPrintDebug() {
 }
 
 //goland:noinspection ALL
-func NewGC(allocator *Allocator, initialCapacity uintptr) *GC {
-	t := (*GC)(allocator.Alloc(unsafe.Sizeof(GC{})))
-	t.allocator = allocator
-	t.allocs = NewPointerSet(allocator, initialCapacity)
-	t.first = ^uintptr(0)
-	t.last = 0
-	t.stats.Started = time.Now().UnixNano()
-	return t
+func NewGC(
+	allocator *Allocator,
+	initialCapacity uintptr,
+	markGlobals, markStack MarkFn,
+) *GC {
+	gc := (*GC)(allocator.Alloc(unsafe.Sizeof(GC{})))
+	gc.allocator = allocator
+	gc.allocs = NewPointerSet(allocator, initialCapacity)
+	gc.first = ^uintptr(0)
+	gc.last = 0
+	gc.markGlobals = markGlobals
+	gc.markStack = markStack
+	gc.Started = time.Now().UnixNano()
+	return gc
 }
 
 // Object Represents a managed object in memory, consisting of a header followed by the object's data.
@@ -147,10 +157,46 @@ func (o *gcObject) size() uintptr {
 	return tlsf_BLOCK_OVERHEAD + (o.mmInfo & ^uintptr(3))
 }
 
+func (gc *GC) Allocator() *Allocator {
+	return gc.allocator
+}
+
+// MarkRoot marks a single pointer as a root
 //goland:noinspection ALL
-func (gc *GC) scan(start uintptr, end uintptr) {
-	if start < gc.first || end > gc.last {
+func (gc *GC) markRoot(root uintptr) {
+	root -= gc_TOTAL_OVERHEAD
+	if root < gc.first || root > gc.last {
 		return
+	}
+	if gc.allocs.Has(root) {
+		// Mark as BLACK
+		(*(*gcObject)(unsafe.Pointer(root))).color = gc_BLACK
+	}
+}
+
+// MarkRoots scans a block of contiguous memory for root pointers.
+//goland:noinspection ALL
+func (gc *GC) markRoots(start, end uintptr) {
+	if gc_TRACE {
+		println("MarkRoots", uint(start), uint(end))
+	}
+
+	if end <= start {
+		return
+	}
+	if start == 0 || end == 0 {
+		return
+	}
+
+	// Adjust to keep within range GC range
+	if start < gc.first {
+		if gc.first >= end {
+			return
+		}
+		start = gc.first
+	}
+	if end > gc.last {
+		end = gc.last
 	}
 
 	// Align start and end pointers.
@@ -160,18 +206,7 @@ func (gc *GC) scan(start uintptr, end uintptr) {
 	// Mark all pointers.
 	for ptr := start; ptr < end; ptr += unsafe.Alignof(unsafe.Pointer(nil)) {
 		p := *(*uintptr)(unsafe.Pointer(ptr))
-		gc.mark(p)
-	}
-}
-
-//goland:noinspection ALL
-func (gc *GC) mark(root uintptr) {
-	root -= gc_TOTAL_OVERHEAD
-	if root < gc.first || root > gc.last {
-		return
-	}
-	if gc.allocs.Has(root) {
-		*(*uint32)(unsafe.Pointer(root + tlsf_BLOCK_OVERHEAD)) = gc_BLACK
+		gc.markRoot(p)
 	}
 }
 
@@ -217,13 +252,6 @@ func (gc *GC) markRecursive(root uintptr, depth int) {
 	}
 }
 
-func (gc *GC) markRoots(start, end uintptr) {
-	if gc_TRACE {
-		println("markRoots", uint(start), uint(end))
-	}
-	gc.scan(start, end)
-}
-
 //goland:noinspection ALL
 func (gc *GC) markGraph(root uintptr) {
 	var (
@@ -255,8 +283,9 @@ func (gc *GC) markGraph(root uintptr) {
 	}
 }
 
+// New allocates a new GC Object
 //goland:noinspection ALL
-func (gc *GC) new(size uintptr) uintptr {
+func (gc *GC) New(size uintptr) uintptr {
 	// Is the size too large?
 	if size > gc_OBJECT_MAXSIZE {
 		panic("allocation too large")
@@ -268,10 +297,10 @@ func (gc *GC) new(size uintptr) uintptr {
 	// Add the runtime size and Add to WHITE
 	obj.rtSize = uint32(size)
 	obj.color = gc_WHITE
-	gc.stats.LiveBytes += obj.size()
-	gc.stats.TotalBytes += int64(obj.size())
-	gc.stats.Live++
-	gc.stats.TotalAllocs++
+	gc.LiveBytes += obj.size()
+	gc.TotalBytes += int64(obj.size())
+	gc.Live++
+	gc.TotalAllocs++
 
 	// Convert to uint pointer
 	ptr := uintptr(unsafe.Pointer(obj))
@@ -295,10 +324,9 @@ func (gc *GC) new(size uintptr) uintptr {
 	return ptr + gc_TOTAL_OVERHEAD
 }
 
-// free will immediately remove the GC'd object from the collector
-// and free up the memory in the underlying tlsf allocator.
+// Free will immediately remove the GC Object and free up the memory in the allocator.
 //goland:noinspection ALL
-func (gc *GC) free(ptr unsafe.Pointer) bool {
+func (gc *GC) Free(ptr unsafe.Pointer) bool {
 	p := uintptr(ptr) - gc_TOTAL_OVERHEAD
 	if !gc.allocs.Has(p) {
 		return false
@@ -310,10 +338,10 @@ func (gc *GC) free(ptr unsafe.Pointer) bool {
 
 	obj := (*gcObject)(unsafe.Pointer(p))
 	size := obj.size()
-	gc.stats.LiveBytes -= size
-	gc.stats.FreedBytes += int64(size)
-	gc.stats.Live--
-	gc.stats.Frees++
+	gc.LiveBytes -= size
+	gc.FreedBytes += int64(size)
+	gc.Live--
+	gc.Frees++
 	gc.allocs.Delete(p)
 
 	println("GC free", uint(uintptr(ptr)), "size", uint(size), "rtSize", obj.rtSize)
@@ -323,27 +351,29 @@ func (gc *GC) free(ptr unsafe.Pointer) bool {
 }
 
 //goland:noinspection ALL
-func (gc *GC) collect() {
+func (gc *GC) Collect() {
 	if gc_TRACE {
 		println("moon GC collect started...")
 	}
 	//println("tcmsCollect")
 	var (
 		start = time.Now().UnixNano()
-		stats = &gc.stats
 		k     uintptr
 		obj   *gcObject
 		min   = ^uintptr(0)
 		max   = uintptr(0)
 	)
-	stats.Cycles++
+	gc.Cycles++
 
 	////////////////////////////////////////////////////////////////////////
 	// Mark Roots Phase
 	////////////////////////////////////////////////////////////////////////
-	markStack()
-	markGlobals()
-	markScheduler()
+	if gc.markStack != nil {
+		gc.markStack(gc.markRoot, gc.markRoots)
+	}
+	if gc.markGlobals != nil {
+		gc.markGlobals(gc.markRoot, gc.markRoots)
+	}
 	// End of mark roots
 	markTime := time.Now().UnixNano() - start
 
@@ -351,8 +381,8 @@ func (gc *GC) collect() {
 	// Mark Graph Phase
 	////////////////////////////////////////////////////////////////////////
 	start = markTime + start
-	stats.LastSweep = 0
-	stats.LastSweepBytes = 0
+	gc.LastSweep = 0
+	gc.LastSweepBytes = 0
 	var (
 		items     = gc.allocs.items
 		itemsSize = gc.allocs.size
@@ -386,10 +416,10 @@ func (gc *GC) collect() {
 		}
 		obj = (*gcObject)(unsafe.Pointer(k))
 		if obj.color == gc_WHITE {
-			stats.LiveBytes -= obj.size()
-			stats.LastSweepBytes += int64(obj.size())
-			gc.stats.Live--
-			stats.LastSweep++
+			gc.LiveBytes -= obj.size()
+			gc.LastSweepBytes += int64(obj.size())
+			gc.Live--
+			gc.LastSweep++
 
 			if gc_TRACE {
 				println("GC sweep", uint(k), "size", uint(obj.size()))
@@ -420,14 +450,13 @@ func (gc *GC) collect() {
 	gc.first = min
 	gc.last = max
 	sweepTime := time.Now().UnixNano() - start
-	stats.LastMarkRootsTime = markTime
-	stats.LastMarkGraphTime = markGraphTime
-	stats.SweepTime += sweepTime
-	stats.SweepBytes += stats.LastSweepBytes
-
-	stats.Sweeps += stats.LastSweep
-	stats.LastGCTime = markTime + markGraphTime + sweepTime
-	stats.TotalTime += stats.LastGCTime
+	gc.LastMarkRootsTime = markTime
+	gc.LastMarkGraphTime = markGraphTime
+	gc.SweepTime += sweepTime
+	gc.SweepBytes += gc.LastSweepBytes
+	gc.Sweeps += gc.LastSweep
+	gc.LastGCTime = markTime + markGraphTime + sweepTime
+	gc.TotalTime += gc.LastGCTime
 
 	if gc_TRACE {
 		println("moon GC collect finished")

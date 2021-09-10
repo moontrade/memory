@@ -12,21 +12,25 @@ import (
 //
 // 		Bounded Response Time - The worst-case execution time (WCET) of memory allocation
 //								and deallocation Has got to be known in advance and be
-//								independent of application data. Allocator Has a constant cost O(1).
+//								independent of application data. Allocator Has a constant
+//								cost O(1).
 //
-//						 Fast - Additionally to a bounded cost, the allocator Has to be efficient
-//								and fast enough. Allocator executes a maximum of 168 processor instructions
-//								in a x86 architecture. Depending on the compiler version and optimisation
-//								flags, it can be slightly lower or higher.
+//						 Fast - Additionally to a bounded cost, the allocator Has to be
+//								efficient and fast enough. Allocator executes a maximum
+//								of 168 processor instructions in a x86 architecture.
+//								Depending on the compiler version and optimisation flags,
+//								it can be slightly lower or higher.
 //
-// 		Efficient Memory Use - 	Traditionally, real-time systems run for long periods of time and some
-//								(embedded applications), have strong constraints of memory size.
-//								Fragmentation can have a significant impact on such systems. It can increase
-//								dramatically, and degrade the system performance. A way to measure this
-//								efficiency is the memory fragmentation incurred by the allocator.
-//								Allocator Has been tested in hundreds of different loads (real-time tasks,
-//								general purpose applications, etc.) obtaining an average fragmentation
-//								lower than 15 %. The maximum fragmentation measured is lower than 25%.
+// 		Efficient Memory Use - 	Traditionally, real-time systems run for long periods of
+//								time and some (embedded applications), have strong constraints
+//								of memory size. Fragmentation can have a significant impact on
+//								such systems. It can increase  dramatically, and degrade the
+//								system performance. A way to measure this efficiency is the
+//								memory fragmentation incurred by the allocator. Allocator has
+//								been tested in hundreds of different loads (real-time tasks,
+//								general purpose applications, etc.) obtaining an average
+//								fragmentation lower than 15 %. The maximum fragmentation
+//								measured is lower than 25%.
 //
 // Memory can be added on demand and is a multiple of 64kb pages. Grow is used to allocate new
 // memory to be added to the allocator. Each Grow must provide a contiguous chunk of memory.
@@ -149,6 +153,17 @@ func (a *Allocator) Realloc(ptr unsafe.Pointer, size uintptr) unsafe.Pointer {
 // Free release the allocation back into the free list.
 func (a *Allocator) Free(ptr unsafe.Pointer) {
 	a.freeBlock(checkUsedBlock(uintptr(ptr)))
+}
+
+// Scope creates an Auto free list that automatically reclaims memory
+// after callback finishes.
+func (a *Allocator) Scope(fn func(a Auto)) {
+	if fn == nil {
+		return
+	}
+	auto := NewAuto(a, 32)
+	defer auto.Free()
+	fn(auto)
 }
 
 // Bootstrap bootstraps the Allocator with the initial block of contiguous memory
@@ -505,7 +520,7 @@ func (a *Allocator) prepareBlock(block *tlsfBlock, size uintptr) {
 	blockInfo := block.mmInfo
 	if tlsf_DEBUG {
 		assert(((size+tlsf_BLOCK_OVERHEAD)&tlsf_AL_MASK) == 0,
-			"size must be aligned so the new block is")
+			"size must be aligned so the New block is")
 	}
 	// split if the block can hold another MINSIZE block incl. overhead
 	remaining := (blockInfo & ^tlsf_TAGS_MASK) - size

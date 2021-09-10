@@ -8,13 +8,14 @@ import (
 	"testing"
 )
 
-func TestHashCollisions(t *testing.T) {
+func TestHashCollisions_WASM(t *testing.T) {
 
 	var (
 		c32   int
 		a32   int
 		c16   int
 		fn    int
+		mur   int
 		wy    int
 		wy64  int
 		met   int
@@ -34,8 +35,9 @@ func TestHashCollisions(t *testing.T) {
 	}
 	for _, cfg := range []config{
 		//{2, 10, 4, 8, 65580, 64, 4096, 128},
-		{40, 512, 32, 3, 65580, 56, 512000, 128},
-		//{1024, 4096, 96, 3, 65580, 56, 1024, 24},
+		// WASM like pointer values
+		{40, 1024, 88, 3, 65580, 512, 256000, 96},
+		{1024, 4096, 512, 3, 65580, 56, 52050, 512},
 	} {
 		for i := cfg.low; i < cfg.high; i += cfg.adder {
 			var (
@@ -48,6 +50,7 @@ func TestHashCollisions(t *testing.T) {
 				c16 += testCollisions(entries, multiplier, slots, crc16a)
 				a32 += testCollisions(entries, multiplier, slots, adler32)
 				fn += testCollisions(entries, multiplier, slots, fnv32)
+				mur += testCollisions(entries, multiplier, slots, murmur32)
 				wy += testCollisions(entries, multiplier, slots, wyhash32)
 				wy64 += testCollisions64(entries, multiplier, slots, wyhash64)
 				met += testCollisions(entries, multiplier, slots, metro32)
@@ -55,14 +58,15 @@ func TestHashCollisions(t *testing.T) {
 			}
 		}
 
-		println("\tcrc32		", c32)
-		println("\tcrc16		", c16)
-		println("\tadler32		", a32)
-		println("\tfnv			", fn)
-		println("\twyhash32	", wy)
-		println("\twyhash64	", wy64)
-		println("\tmetro32		", met)
-		println("\tmetro64		", met64)
+		//println("\tcrc32		", c32)
+		//println("\tcrc16		", c16)
+		//println("\tadler32		", a32)
+		//println("\tfnv			", fn)
+		//println("\tmurmur32		", mur)
+		//println("\twyhash32	", wy)
+		//println("\twyhash64	", wy64)
+		//println("\tmetro32		", met)
+		//println("\tmetro64		", met64)
 	}
 
 	println("")
@@ -71,6 +75,7 @@ func TestHashCollisions(t *testing.T) {
 	println("\tcrc16		", c16)
 	println("\tadler32		", a32)
 	println("\tfnv			", fn)
+	println("\tmurmur32	", mur)
 	println("\twyhash32	", wy)
 	println("\twyhash64	", wy64)
 	println("\tmetro32		", met)
@@ -90,6 +95,24 @@ func testCollisions(entries, multiplier, slots int, hasher func(uint32) uint32) 
 	for i := 0; i < entries; i++ {
 		v := hasher(uint32(ptr))
 		ptr += multiplier
+		index := v % uint32(slots)
+
+		_, ok := m[index]
+		if ok {
+			count++
+		} else {
+			m[index] = struct{}{}
+		}
+	}
+	return count
+}
+
+func testCollisionsRandom(entries, slots int, hasher func(uint32) uint32) int {
+	m := make(map[uint32]struct{})
+	count := 0
+
+	for i := 0; i < entries; i++ {
+		v := hasher(uint32(rand.Uint32()))
 		index := v % uint32(slots)
 
 		_, ok := m[index]
@@ -202,32 +225,37 @@ func BenchmarkHash(b *testing.B) {
 	//})
 	b.Run("adler32", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			adler32(uint32(i))
+			adler32(adler32(uint32(i)))
 		}
 	})
 	b.Run("fnv32", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			fnv32(uint32(i))
+			fnv32(fnv32(uint32(i)))
+		}
+	})
+	b.Run("murmur32", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			murmur32(murmur32(uint32(i)))
 		}
 	})
 	b.Run("wyhash32", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			wyhash32(uint32(i))
+			wyhash32(wyhash32(uint32(i)))
 		}
 	})
 	b.Run("wyhash64", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			wyhash64(uint64(i))
+			wyhash64(wyhash64(uint64(i)))
 		}
 	})
 	b.Run("metro32", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			metro32(uint32(i))
+			metro32(metro32(uint32(i)))
 		}
 	})
 	b.Run("metro64", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			metro64(uint64(i))
+			metro64(metro64(uint64(i)))
 		}
 	})
 	//b.Run("wyhash", func(b *testing.B) {

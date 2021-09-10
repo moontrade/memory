@@ -156,12 +156,13 @@ func NewAllocatorWithGrow(pages int32, grow Grow) *Allocator {
 }
 
 type SyncAllocator struct {
-	*Allocator
-	mu sync.Mutex
+	a     *Allocator
+	stats Stats
+	mu    sync.Mutex
 }
 
 func (a *Allocator) ToSync() *SyncAllocator {
-	return &SyncAllocator{Allocator: a}
+	return &SyncAllocator{a: a}
 }
 
 // Alloc allocates a block of memory that fits the size provided
@@ -169,7 +170,7 @@ func (a *Allocator) ToSync() *SyncAllocator {
 func (a *SyncAllocator) Alloc(size uintptr) unsafe.Pointer {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	p := uintptr(unsafe.Pointer(a.allocateBlock(size)))
+	p := uintptr(unsafe.Pointer(a.a.allocateBlock(size)))
 	if p == 0 {
 		return nil
 	}
@@ -180,12 +181,12 @@ func (a *SyncAllocator) Alloc(size uintptr) unsafe.Pointer {
 func (a *SyncAllocator) Realloc(ptr unsafe.Pointer, size uintptr) unsafe.Pointer {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	return unsafe.Pointer(uintptr(unsafe.Pointer(a.moveBlock(checkUsedBlock(uintptr(ptr)), size))) + tlsf_BLOCK_OVERHEAD)
+	return unsafe.Pointer(uintptr(unsafe.Pointer(a.a.moveBlock(checkUsedBlock(uintptr(ptr)), size))) + tlsf_BLOCK_OVERHEAD)
 }
 
 // Free release the allocation back into the free list.
 func (a *SyncAllocator) Free(ptr unsafe.Pointer) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	a.freeBlock(checkUsedBlock(uintptr(ptr)))
+	a.a.freeBlock(checkUsedBlock(uintptr(ptr)))
 }
