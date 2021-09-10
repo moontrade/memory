@@ -8,31 +8,46 @@ import (
 )
 
 func TestGC(t *testing.T) {
+	// Backing Allocator for GC
 	a := NewAllocator(1)
+
+	// Create a simple roots marking system
+	// This will provided by the runtime / compiler in TinyGo.
 	roots := make(map[uintptr]struct{})
 	markGlobals := func(mark func(root uintptr), markRoots func(start uintptr, end uintptr)) {
 		for k := range roots {
 			mark(k)
 		}
 	}
+
+	// Create GC
 	gc := NewGC(a, 16, markGlobals, nil)
 
+	// Allocate root
 	root := func(size uintptr) unsafe.Pointer {
 		p := gc.New(size)
-		roots[p] = struct{}{}
-		return unsafe.Pointer(p)
+		roots[uintptr(p)] = struct{}{}
+		return p
 	}
+	// Allocate and leak
 	leak := func(size uintptr) unsafe.Pointer {
-		return unsafe.Pointer(gc.New(size))
+		return gc.New(size)
 	}
+
+	// Do some allocations
 	root(64)
 	root(72)
 	gc.Free(leak(128))
 	leak(512)
 
+	// Print before
 	gc.Print()
 	println()
+
+	// Run full GC collect
 	gc.Collect()
+
+	// Print after
 	gc.Print()
 	println()
 }

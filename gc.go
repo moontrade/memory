@@ -105,7 +105,7 @@ type GCStats struct {
 }
 
 func (s *GCStats) Print() {
-	println("Moon GC cycle")
+	println("GC cycle")
 	println("\tlive:				", uint(s.Live))
 	println("\tlive bytes:			", uint(s.LiveBytes))
 	println("\tfrees:				", uint(s.Frees))
@@ -285,7 +285,7 @@ func (gc *GC) markGraph(root uintptr) {
 
 // New allocates a new GC Object
 //goland:noinspection ALL
-func (gc *GC) New(size uintptr) uintptr {
+func (gc *GC) New(size uintptr) unsafe.Pointer {
 	// Is the size too large?
 	if size > gc_OBJECT_MAXSIZE {
 		panic("allocation too large")
@@ -293,6 +293,9 @@ func (gc *GC) New(size uintptr) uintptr {
 
 	// Allocate memory
 	obj := (*gcObject)(unsafe.Pointer(uintptr(gc.allocator.Alloc(gc_OBJECT_OVERHEAD+size)) - tlsf_BLOCK_OVERHEAD))
+	if obj == nil {
+		return nil
+	}
 
 	// Add the runtime size and Add to WHITE
 	obj.rtSize = uint32(size)
@@ -321,7 +324,7 @@ func (gc *GC) New(size uintptr) uintptr {
 	}
 
 	// Return pointer to data
-	return ptr + gc_TOTAL_OVERHEAD
+	return unsafe.Pointer(ptr + gc_TOTAL_OVERHEAD)
 }
 
 // Free will immediately remove the GC Object and free up the memory in the allocator.
@@ -375,12 +378,13 @@ func (gc *GC) Collect() {
 		gc.markGlobals(gc.markRoot, gc.markRoots)
 	}
 	// End of mark roots
-	markTime := time.Now().UnixNano() - start
+	end := time.Now().UnixNano()
+	markTime := end - start
 
 	////////////////////////////////////////////////////////////////////////
 	// Mark Graph Phase
 	////////////////////////////////////////////////////////////////////////
-	start = markTime + start
+	start = end
 	gc.LastSweep = 0
 	gc.LastSweepBytes = 0
 	var (
@@ -397,7 +401,8 @@ func (gc *GC) Collect() {
 	}
 
 	// End of mark graph
-	markGraphTime := time.Now().UnixNano() - start
+	end = time.Now().UnixNano()
+	markGraphTime := end - start
 
 	////////////////////////////////////////////////////////////////////////
 	// Sweep Phase
@@ -425,7 +430,7 @@ func (gc *GC) Collect() {
 				println("GC sweep", uint(k), "size", uint(obj.size()))
 			}
 
-			println("GC sweep", uint(k+gc_TOTAL_OVERHEAD), "size", uint(obj.size()))
+			//println("GC sweep", uint(k+gc_TOTAL_OVERHEAD), "size", uint(obj.size()), "rtSize", obj.rtSize)
 
 			// Free memory
 			gc.allocator.Free(unsafe.Pointer(k + tlsf_BLOCK_OVERHEAD))
@@ -441,7 +446,7 @@ func (gc *GC) Collect() {
 				max = k
 			}
 			if gc_TRACE {
-				println("GC retained", uint(k), "size", uint(obj.size()))
+				//println("GC retained", uint(k), "size", uint(obj.size()))
 			}
 			obj.color = gc_WHITE
 		}
@@ -449,9 +454,11 @@ func (gc *GC) Collect() {
 
 	gc.first = min
 	gc.last = max
-	sweepTime := time.Now().UnixNano() - start
+	end = time.Now().UnixNano()
+	sweepTime := end - start
 	gc.LastMarkRootsTime = markTime
 	gc.LastMarkGraphTime = markGraphTime
+	gc.LastSweepTime = sweepTime
 	gc.SweepTime += sweepTime
 	gc.SweepBytes += gc.LastSweepBytes
 	gc.Sweeps += gc.LastSweep
