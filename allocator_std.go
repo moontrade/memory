@@ -98,16 +98,16 @@ func GrowByDouble(malloc Malloc) Grow {
 		} else {
 			pagesAdded = pagesNeeded
 		}
-		ptr := malloc(uintptr(pagesAdded) * tlsf_PAGE_SIZE)
+		ptr := malloc(uintptr(pagesAdded) * _TLSFPageSize)
 		if ptr == nil {
 			pagesAdded = pagesNeeded
-			ptr = malloc(uintptr(pagesAdded) * tlsf_PAGE_SIZE)
+			ptr = malloc(uintptr(pagesAdded) * _TLSFPageSize)
 			if ptr == nil {
 				return 0, 0, 0
 			}
 		}
 		start = uintptr(ptr)
-		end = start + (uintptr(pagesAdded) * tlsf_PAGE_SIZE)
+		end = start + (uintptr(pagesAdded) * _TLSFPageSize)
 		return
 	}
 }
@@ -119,27 +119,27 @@ func GrowBy(pages int32, malloc Malloc) Grow {
 		} else {
 			pagesAdded = pagesNeeded
 		}
-		ptr := malloc(uintptr(pagesAdded) * tlsf_PAGE_SIZE)
+		ptr := malloc(uintptr(pagesAdded) * _TLSFPageSize)
 		if ptr == nil {
 			pagesAdded = pagesNeeded
-			ptr = malloc(uintptr(pagesAdded) * tlsf_PAGE_SIZE)
+			ptr = malloc(uintptr(pagesAdded) * _TLSFPageSize)
 			if ptr == nil {
 				return 0, 0, 0
 			}
 		}
 		start = uintptr(ptr)
-		end = start + (uintptr(pagesAdded) * tlsf_PAGE_SIZE)
+		end = start + (uintptr(pagesAdded) * _TLSFPageSize)
 		return
 	}
 }
 
 func GrowMin(malloc Malloc) Grow {
 	return func(pagesBefore, pagesNeeded int32, minSize uintptr) (int32, uintptr, uintptr) {
-		ptr := malloc(uintptr(pagesNeeded) * tlsf_PAGE_SIZE)
+		ptr := malloc(uintptr(pagesNeeded) * _TLSFPageSize)
 		if ptr == nil {
 			return 0, 0, 0
 		}
-		return pagesNeeded, uintptr(ptr), uintptr(ptr) + (uintptr(pagesNeeded) * tlsf_PAGE_SIZE)
+		return pagesNeeded, uintptr(ptr), uintptr(ptr) + (uintptr(pagesNeeded) * _TLSFPageSize)
 	}
 }
 
@@ -174,14 +174,14 @@ func (a *SyncAllocator) Alloc(size uintptr) unsafe.Pointer {
 	if p == 0 {
 		return nil
 	}
-	return unsafe.Pointer(p + tlsf_BLOCK_OVERHEAD)
+	return unsafe.Pointer(p + _TLSFBlockOverhead)
 }
 
 // Realloc determines the best way to resize an allocation.
 func (a *SyncAllocator) Realloc(ptr unsafe.Pointer, size uintptr) unsafe.Pointer {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	return unsafe.Pointer(uintptr(unsafe.Pointer(a.a.moveBlock(checkUsedBlock(uintptr(ptr)), size))) + tlsf_BLOCK_OVERHEAD)
+	return unsafe.Pointer(uintptr(unsafe.Pointer(a.a.moveBlock(checkUsedBlock(uintptr(ptr)), size))) + _TLSFBlockOverhead)
 }
 
 // Free release the allocation back into the free list.

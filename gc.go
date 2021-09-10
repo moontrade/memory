@@ -18,14 +18,14 @@ const (
 	gc_TRACE        = false
 
 	// Overhead of a garbage collector object. Excludes memory manager block overhead.
-	gc_OBJECT_OVERHEAD = (unsafe.Sizeof(gcObject{}) - tlsf_BLOCK_OVERHEAD + tlsf_AL_MASK) & ^tlsf_AL_MASK
-	//gc_OBJECT_OVERHEAD = unsafe.Sizeof(gcObject{}) - tlsf_BLOCK_OVERHEAD + unsafe.Sizeof(uintptr(0))
+	gc_OBJECT_OVERHEAD = (unsafe.Sizeof(gcObject{}) - _TLSFBlockOverhead + _TLSFALMask) & ^_TLSFALMask
+	//gc_OBJECT_OVERHEAD = unsafe.Sizeof(gcObject{}) - _TLSFBlockOverhead + unsafe.Sizeof(uintptr(0))
 
 	// Maximum size of a garbage collector object's payload.
-	gc_OBJECT_MAXSIZE = tlsf_BLOCK_MAXSIZE - gc_OBJECT_OVERHEAD
+	gc_OBJECT_MAXSIZE = _TLSFBlockMaxSize - gc_OBJECT_OVERHEAD
 
 	// Overhead of a garbage collector object. Excludes memory manager block overhead.
-	gc_TOTAL_OVERHEAD = tlsf_BLOCK_OVERHEAD + gc_OBJECT_OVERHEAD
+	gc_TOTAL_OVERHEAD = _TLSFBlockOverhead + gc_OBJECT_OVERHEAD
 )
 
 // GC is a Two-Color Mark & Sweep collector on top of a Two-Level Segmented Fit (TLSF)
@@ -125,7 +125,7 @@ func GCPrintDebug() {
 	println("gc_OBJECT_OVERHEAD	", uint(gc_OBJECT_OVERHEAD))
 	println("gc_OBJECT_MAXSIZE		", uint(gc_OBJECT_MAXSIZE))
 	println("gc_TOTAL_OVERHEAD		", uint(gc_TOTAL_OVERHEAD))
-	PrintDebugInfo()
+	AllocatorPrintDebugInfo()
 }
 
 //goland:noinspection ALL
@@ -154,7 +154,7 @@ type gcObject struct {
 
 // Gets the size of this object in memory.
 func (o *gcObject) size() uintptr {
-	return tlsf_BLOCK_OVERHEAD + (o.mmInfo & ^uintptr(3))
+	return _TLSFBlockOverhead + (o.mmInfo & ^uintptr(3))
 }
 
 func (gc *GC) Allocator() *Allocator {
@@ -292,7 +292,7 @@ func (gc *GC) New(size uintptr) unsafe.Pointer {
 	}
 
 	// Allocate memory
-	obj := (*gcObject)(unsafe.Pointer(uintptr(gc.allocator.Alloc(gc_OBJECT_OVERHEAD+size)) - tlsf_BLOCK_OVERHEAD))
+	obj := (*gcObject)(unsafe.Pointer(uintptr(gc.allocator.Alloc(gc_OBJECT_OVERHEAD+size)) - _TLSFBlockOverhead))
 	if obj == nil {
 		return nil
 	}
@@ -348,7 +348,7 @@ func (gc *GC) Free(ptr unsafe.Pointer) bool {
 	gc.allocs.Delete(p)
 
 	println("GC free", uint(uintptr(ptr)), "size", uint(size), "rtSize", obj.rtSize)
-	gc.allocator.Free(unsafe.Pointer(p + tlsf_BLOCK_OVERHEAD))
+	gc.allocator.Free(unsafe.Pointer(p + _TLSFBlockOverhead))
 
 	return true
 }
@@ -433,7 +433,7 @@ func (gc *GC) Collect() {
 			//println("GC sweep", uint(k+gc_TOTAL_OVERHEAD), "size", uint(obj.size()), "rtSize", obj.rtSize)
 
 			// Free memory
-			gc.allocator.Free(unsafe.Pointer(k + tlsf_BLOCK_OVERHEAD))
+			gc.allocator.Free(unsafe.Pointer(k + _TLSFBlockOverhead))
 
 			// Remove from alloc map
 			gc.allocs.Delete(k)

@@ -120,16 +120,16 @@ func GrowByDouble() Grow {
 		} else {
 			pagesAdded = pagesNeeded
 		}
-		ptr := malloc(uintptr(pagesAdded) * tlsf_PAGE_SIZE)
+		ptr := malloc(uintptr(pagesAdded) * _TLSFPageSize)
 		if ptr == nil {
 			pagesAdded = pagesNeeded
-			ptr = malloc(uintptr(pagesAdded) * tlsf_PAGE_SIZE)
+			ptr = malloc(uintptr(pagesAdded) * _TLSFPageSize)
 			if ptr == nil {
 				return 0, 0, 0
 			}
 		}
 		start = uintptr(ptr)
-		end = start + (uintptr(pagesAdded) * tlsf_PAGE_SIZE)
+		end = start + (uintptr(pagesAdded) * _TLSFPageSize)
 		return
 	}
 }
@@ -141,27 +141,27 @@ func GrowBy(pages int32) Grow {
 		} else {
 			pagesAdded = pagesNeeded
 		}
-		ptr := malloc(uintptr(pagesAdded) * tlsf_PAGE_SIZE)
+		ptr := malloc(uintptr(pagesAdded) * _TLSFPageSize)
 		if ptr == nil {
 			pagesAdded = pagesNeeded
-			ptr = malloc(uintptr(pagesAdded) * tlsf_PAGE_SIZE)
+			ptr = malloc(uintptr(pagesAdded) * _TLSFPageSize)
 			if ptr == nil {
 				return 0, 0, 0
 			}
 		}
 		start = uintptr(ptr)
-		end = start + (uintptr(pagesAdded) * tlsf_PAGE_SIZE)
+		end = start + (uintptr(pagesAdded) * _TLSFPageSize)
 		return
 	}
 }
 
 func GrowMin() Grow {
 	return func(pagesBefore, pagesNeeded int32, minSize uintptr) (int32, uintptr, uintptr) {
-		ptr := malloc(uintptr(pagesNeeded) * tlsf_PAGE_SIZE)
+		ptr := malloc(uintptr(pagesNeeded) * _TLSFPageSize)
 		if ptr == nil {
 			return 0, 0, 0
 		}
-		return pagesNeeded, uintptr(ptr), uintptr(ptr) + (uintptr(pagesNeeded) * tlsf_PAGE_SIZE)
+		return pagesNeeded, uintptr(ptr), uintptr(ptr) + (uintptr(pagesNeeded) * _TLSFPageSize)
 	}
 }
 

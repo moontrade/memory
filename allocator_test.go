@@ -22,8 +22,8 @@ func Test_AllocatorCounts(t *testing.T) {
 }
 
 func Test_AllocatorThrash(t *testing.T) {
-	thrashTLSF(NewAllocatorWithGrow(1, GrowBy(1, DefaultMalloc)), false,
-		1000000, 100, 15000, 21000,
+	thrashAllocator(NewAllocatorWithGrow(1, GrowBy(1, DefaultMalloc)), false,
+		100000, 100, 15000, 21000,
 		randomSize(0.95, 16, 48),
 		randomSize(0.95, 48, 192),
 		randomSize(0.55, 64, 512),
@@ -32,7 +32,7 @@ func Test_AllocatorThrash(t *testing.T) {
 		//randomSize(0.30, 128, 1024),
 	)
 
-	//thrashTLSF(newTLSF(2), 100000, 100, 12000, 17000,
+	//thrashAllocator(newTLSF(2), 100000, 100, 12000, 17000,
 	//	randomSize(0.80, 24, 96),
 	//	//randomSize(0.70, 128, 512),
 	//	//randomSize(0.15, 128, 512),
@@ -59,7 +59,7 @@ func (s *sizeClass) nextRandom() int {
 	return rand.Intn(s.max-s.min) + s.min
 }
 
-func thrashTLSF(
+func thrashAllocator(
 	allocator *Allocator, shuffle bool,
 	iterations, allocsPerIteration, minAllocs, maxAllocs int,
 	sizeClasses ...*sizeClass,
@@ -142,13 +142,13 @@ func thrashTLSF(
 	//println("alloc size			", AllocSize)
 	println("max allocs			", maxAllocCount)
 	println("max alloc size		", allocator.MaxUsedSize)
-	println("fragmentation		", fmt.Sprintf("%.2f", float64(allocator.HeapSize-allocator.MaxUsedSize)/float64(allocator.HeapSize)))
+	println("fragmentation		", fmt.Sprintf("%.2f", allocator.Stats.Fragmentation()))
 }
 
 func Test_Allocator(t *testing.T) {
 	println("ALIGN_SIZE", 10<<3)
 	a := NewAllocatorWithGrow(1, GrowMin(DefaultMalloc))
-	PrintDebugInfo()
+	AllocatorPrintDebugInfo()
 	ptr := a.Alloc(16)
 	ptr2 := a.Alloc(49)
 	ptr4 := a.Alloc(8224)
@@ -163,7 +163,7 @@ func Test_Allocator(t *testing.T) {
 
 func BenchmarkAllocator_Alloc(b *testing.B) {
 	var (
-		min, max = 24, 768
+		min, max = 24, 8096
 	)
 	b.Run("Allocator alloc", func(b *testing.B) {
 		a := NewAllocatorWithGrow(1, GrowMin(DefaultMalloc))
