@@ -11,10 +11,10 @@ import (
 // meet real-time requirements:
 //
 // 		Bounded Response Time - The worst-case execution time (WCET) of memory allocation
-//								and deallocation has got to be known in advance and be
-//								independent of application data. Allocator has a constant cost O(1).
+//								and deallocation Has got to be known in advance and be
+//								independent of application data. Allocator Has a constant cost O(1).
 //
-//						 Fast - Additionally to a bounded cost, the allocator has to be efficient
+//						 Fast - Additionally to a bounded cost, the allocator Has to be efficient
 //								and fast enough. Allocator executes a maximum of 168 processor instructions
 //								in a x86 architecture. Depending on the compiler version and optimisation
 //								flags, it can be slightly lower or higher.
@@ -24,9 +24,17 @@ import (
 //								Fragmentation can have a significant impact on such systems. It can increase
 //								dramatically, and degrade the system performance. A way to measure this
 //								efficiency is the memory fragmentation incurred by the allocator.
-//								Allocator has been tested in hundreds of different loads (real-time tasks,
+//								Allocator Has been tested in hundreds of different loads (real-time tasks,
 //								general purpose applications, etc.) obtaining an average fragmentation
 //								lower than 15 %. The maximum fragmentation measured is lower than 25%.
+//
+// Memory can be added on demand and is a multiple of 64kb pages. Grow is used to allocate new
+// memory to be added to the allocator. Each Grow must provide a contiguous chunk of memory.
+// However, the allocator may be comprised of many contiguous chunks which are not contiguous
+// of each other. There is not a mechanism for shrinking the memory. Supplied Grow function
+// can effectively limit how big the allocator can get. If a zero pointer is returned it will
+// cause an out-of-memory situation which is propagated as a nil pointer being returned from
+// Alloc. It's up to the application to decide how to handle such scenarios.
 //
 // see: http://www.gii.upv.es/tlsf/
 //
@@ -60,7 +68,7 @@ type Stats struct {
 	Grows        int32
 }
 
-// Grow provides the ability to grow the heap and allocate a contiguous
+// Grow provides the ability to Grow the heap and allocate a contiguous
 // chunk of system memory to add to the allocator.
 type Grow func(pagesBefore, pagesNeeded int32, minSize uintptr) (pagesAdded int32, start, end uintptr)
 
@@ -131,7 +139,11 @@ func (a *Allocator) Alloc(size uintptr) unsafe.Pointer {
 
 // Realloc determines the best way to resize an allocation.
 func (a *Allocator) Realloc(ptr unsafe.Pointer, size uintptr) unsafe.Pointer {
-	return unsafe.Pointer(uintptr(unsafe.Pointer(a.moveBlock(checkUsedBlock(uintptr(ptr)), size))) + tlsf_BLOCK_OVERHEAD)
+	p := uintptr(unsafe.Pointer(a.moveBlock(checkUsedBlock(uintptr(ptr)), size)))
+	if p == 0 {
+		return nil
+	}
+	return unsafe.Pointer(p + tlsf_BLOCK_OVERHEAD)
 }
 
 // Free release the allocation back into the free list.
@@ -162,10 +174,6 @@ func Bootstrap(start, end uintptr, pages int32, grow Grow) *Allocator {
 
 	// init root
 	rootOffset := unsafe.Sizeof(Allocator{}) + ((start + tlsf_AL_MASK) & ^tlsf_AL_MASK)
-	//if (rootOffset-start) % 2 != 0 {
-	//	rootOffset++
-	//}
-	//rootOffset++
 	a.root = (*root)(unsafe.Pointer(rootOffset))
 	a.root.init()
 
@@ -249,7 +257,7 @@ type root struct {
 	flMap uintptr
 }
 
-func (r *root) init() *root {
+func (r *root) init() {
 	r.flMap = 0
 	r.setTail(nil)
 	for fl := uintptr(0); fl < uintptr(tlsf_FL_BITS); fl++ {
@@ -258,7 +266,6 @@ func (r *root) init() *root {
 			r.setHead(fl, sl, nil)
 		}
 	}
-	return r
 }
 
 const (
@@ -281,14 +288,14 @@ func (r *root) setSL(fl uintptr, slMap uint32) {
 
 // Gets the head of the free list for the specified combination of first and second level.
 func (r *root) getHead(fl uintptr, sl uint32) *tlsfBlock {
-	return *(**tlsfBlock)(unsafe.Pointer(
-		uintptr(unsafe.Pointer(r)) + (((fl << tlsf_SL_BITS) + uintptr(sl)) << tlsf_ALIGN_SIZE_LOG2) + tlsf_HL_START))
+	return *(**tlsfBlock)(unsafe.Pointer(uintptr(unsafe.Pointer(r)) + tlsf_HL_START +
+		(((fl << tlsf_SL_BITS) + uintptr(sl)) << tlsf_ALIGN_SIZE_LOG2)))
 }
 
 // Sets the head of the free list for the specified combination of first and second level.
 func (r *root) setHead(fl uintptr, sl uint32, head *tlsfBlock) {
-	*(*uintptr)(unsafe.Pointer(uintptr(
-		unsafe.Pointer(r)) + tlsf_HL_START + (((fl << tlsf_SL_BITS) + uintptr(sl)) << tlsf_ALIGN_SIZE_LOG2))) = uintptr(unsafe.Pointer(head))
+	*(*uintptr)(unsafe.Pointer(uintptr(unsafe.Pointer(r)) + tlsf_HL_START +
+		(((fl << tlsf_SL_BITS) + uintptr(sl)) << tlsf_ALIGN_SIZE_LOG2))) = uintptr(unsafe.Pointer(head))
 }
 
 // Gets the tail block.
@@ -318,7 +325,7 @@ func (a *Allocator) insertBlock(block *tlsfBlock) {
 		block.mmInfo = blockInfo
 		right = block.getRight()
 		rightInfo = right.mmInfo
-		// 'back' is set below
+		// 'back' is Add below
 	}
 
 	// merge with left block if also free
@@ -332,7 +339,7 @@ func (a *Allocator) insertBlock(block *tlsfBlock) {
 		block = left
 		blockInfo = leftInfo + tlsf_BLOCK_OVERHEAD + (blockInfo & ^tlsf_TAGS_MASK) // keep left tags
 		block.mmInfo = blockInfo
-		// 'back' is set below
+		// 'back' is Add below
 	}
 
 	right.mmInfo = rightInfo | tlsf_LEFTFREE
@@ -341,7 +348,7 @@ func (a *Allocator) insertBlock(block *tlsfBlock) {
 	// we now know the size of the block
 	size := blockInfo & ^tlsf_TAGS_MASK
 
-	// set 'back' to itself at the end of block
+	// Add 'back' to itself at the end of block
 	*(*uintptr)(unsafe.Pointer(uintptr(unsafe.Pointer(right)) - tlsf_sizeofPointer)) = uintptr(unsafe.Pointer(block))
 
 	// mapping_insert
@@ -470,8 +477,10 @@ func (a *Allocator) searchBlock(size uintptr) *tlsfBlock {
 	}
 
 	// search second level
-	var slMap = r.getSL(fl) & (^uint32(0) << sl)
-	var head *tlsfBlock
+	var (
+		slMap = r.getSL(fl) & (^uint32(0) << sl)
+		head  *tlsfBlock
+	)
 	if slMap == 0 {
 		// search prev larger first level
 		flMap := r.flMap & (^uintptr(0) << (fl + 1))
@@ -515,9 +524,9 @@ func (a *Allocator) prepareBlock(block *tlsfBlock, size uintptr) {
 }
 
 // growMemory grows the pool by a number of 64kb pages to fit the required size
-func (a *Allocator) growMemory(size uintptr) {
+func (a *Allocator) growMemory(size uintptr) bool {
 	if a.Grow == nil {
-		return
+		return false
 	}
 	// Here, both rounding performed in searchBlock ...
 	const halfMaxSize = tlsf_BLOCK_MAXSIZE >> 1
@@ -539,7 +548,7 @@ func (a *Allocator) growMemory(size uintptr) {
 
 	addedPages, start, end := a.Grow(pagesBefore, pagesNeeded, size)
 	if start == 0 || end == 0 {
-		return
+		return false
 	}
 	if addedPages == 0 {
 		addedPages = int32((end - start) / tlsf_PAGE_SIZE)
@@ -550,6 +559,7 @@ func (a *Allocator) growMemory(size uintptr) {
 	a.Pages += addedPages
 	a.HeapEnd = end
 	a.addMemory(start, end)
+	return true
 }
 
 // addMemory adds the newly allocated memory to the Allocator bitmaps
@@ -574,7 +584,7 @@ func (a *Allocator) addMemory(start, end uintptr) bool {
 			start -= offsetToTail
 			tailInfo = tail.mmInfo
 		} else {
-			// We don't do this, but a user might `memory.grow` manually
+			// We don't do this, but a user might `memory.Grow` manually
 			// leading to non-adjacent pages managed by Allocator.
 		}
 
@@ -603,7 +613,8 @@ func (a *Allocator) addMemory(start, end uintptr) bool {
 	a.FreeSize += int64(leftSize)
 	a.HeapSize += int64(end - start)
 
-	a.insertBlock(left) // also merges with free left before tail / sets 'back'
+	// also merges with free left before tail / sets 'back'
+	a.insertBlock(left)
 
 	return true
 }
@@ -631,10 +642,15 @@ func (a *Allocator) allocateBlock(size uintptr) *tlsfBlock {
 	var payloadSize = prepareSize(size)
 	var block = a.searchBlock(payloadSize)
 	if block == nil {
-		a.growMemory(payloadSize)
+		if !a.growMemory(payloadSize) {
+			return nil
+		}
 		block = a.searchBlock(payloadSize)
 		if tlsf_DEBUG {
 			assert(block != nil, "block must be found now")
+		}
+		if block == nil {
+			return nil
 		}
 	}
 	if tlsf_DEBUG {
@@ -692,7 +708,10 @@ func (a *Allocator) reallocateBlock(block *tlsfBlock, size uintptr) *tlsfBlock {
 }
 
 func (a *Allocator) moveBlock(block *tlsfBlock, newSize uintptr) *tlsfBlock {
-	var newBlock = a.allocateBlock(newSize)
+	newBlock := a.allocateBlock(newSize)
+	if newBlock == nil {
+		return nil
+	}
 
 	memcpy(unsafe.Pointer(uintptr(unsafe.Pointer(newBlock))+tlsf_BLOCK_OVERHEAD),
 		unsafe.Pointer(uintptr(unsafe.Pointer(block))+tlsf_BLOCK_OVERHEAD),
@@ -745,6 +764,10 @@ func assert(truthy bool, message string) {
 	if !truthy {
 		panic(message)
 	}
+}
+
+func allocationSize(ptr unsafe.Pointer) uintptr {
+	return ((*tlsfBlock)(unsafe.Pointer(uintptr(ptr) - tlsf_BLOCK_OVERHEAD))).mmInfo & ^tlsf_TAGS_MASK
 }
 
 func PrintDebugInfo() {

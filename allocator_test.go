@@ -9,8 +9,8 @@ import (
 	"unsafe"
 )
 
-func Test_TLSFCounts(t *testing.T) {
-	p := NewAllocator(1, GrowMin(DefaultMalloc))
+func Test_AllocatorCounts(t *testing.T) {
+	p := NewAllocatorWithGrow(1, GrowMin(DefaultMalloc))
 	p1 := p.Alloc(38)
 	println("alloc size", p.AllocSize)
 	p2 := p.Alloc(81)
@@ -21,8 +21,8 @@ func Test_TLSFCounts(t *testing.T) {
 	println("alloc size", p.AllocSize)
 }
 
-func Test_TLSFThrash(t *testing.T) {
-	thrashTLSF(NewAllocator(1, GrowBy(1, DefaultMalloc)), false,
+func Test_AllocatorThrash(t *testing.T) {
+	thrashTLSF(NewAllocatorWithGrow(1, GrowBy(1, DefaultMalloc)), false,
 		1000000, 100, 15000, 21000,
 		randomSize(0.95, 16, 48),
 		randomSize(0.95, 48, 192),
@@ -147,7 +147,7 @@ func thrashTLSF(
 
 func Test_Allocator(t *testing.T) {
 	println("ALIGN_SIZE", 10<<3)
-	a := NewAllocator(1, GrowMin(DefaultMalloc))
+	a := NewAllocatorWithGrow(1, GrowMin(DefaultMalloc))
 	PrintDebugInfo()
 	ptr := a.Alloc(16)
 	ptr2 := a.Alloc(49)
@@ -166,13 +166,23 @@ func BenchmarkAllocator_Alloc(b *testing.B) {
 		min, max = 24, 768
 	)
 	b.Run("Allocator alloc", func(b *testing.B) {
-		pool := NewAllocator(1, GrowMin(DefaultMalloc))
+		a := NewAllocatorWithGrow(1, GrowMin(DefaultMalloc))
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			size := randomRange(min, max)
 			b.SetBytes(int64(size))
-			pool.Free(pool.Alloc(uintptr(size)))
+			a.Free(a.Alloc(uintptr(size)))
+		}
+	})
+	b.Run("Sync Allocator alloc", func(b *testing.B) {
+		a := NewAllocatorWithGrow(1, GrowMin(DefaultMalloc)).ToSync()
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			size := randomRange(min, max)
+			b.SetBytes(int64(size))
+			a.Free(a.Alloc(uintptr(size)))
 		}
 	})
 

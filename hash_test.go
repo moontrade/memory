@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestTcmsSet(t *testing.T) {
+func TestHashCollisions(t *testing.T) {
 
 	var (
 		c32   int
@@ -33,9 +33,9 @@ func TestTcmsSet(t *testing.T) {
 		multiplierAdd  int
 	}
 	for _, cfg := range []config{
-		{2, 10, 4, 8, 65580, 64, 4096, 128},
-		{256, 512, 64, 3, 65580, 56, 4096, 128},
-		//{1024, 4096, 256, 3, 65580, 56, 1024, 24},
+		//{2, 10, 4, 8, 65580, 64, 4096, 128},
+		{40, 512, 32, 3, 65580, 56, 512000, 128},
+		//{1024, 4096, 96, 3, 65580, 56, 1024, 24},
 	} {
 		for i := cfg.low; i < cfg.high; i += cfg.adder {
 			var (
@@ -64,63 +64,6 @@ func TestTcmsSet(t *testing.T) {
 		println("\tmetro32		", met)
 		println("\tmetro64		", met64)
 	}
-	//
-	//for i := 8; i < 50; i++ {
-	//	var (
-	//		entries    = i
-	//		//inc = 64
-	//		slots      = i*4
-	//	)
-	//	for multiplier := 56; multiplier < 128; multiplier+=24 {
-	//		total += entries
-	//		c32 += testCollisions(entries, multiplier, slots, crc32h)
-	//		c16 += testCollisions(entries, multiplier, slots, crc16a)
-	//		a32 += testCollisions(entries, multiplier, slots, adler32)
-	//		fn += testCollisions(entries, multiplier, slots, fnv32)
-	//		wy += testCollisions(entries, multiplier, slots, wyhash32)
-	//		wy64 += testCollisions64(entries, multiplier, slots, wyhash64)
-	//		met += testCollisions(entries, multiplier, slots, metro32)
-	//		met64 += testCollisions64(entries, multiplier, slots, metro64)
-	//	}
-	//}
-	//
-	//for i := 256; i < 512; i++ {
-	//	var (
-	//		entries    = i
-	//		//inc = 64
-	//		slots      = i*3
-	//	)
-	//	for multiplier := 56; multiplier < 128; multiplier+=24 {
-	//		total += entries
-	//		c32 += testCollisions(entries, multiplier, slots, crc32h)
-	//		c16 += testCollisions(entries, multiplier, slots, crc16a)
-	//		a32 += testCollisions(entries, multiplier, slots, adler32)
-	//		fn += testCollisions(entries, multiplier, slots, fnv32)
-	//		wy += testCollisions(entries, multiplier, slots, wyhash32)
-	//		wy64 += testCollisions64(entries, multiplier, slots, wyhash64)
-	//		met += testCollisions(entries, multiplier, slots, metro32)
-	//		met64 += testCollisions64(entries, multiplier, slots, metro64)
-	//	}
-	//}
-	//
-	//for i := 1024; i < 4096; i+=256 {
-	//	var (
-	//		entries    = i
-	//		//inc = 64
-	//		slots      = i*2
-	//	)
-	//	for multiplier := 56; multiplier < 128; multiplier+=24 {
-	//		total += entries
-	//		c32 += testCollisions(entries, multiplier, slots, crc32h)
-	//		c16 += testCollisions(entries, multiplier, slots, crc16a)
-	//		a32 += testCollisions(entries, multiplier, slots, adler32)
-	//		fn += testCollisions(entries, multiplier, slots, fnv32)
-	//		wy += testCollisions(entries, multiplier, slots, wyhash32)
-	//		wy64 += testCollisions64(entries, multiplier, slots, wyhash64)
-	//		met += testCollisions(entries, multiplier, slots, metro32)
-	//		met64 += testCollisions64(entries, multiplier, slots, metro64)
-	//	}
-	//}
 
 	println("")
 	println("total		", total)
@@ -290,7 +233,7 @@ func BenchmarkHash(b *testing.B) {
 	//b.Run("wyhash", func(b *testing.B) {
 	//	h := fnv.New32a()
 	//	for i := 0; i < b.N; i++ {
-	//		h.reset()
+	//		h.Reset()
 	//
 	//		wyhash32(23)
 	//	}

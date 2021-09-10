@@ -1,4 +1,5 @@
 //go:build !gc.conservative && !gc.extalloc
+// +build !gc.conservative,!gc.extalloc
 
 package mem
 
@@ -27,10 +28,6 @@ const (
 	gc_TOTAL_OVERHEAD = tlsf_BLOCK_OVERHEAD + gc_OBJECT_OVERHEAD
 )
 
-var (
-	collector *GC
-)
-
 // GC is a Two-Color Mark & Sweep collector on top of a Two-Level Segmented Fit (TLSF) allocator.
 // Similar features to the internal extalloc GC in TinyGo except GC uses a robinhood
 // hashset instead of a treap structure and without the need for a linked list.
@@ -55,7 +52,7 @@ var (
 //
 // Relatively large TinyGo object graphs should still complete under 50 microseconds.
 type GC struct {
-	allocs      gcSet
+	allocs      PointerSet
 	first, last uintptr
 	allocator   *Allocator
 	stats       GCStats
@@ -65,7 +62,7 @@ type GC struct {
 // is operating and performing.
 type GCStats struct {
 	Started           int64   // Epoch in nanos when GC was first started
-	Cycles            int64   // Number of times GC collect has ran
+	Cycles            int64   // Number of times GC collect Has ran
 	Live              int64   // Number of live objects
 	TotalAllocs       int64   // Count of all allocations created
 	TotalBytes        int64   // Sum of all allocation's size in bytes
@@ -128,10 +125,10 @@ func GCPrintDebug() {
 }
 
 //goland:noinspection ALL
-func newGC(allocator *Allocator, initialCapacity uintptr) *GC {
+func NewGC(allocator *Allocator, initialCapacity uintptr) *GC {
 	t := (*GC)(allocator.Alloc(unsafe.Sizeof(GC{})))
 	t.allocator = allocator
-	t.allocs = newGCSet(allocator, initialCapacity)
+	t.allocs = NewPointerSet(allocator, initialCapacity)
 	t.first = ^uintptr(0)
 	t.last = 0
 	t.stats.Started = time.Now().UnixNano()
@@ -151,8 +148,8 @@ func (o *gcObject) size() uintptr {
 }
 
 //goland:noinspection ALL
-func (tc *GC) scan(start uintptr, end uintptr) {
-	if start < tc.first || end > tc.last {
+func (gc *GC) scan(start uintptr, end uintptr) {
+	if start < gc.first || end > gc.last {
 		return
 	}
 
@@ -163,25 +160,25 @@ func (tc *GC) scan(start uintptr, end uintptr) {
 	// Mark all pointers.
 	for ptr := start; ptr < end; ptr += unsafe.Alignof(unsafe.Pointer(nil)) {
 		p := *(*uintptr)(unsafe.Pointer(ptr))
-		tc.mark(p)
+		gc.mark(p)
 	}
 }
 
 //goland:noinspection ALL
-func (tc *GC) mark(root uintptr) {
+func (gc *GC) mark(root uintptr) {
 	root -= gc_TOTAL_OVERHEAD
-	if root < tc.first || root > tc.last {
+	if root < gc.first || root > gc.last {
 		return
 	}
-	if tc.allocs.has(root) {
+	if gc.allocs.Has(root) {
 		*(*uint32)(unsafe.Pointer(root + tlsf_BLOCK_OVERHEAD)) = gc_BLACK
 	}
 }
 
 //goland:noinspection ALL
-func (tc *GC) markRecursive(root uintptr, depth int) {
+func (gc *GC) markRecursive(root uintptr, depth int) {
 	root -= gc_TOTAL_OVERHEAD
-	if !tc.allocs.has(root) {
+	if !gc.allocs.Has(root) {
 		return
 	}
 	// Are we too deep?
@@ -199,7 +196,7 @@ func (tc *GC) markRecursive(root uintptr, depth int) {
 		if gc_TRACE {
 			println(uint(root), "color", obj.color, "rtSize", obj.rtSize, "size", uint(obj.size()))
 		}
-		if uintptr(obj.rtSize)%sizeofPointer != 0 {
+		if uintptr(obj.rtSize)%unsafe.Sizeof(uintptr(0)) != 0 {
 			return
 		}
 		start := root + gc_TOTAL_OVERHEAD
@@ -209,26 +206,26 @@ func (tc *GC) markRecursive(root uintptr, depth int) {
 
 		for ptr := start; ptr < end; ptr += unsafe.Alignof(unsafe.Pointer(nil)) {
 			p := *(*uintptr)(unsafe.Pointer(ptr))
-			if (p < tc.first || p > tc.last) || (p >= start && p < end) {
+			if (p < gc.first || p > gc.last) || (p >= start && p < end) {
 				continue
 			}
-			if !tc.allocs.has(p - gc_TOTAL_OVERHEAD) {
+			if !gc.allocs.Has(p - gc_TOTAL_OVERHEAD) {
 				continue
 			}
-			tc.markRecursive(p, depth+1)
+			gc.markRecursive(p, depth+1)
 		}
 	}
 }
 
-func (tc *GC) markRoots(start, end uintptr) {
+func (gc *GC) markRoots(start, end uintptr) {
 	if gc_TRACE {
 		println("markRoots", uint(start), uint(end))
 	}
-	tc.scan(start, end)
+	gc.scan(start, end)
 }
 
 //goland:noinspection ALL
-func (tc *GC) markGraph(root uintptr) {
+func (gc *GC) markGraph(root uintptr) {
 	var (
 		obj   = (*gcObject)(unsafe.Pointer(root))
 		start = root + gc_TOTAL_OVERHEAD
@@ -236,7 +233,7 @@ func (tc *GC) markGraph(root uintptr) {
 	)
 
 	// unaligned allocation must be some sort of string or data buffer. skip it.
-	if uintptr(obj.rtSize)%sizeofPointer != 0 {
+	if uintptr(obj.rtSize)%unsafe.Sizeof(uintptr(0)) != 0 {
 		return
 	}
 
@@ -248,33 +245,33 @@ func (tc *GC) markGraph(root uintptr) {
 	// Mark all pointers.
 	for ptr := start; ptr < end; ptr += unsafe.Alignof(unsafe.Pointer(nil)) {
 		p := *(*uintptr)(unsafe.Pointer(ptr))
-		if (p < tc.first || p > tc.last) || (p >= start && p < end) {
+		if (p < gc.first || p > gc.last) || (p >= start && p < end) {
 			continue
 		}
-		if !tc.allocs.has(p - gc_TOTAL_OVERHEAD) {
+		if !gc.allocs.Has(p - gc_TOTAL_OVERHEAD) {
 			continue
 		}
-		tc.markRecursive(p, 0)
+		gc.markRecursive(p, 0)
 	}
 }
 
 //goland:noinspection ALL
-func (tc *GC) new(size uintptr) uintptr {
+func (gc *GC) new(size uintptr) uintptr {
 	// Is the size too large?
 	if size > gc_OBJECT_MAXSIZE {
 		panic("allocation too large")
 	}
 
 	// Allocate memory
-	obj := (*gcObject)(unsafe.Pointer(uintptr(tc.allocator.Alloc(gc_OBJECT_OVERHEAD+size)) - tlsf_BLOCK_OVERHEAD))
+	obj := (*gcObject)(unsafe.Pointer(uintptr(gc.allocator.Alloc(gc_OBJECT_OVERHEAD+size)) - tlsf_BLOCK_OVERHEAD))
 
-	// set the runtime size and set to WHITE
+	// Add the runtime size and Add to WHITE
 	obj.rtSize = uint32(size)
 	obj.color = gc_WHITE
-	tc.stats.LiveBytes += obj.size()
-	tc.stats.TotalBytes += int64(obj.size())
-	tc.stats.Live++
-	tc.stats.TotalAllocs++
+	gc.stats.LiveBytes += obj.size()
+	gc.stats.TotalBytes += int64(obj.size())
+	gc.stats.Live++
+	gc.stats.TotalAllocs++
 
 	// Convert to uint pointer
 	ptr := uintptr(unsafe.Pointer(obj))
@@ -283,15 +280,15 @@ func (tc *GC) new(size uintptr) uintptr {
 	memzero(unsafe.Pointer(ptr+gc_TOTAL_OVERHEAD), size)
 
 	// Add to allocations map
-	tc.allocs.set(ptr)
+	gc.allocs.Add(ptr, 0)
 
 	// Update first pointer if necessary
-	if ptr < tc.first {
-		tc.first = ptr
+	if ptr < gc.first {
+		gc.first = ptr
 	}
 	// Update last pointer if necessary
-	if ptr > tc.last {
-		tc.last = ptr
+	if ptr > gc.last {
+		gc.last = ptr
 	}
 
 	// Return pointer to data
@@ -301,9 +298,9 @@ func (tc *GC) new(size uintptr) uintptr {
 // free will immediately remove the GC'd object from the collector
 // and free up the memory in the underlying tlsf allocator.
 //goland:noinspection ALL
-func (tc *GC) free(ptr unsafe.Pointer) bool {
+func (gc *GC) free(ptr unsafe.Pointer) bool {
 	p := uintptr(ptr) - gc_TOTAL_OVERHEAD
-	if !tc.allocs.has(p) {
+	if !gc.allocs.Has(p) {
 		return false
 	}
 
@@ -313,27 +310,27 @@ func (tc *GC) free(ptr unsafe.Pointer) bool {
 
 	obj := (*gcObject)(unsafe.Pointer(p))
 	size := obj.size()
-	tc.stats.LiveBytes -= size
-	tc.stats.FreedBytes += int64(size)
-	tc.stats.Live--
-	tc.stats.Frees++
-	tc.allocs.del(p)
+	gc.stats.LiveBytes -= size
+	gc.stats.FreedBytes += int64(size)
+	gc.stats.Live--
+	gc.stats.Frees++
+	gc.allocs.Delete(p)
 
 	println("GC free", uint(uintptr(ptr)), "size", uint(size), "rtSize", obj.rtSize)
-	tc.allocator.Free(unsafe.Pointer(p + tlsf_BLOCK_OVERHEAD))
+	gc.allocator.Free(unsafe.Pointer(p + tlsf_BLOCK_OVERHEAD))
 
 	return true
 }
 
 //goland:noinspection ALL
-func (tc *GC) collect() {
+func (gc *GC) collect() {
 	if gc_TRACE {
 		println("moon GC collect started...")
 	}
 	//println("tcmsCollect")
 	var (
 		start = time.Now().UnixNano()
-		stats = &tc.stats
+		stats = &gc.stats
 		k     uintptr
 		obj   *gcObject
 		min   = ^uintptr(0)
@@ -357,16 +354,16 @@ func (tc *GC) collect() {
 	stats.LastSweep = 0
 	stats.LastSweepBytes = 0
 	var (
-		items     = tc.allocs.items
-		itemsSize = tc.allocs.size
-		itemsEnd  = items + (itemsSize * unsafe.Sizeof(gcSetItem{}))
+		items     = gc.allocs.items
+		itemsSize = gc.allocs.size
+		itemsEnd  = items + (itemsSize * unsafe.Sizeof(pointerSetItem{}))
 	)
-	for ; items < itemsEnd; items += unsafe.Sizeof(gcSetItem{}) {
+	for ; items < itemsEnd; items += unsafe.Sizeof(pointerSetItem{}) {
 		k = *(*uintptr)(unsafe.Pointer(items))
 		if k == 0 {
 			continue
 		}
-		tc.markGraph(k)
+		gc.markGraph(k)
 	}
 
 	// End of mark graph
@@ -377,11 +374,11 @@ func (tc *GC) collect() {
 	////////////////////////////////////////////////////////////////////////
 	start = markGraphTime + start
 
-	// reset items iterator
-	items = tc.allocs.items
-	itemsSize = tc.allocs.size
-	itemsEnd = items + (itemsSize * unsafe.Sizeof(gcSetItem{}))
-	for ; items < itemsEnd; items += unsafe.Sizeof(gcSetItem{}) {
+	// Reset items iterator
+	items = gc.allocs.items
+	itemsSize = gc.allocs.size
+	itemsEnd = items + (itemsSize * unsafe.Sizeof(pointerSetItem{}))
+	for ; items < itemsEnd; items += unsafe.Sizeof(pointerSetItem{}) {
 		k = *(*uintptr)(unsafe.Pointer(items))
 		// Empty item?
 		if k == 0 {
@@ -391,7 +388,7 @@ func (tc *GC) collect() {
 		if obj.color == gc_WHITE {
 			stats.LiveBytes -= obj.size()
 			stats.LastSweepBytes += int64(obj.size())
-			tc.stats.Live--
+			gc.stats.Live--
 			stats.LastSweep++
 
 			if gc_TRACE {
@@ -401,11 +398,11 @@ func (tc *GC) collect() {
 			println("GC sweep", uint(k+gc_TOTAL_OVERHEAD), "size", uint(obj.size()))
 
 			// Free memory
-			tc.allocator.Free(unsafe.Pointer(k + tlsf_BLOCK_OVERHEAD))
+			gc.allocator.Free(unsafe.Pointer(k + tlsf_BLOCK_OVERHEAD))
 
 			// Remove from alloc map
-			tc.allocs.del(k)
-			//items -= unsafe.Sizeof(gcSetItem{})
+			gc.allocs.Delete(k)
+			//items -= unsafe.Sizeof(pointerSetItem{})
 		} else {
 			if k < min {
 				min = k
@@ -420,8 +417,8 @@ func (tc *GC) collect() {
 		}
 	}
 
-	tc.first = min
-	tc.last = max
+	gc.first = min
+	gc.last = max
 	sweepTime := time.Now().UnixNano() - start
 	stats.LastMarkRootsTime = markTime
 	stats.LastMarkGraphTime = markGraphTime
@@ -438,73 +435,89 @@ func (tc *GC) collect() {
 	//stats.Print()
 }
 
-// gcSet is a hashset that uses the robinhood algorithm. This
+// PointerSet is a hashset that uses the robinhood algorithm. This
 // implementation is not concurrent safe.
-type gcSet struct {
+type PointerSet struct {
 	// items are the slots of the hashmap for items.
 	items uintptr
 	end   uintptr
 	size  uintptr
 
-	// Number of keys in the gcSet.
+	// Number of keys in the PointerSet.
 	count     uintptr
 	allocator *Allocator
-	// When any item's distance gets too large, grow the gcSet.
+	// When any item's distance gets too large, Grow the PointerSet.
 	// Defaults to 10.
 	maxDistance int32
 	growBy      int32
-	// Number of hash slots to grow by
+	// Number of hash slots to Grow by
 	growthFactor float32
 }
 
-// Item represents an entry in the gcSet.
-type gcSetItem struct {
+// Item represents an entry in the PointerSet.
+type pointerSetItem struct {
 	key      uintptr
 	distance int32 // How far item is from its best position.
 }
 
-const (
-	sizeOfGCSetItem = unsafe.Sizeof(gcSetItem{})
-)
-
-// gcSetHash uses the fnv hashing algorithm for 32bit integers.
+// pointerSetHash uses the fnv hashing algorithm for 32bit integers.
 // fnv was chosen for its consistent low collision rate even with tight monotonic numbers (WASM)
 // and for its performance. Other potential candidates are wyhash, metro, and adler32. Each of these
 // have optimized 32bit version in hash.go in this package.
 //go:inline
-var gcSetHash = fnv32
+var pointerSetHash = fnv32
 
-//func gcSetHash(v uint32) uint32 {
+//func pointerSetHash(v uint32) uint32 {
 //	return fnv32(v)
 //}
 
-// newGCSet returns a new robinhood hashmap.
+// NewPointerSet returns a new robinhood hashmap.
 //goland:noinspection ALL
-func newGCSet(allocator *Allocator, size uintptr) gcSet {
-	items := allocator.Alloc(unsafe.Sizeof(gcSetItem{}) * size)
-	memzero(items, unsafe.Sizeof(gcSetItem{})*size)
-	return gcSet{
+func NewPointerSet(allocator *Allocator, size uintptr) PointerSet {
+	items := allocator.Alloc(unsafe.Sizeof(pointerSetItem{}) * size)
+	memzero(items, unsafe.Sizeof(pointerSetItem{})*size)
+	return PointerSet{
 		items:        uintptr(items),
 		size:         size,
-		end:          uintptr(items) + (size * sizeOfGCSetItem),
+		end:          uintptr(items) + (size * unsafe.Sizeof(pointerSetItem{})),
+		allocator:    allocator,
 		maxDistance:  10,
 		growBy:       64,
 		growthFactor: 2.0,
 	}
 }
 
-// reset clears gcSet, where already allocated memory will be reused.
-//goland:noinspection ALL
-func (m *gcSet) reset() {
-	memzero(unsafe.Pointer(m.items), unsafe.Sizeof(gcSetItem{})*m.size)
-	m.count = 0
+//goland:noinspection GoVetUnsafePointer
+func (ps *PointerSet) Close() error {
+	if ps == nil {
+		return nil
+	}
+	if ps.items == 0 {
+		return nil
+	}
+	ps.allocator.Free(unsafe.Pointer(ps.items))
+	ps.items = 0
+	return nil
 }
 
-// has returns whether the key exists in the set.
+// Reset clears PointerSet, where already allocated memory will be reused.
 //goland:noinspection ALL
-func (m *gcSet) has(k uintptr) bool {
+func (ps *PointerSet) Reset() {
+	memzero(unsafe.Pointer(ps.items), unsafe.Sizeof(pointerSetItem{})*ps.size)
+	ps.count = 0
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (ps *PointerSet) isCollision(k uintptr) bool {
+	return *(*uintptr)(unsafe.Pointer(
+		ps.items + (uintptr(pointerSetHash(uint32(k))%uint32(ps.size)) * unsafe.Sizeof(pointerSetItem{})))) != 0
+}
+
+// Has returns whether the key exists in the Add.
+//goland:noinspection ALL
+func (ps *PointerSet) Has(k uintptr) bool {
 	var (
-		idx      = m.items + (uintptr(gcSetHash(uint32(k))%uint32(m.size)) * sizeOfGCSetItem)
+		idx      = ps.items + (uintptr(pointerSetHash(uint32(k))%uint32(ps.size)) * unsafe.Sizeof(pointerSetItem{}))
 		idxStart = idx
 	)
 	for {
@@ -515,9 +528,9 @@ func (m *gcSet) has(k uintptr) bool {
 		if entry == k {
 			return true
 		}
-		idx += sizeOfGCSetItem
-		if idx >= m.end {
-			idx = m.items
+		idx += unsafe.Sizeof(pointerSetItem{})
+		if idx >= ps.end {
+			idx = ps.items
 		}
 		// Went all the way around?
 		if idx == idxStart {
@@ -526,73 +539,82 @@ func (m *gcSet) has(k uintptr) bool {
 	}
 }
 
-// set inserts or updates a key into the gcSet. The returned
+func (ps *PointerSet) Set(k uintptr) (bool, bool) {
+	return ps.Add(k, 0)
+}
+
+// Add inserts or updates a key into the PointerSet. The returned
 // wasNew will be true if the mutation was on a newly seen, inserted
 // key, and wasNew will be false if the mutation was an update to an
 // existing key.
-//goland:noinspection ALL
-func (m *gcSet) set(k uintptr) bool {
+//goland:noinspection GoVetUnsafePointer
+func (ps *PointerSet) Add(k uintptr, depth int) (bool, bool) {
 	var (
-		idx      = m.items + (uintptr(gcSetHash(uint32(k))%uint32(m.size)) * sizeOfGCSetItem)
+		idx      = ps.items + (uintptr(pointerSetHash(uint32(k))%uint32(ps.size)) * unsafe.Sizeof(pointerSetItem{}))
 		idxStart = idx
-		incoming = gcSetItem{k, 0}
+		incoming = pointerSetItem{k, 0}
 	)
 	for {
-		entry := (*gcSetItem)(unsafe.Pointer(idx))
+		entry := (*pointerSetItem)(unsafe.Pointer(idx))
 		if entry.key == 0 {
-			*(*gcSetItem)(unsafe.Pointer(idx)) = incoming
-			m.count++
-			return true
+			*(*pointerSetItem)(unsafe.Pointer(idx)) = incoming
+			ps.count++
+			return true, true
 		}
 
 		if entry.key == incoming.key {
 			entry.distance = incoming.distance
-			return false
+			return false, true
 		}
 
 		// Swap if the incoming item is further from its best idx.
 		if entry.distance < incoming.distance {
-			incoming, *(*gcSetItem)(unsafe.Pointer(idx)) = *(*gcSetItem)(unsafe.Pointer(idx)), incoming
+			incoming, *(*pointerSetItem)(unsafe.Pointer(idx)) = *(*pointerSetItem)(unsafe.Pointer(idx)), incoming
 		}
 
 		// One step further away from best idx.
 		incoming.distance++
 
-		idx += sizeOfGCSetItem
-		if idx >= m.end {
-			idx = m.items
+		idx += unsafe.Sizeof(pointerSetItem{})
+		if idx >= ps.end {
+			idx = ps.items
 		}
 
 		// Grow if distances become big or we went all the way around.
-		if incoming.distance > m.maxDistance || idx == idxStart {
-			m.grow()
-			return m.set(incoming.key)
+		if incoming.distance > ps.maxDistance || idx == idxStart {
+			if depth > 5 {
+				return false, false
+			}
+			if !ps.Grow() {
+				return false, false
+			}
+			return ps.Add(incoming.key, depth+1)
 		}
 	}
 }
 
-// del removes a key from the gcSet.
-//goland:noinspection ALL
-func (m *gcSet) del(k uintptr) (uintptr, bool) {
+// Delete removes a key from the PointerSet.
+//goland:noinspection GoVetUnsafePointer
+func (ps *PointerSet) Delete(k uintptr) (uintptr, bool) {
 	if k == 0 {
 		return 0, false
 	}
 
 	var (
-		idx      = m.items + (uintptr(gcSetHash(uint32(k))%uint32(m.size)) * sizeOfGCSetItem)
+		idx      = ps.items + (uintptr(pointerSetHash(uint32(k))%uint32(ps.size)) * unsafe.Sizeof(pointerSetItem{}))
 		idxStart = idx
 	)
 	for {
-		entry := (*gcSetItem)(unsafe.Pointer(idx))
+		entry := (*pointerSetItem)(unsafe.Pointer(idx))
 		if entry.key == 0 {
 			return 0, false
 		}
 		if entry.key == k {
 			break // Found the item.
 		}
-		idx += sizeOfGCSetItem
-		if idx >= m.end {
-			idx = m.items
+		idx += unsafe.Sizeof(pointerSetItem{})
+		if idx >= ps.end {
+			idx = ps.items
 		}
 		if idx == idxStart {
 			return 0, false
@@ -600,66 +622,72 @@ func (m *gcSet) del(k uintptr) (uintptr, bool) {
 	}
 	// Left-shift succeeding items in the linear chain.
 	for {
-		next := idx + sizeOfGCSetItem
-		if next >= m.end {
-			next = m.items
+		next := idx + unsafe.Sizeof(pointerSetItem{})
+		if next >= ps.end {
+			next = ps.items
 		}
 		// Went all the way around?
 		if next == idx {
 			break
 		}
-		f := (*gcSetItem)(unsafe.Pointer(next))
+		f := (*pointerSetItem)(unsafe.Pointer(next))
 		if f.key == 0 || f.distance <= 0 {
 			break
 		}
 		f.distance--
-		*(*gcSetItem)(unsafe.Pointer(idx)) = *f
+		*(*pointerSetItem)(unsafe.Pointer(idx)) = *f
 		idx = next
 	}
 	// Clear entry
-	*(*gcSetItem)(unsafe.Pointer(idx)) = gcSetItem{}
-	m.count--
+	*(*pointerSetItem)(unsafe.Pointer(idx)) = pointerSetItem{}
+	ps.count--
 	return idxStart, true
 }
 
-//goland:noinspection ALL
-func (m *gcSet) grow() {
+//goland:noinspection GoVetUnsafePointer
+func (ps *PointerSet) Grow() bool {
 	// Calculate new size
-	// m.size + 128
-	if m.growthFactor <= 1.0 {
-		m.growthFactor = 2.0
+	// ps.size + 128
+	if ps.growthFactor <= 1.0 {
+		ps.growthFactor = 2.0
 	}
-	//newSize := m.size + 32 // uintptr(float32(m.size) * m.growthFactor)
-	newSize := uintptr(float32(m.size) * m.growthFactor)
+	//newSize := ps.size + 32 // uintptr(float32(ps.size) * ps.growthFactor)
+	newSize := uintptr(float32(ps.size) * ps.growthFactor)
 
 	if gc_TRACE {
-		println("gcSet.grow", "newSize", uint(newSize), "oldSize", uint(m.size))
+		println("PointerSet.Grow", "newSize", uint(newSize), "oldSize", uint(ps.size))
 	}
 
 	// Allocate new items table
-	items := uintptr(m.allocator.Alloc(newSize * sizeOfGCSetItem))
+	items := uintptr(ps.allocator.Alloc(newSize * unsafe.Sizeof(pointerSetItem{})))
 	// Calculate end
-	itemsEnd := items + (newSize * sizeOfGCSetItem)
+	itemsEnd := items + (newSize * unsafe.Sizeof(pointerSetItem{}))
 	// Zero the allocation out
-	memzero(unsafe.Pointer(items), newSize*sizeOfGCSetItem)
+	memzero(unsafe.Pointer(items), newSize*unsafe.Sizeof(pointerSetItem{}))
 	// Init next structure
-	next := gcSet{
+	next := PointerSet{
 		items:        items,
 		size:         newSize,
 		end:          itemsEnd,
+		allocator:    ps.allocator,
 		count:        0,
-		growthFactor: m.growthFactor,
-		maxDistance:  m.maxDistance,
+		growthFactor: ps.growthFactor,
+		maxDistance:  ps.maxDistance,
 	}
 
 	// Add all entries from old to next
-	for i := m.items; i < m.end; i += sizeOfGCSetItem {
-		_ = next.set(*(*uintptr)(unsafe.Pointer(i)))
+	var success bool
+	for i := ps.items; i < ps.end; i += unsafe.Sizeof(pointerSetItem{}) {
+		if _, success = next.Add(*(*uintptr)(unsafe.Pointer(i)), 0); !success {
+			return false
+		}
 	}
 
 	// Free old items
-	m.allocator.Free(unsafe.Pointer(m.items))
+	ps.allocator.Free(unsafe.Pointer(ps.items))
+	ps.items = 0
 
 	// Update to next
-	*m = next
+	*ps = next
+	return true
 }

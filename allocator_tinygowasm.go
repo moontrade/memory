@@ -9,10 +9,10 @@ const wasmPageSize = 64 * 1024
 //export llvm.wasm.memory.size.i32
 func wasm_memory_size(index int32) int32
 
-//export llvm.wasm.memory.grow.i32
+//export llvm.wasm.memory.Grow.i32
 func wasm_memory_grow(index, pages int32) int32
 
-// GrowByDouble will double the heap on each grow
+// GrowByDouble will double the heap on each Grow
 func GrowByDouble() Grow {
 	return func(pagesBefore, pagesNeeded int32, minSize uintptr) (pagesAdded int32, start, end uintptr) {
 		if pagesBefore > pagesNeeded {
@@ -32,7 +32,7 @@ func GrowByDouble() Grow {
 	}
 }
 
-// GrowBy will grow by the number of pages specified or by the minimum needed, whichever is greater.
+// GrowBy will Grow by the number of pages specified or by the minimum needed, whichever is greater.
 func GrowBy(pages int32) Grow {
 	return func(pagesBefore, pagesNeeded int32, minSize uintptr) (pagesAdded int32, start, end uintptr) {
 		if pages > pagesNeeded {
@@ -52,7 +52,7 @@ func GrowBy(pages int32) Grow {
 	}
 }
 
-// GrowByMin will grow by a single page or by the minimum needed, whichever is greater.
+// GrowByMin will Grow by a single page or by the minimum needed, whichever is greater.
 func GrowMin() Grow {
 	return func(pagesBefore, pagesNeeded int32, minSize uintptr) (int32, uintptr, uintptr) {
 		start, end := growBy(pagesNeeded)
