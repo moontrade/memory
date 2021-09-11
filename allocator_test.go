@@ -23,7 +23,7 @@ func Test_AllocatorCounts(t *testing.T) {
 
 func Test_AllocatorThrash(t *testing.T) {
 	thrashAllocator(NewAllocatorWithGrow(1, GrowBy(1, DefaultMalloc)), false,
-		100000, 100, 15000, 21000,
+		1000000, 100, 15000, 21000,
 		randomSize(0.95, 16, 48),
 		randomSize(0.95, 48, 192),
 		randomSize(0.55, 64, 512),
