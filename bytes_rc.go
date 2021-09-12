@@ -15,7 +15,7 @@ func (p *BytesRC) Clone() BytesRC {
 }
 
 func (p *BytesRC) Drop() {
-	if p == nil || p.addr == 0 {
+	if p == nil || p.Pointer == 0 {
 		return
 	}
 	p.count--

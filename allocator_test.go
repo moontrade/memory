@@ -7,7 +7,6 @@ import (
 	"sync"
 	"testing"
 	"time"
-	"unsafe"
 )
 
 func Test_AllocatorCounts(t *testing.T) {
@@ -66,7 +65,7 @@ func thrashAllocator(
 	sizeClasses ...*sizeClass,
 ) {
 	type allocation struct {
-		ptr  unsafe.Pointer
+		ptr  Pointer
 		size int
 	}
 

@@ -4,7 +4,6 @@ import (
 	"math/rand"
 	"testing"
 	"time"
-	"unsafe"
 )
 
 func TestGC(t *testing.T) {
@@ -13,8 +12,8 @@ func TestGC(t *testing.T) {
 
 	// Create a simple roots marking system
 	// This will provided by the runtime / compiler in TinyGo.
-	roots := make(map[uintptr]struct{})
-	markGlobals := func(mark func(root uintptr), markRoots func(start uintptr, end uintptr)) {
+	roots := make(map[Pointer]struct{})
+	markGlobals := func(mark func(root Pointer), markRoots func(start Pointer, end Pointer)) {
 		for k := range roots {
 			mark(k)
 		}
@@ -24,13 +23,13 @@ func TestGC(t *testing.T) {
 	gc := NewGC(a, 16, markGlobals, nil)
 
 	// Allocate root
-	root := func(size uintptr) unsafe.Pointer {
+	root := func(size uintptr) Pointer {
 		p := gc.New(size)
-		roots[uintptr(p)] = struct{}{}
+		roots[p] = struct{}{}
 		return p
 	}
 	// Allocate and leak
-	leak := func(size uintptr) unsafe.Pointer {
+	leak := func(size uintptr) Pointer {
 		return gc.New(size)
 	}
 
@@ -207,7 +206,7 @@ func thrashPointerSet(
 	sizeClasses ...*sizeClass,
 ) int64 {
 	type allocation struct {
-		ptr  uintptr
+		ptr  Pointer
 		size uintptr
 	}
 
@@ -234,7 +233,7 @@ func thrashPointerSet(
 	for i := 0; i < iterations; i++ {
 		rand.Shuffle(len(sz), func(i, j int) { sz[i], sz[j] = sz[j], sz[i] })
 
-		nextPtr := heapBase
+		nextPtr := Pointer(heapBase)
 		for _, size := range sz {
 			allocs = append(allocs, allocation{
 				ptr:  nextPtr,
@@ -247,7 +246,7 @@ func thrashPointerSet(
 				}
 				set.Set(nextPtr)
 			}
-			nextPtr += uintptr(size)
+			nextPtr += Pointer(size)
 		}
 		totalAllocs += len(sz)
 

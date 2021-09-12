@@ -23,11 +23,11 @@ func (p *BytesARC) Clone() BytesARC {
 }
 
 func (p *BytesARC) Drop() {
-	if p == nil || p.addr == 0 {
+	if p == nil || p.Pointer == 0 {
 		return
 	}
 	if atomic.AddInt32(&p.count, -1) == 0 {
 		p.Bytes.Drop()
-		p.addr = 0
+		p.Pointer = 0
 	}
 }

@@ -49,7 +49,7 @@ func NewAuto(a *Allocator, nodeSize uintptr) Auto {
 		nodeSize = 32
 	}
 	p := a.Alloc(unsafe.Sizeof(autoHead{}) + unsafe.Sizeof(autoNode{}) + (nodeSize * unsafe.Sizeof(uintptr(0))))
-	h := (*autoHead)(p)
+	h := (*autoHead)(p.Unsafe())
 	h.head = uintptr(p) + unsafe.Sizeof(autoHead{})
 	h.allocator = uintptr(unsafe.Pointer(a))
 	h.max = nodeSize
@@ -68,12 +68,12 @@ func (au *Auto) Scope(fn func(Auto)) {
 	au.Free()
 }
 
-//goland:noinspection ALL
+//goland:noinspection GoVetUnsafePointer
 func (au *Auto) HasNext() bool {
 	return *(*uintptr)(unsafe.Pointer(*au)) != 0
 }
 
-//goland:noinspection ALL
+//goland:noinspection GoVetUnsafePointer
 func (au *Auto) Next() Auto {
 	if au == nil {
 		return 0
@@ -83,9 +83,9 @@ func (au *Auto) Next() Auto {
 }
 
 //goland:noinspection GoVetUnsafePointer
-func (au Auto) Alloc(size uintptr) unsafe.Pointer {
+func (au Auto) Alloc(size uintptr) Pointer {
 	if au == 0 {
-		return nil
+		return Pointer(0)
 	}
 	h := (*autoHead)(unsafe.Pointer(au))
 	p := ((*Allocator)(unsafe.Pointer(h.allocator))).Alloc(size)
@@ -100,23 +100,12 @@ func (au Auto) Bytes(length, capacity uintptr) Bytes {
 	}
 	h := (*autoHead)(unsafe.Pointer(au))
 	p := ((*Allocator)(unsafe.Pointer(h.allocator))).Bytes(length, capacity)
-	au.add(unsafe.Pointer(p.addr))
+	au.add(p.Pointer)
 	return p
 }
 
 //goland:noinspection GoVetUnsafePointer
-func (au Auto) BytesMut(length, capacity uintptr) BytesMut {
-	if au == 0 {
-		return BytesMut{}
-	}
-	h := (*autoHead)(unsafe.Pointer(au))
-	p := ((*Allocator)(unsafe.Pointer(h.allocator))).BytesMut(length, capacity)
-	au.add(unsafe.Pointer(p.addr))
-	return p
-}
-
-//goland:noinspection GoVetUnsafePointer
-func (au *Auto) add(ptr unsafe.Pointer) {
+func (au *Auto) add(ptr Pointer) {
 	if au == nil {
 		return
 	}
@@ -128,10 +117,10 @@ func (au *Auto) add(ptr unsafe.Pointer) {
 	if n.len == h.max {
 		nextPtr := ((*Allocator)(unsafe.Pointer(h.allocator))).Alloc(unsafe.Sizeof(autoNode{}) + (h.max * unsafe.Sizeof(uintptr(0))))
 		h.bytes += allocationSize(nextPtr) + allocationSize(ptr)
-		next := (*autoNode)(nextPtr)
+		next := (*autoNode)(nextPtr.Unsafe())
 		// Add length to 1
 		next.len = 1
-		// Link to previous n
+		// Link to current n
 		next.next = uintptr(unsafe.Pointer(n))
 		// Update reference to new n
 		h.head = uintptr(nextPtr)
@@ -179,16 +168,16 @@ func (au *Auto) Free() {
 			if item == 0 {
 				break
 			}
-			a.Free(unsafe.Pointer(item))
+			a.Free(Pointer(item))
 		}
 
 		if n.next == 0 {
 			// Free header node
-			a.Free(unsafe.Pointer(uintptr(unsafe.Pointer(n)) - unsafe.Sizeof(autoHead{})))
+			a.Free(Pointer(uintptr(unsafe.Pointer(n)) - unsafe.Sizeof(autoHead{})))
 			break
 		}
 
-		a.Free(unsafe.Pointer(n))
+		a.Free(Pointer(unsafe.Pointer(n)))
 		n = (*autoNode)(unsafe.Pointer(n.next))
 	}
 	*au = 0

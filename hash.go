@@ -1,6 +1,9 @@
 package mem
 
-import "math/bits"
+import (
+	"math/bits"
+	"unsafe"
+)
 
 func toUint16LE(b []byte) uint16 {
 	return uint16(b[0]) | uint16(b[1])<<8
@@ -301,4 +304,87 @@ func murmur32(v uint32) uint32 {
 	h1 ^= h1 >> 16
 
 	return h1
+}
+
+func (p Pointer) Hash32(length int) uint32 {
+	return p.Hash32At(0, length)
+}
+
+func (p Pointer) Hash32At(offset, length int) uint32 {
+	const (
+		offset32 = uint32(2166136261)
+		prime32  = uint32(16777619)
+	)
+	hash := offset32
+
+	start := uintptr(int(p) + offset)
+	end := start + uintptr(length)
+	for ; start < end; start++ {
+		hash ^= uint32(*(*byte)(unsafe.Pointer(start)))
+		hash *= prime32
+	}
+	return hash
+}
+
+func (p Pointer) Hash64(length int) uint64 {
+	return p.Hash64At(0, length)
+}
+
+func (p Pointer) Hash64At(offset, length int) uint64 {
+	const (
+		offset64 = uint64(14695981039346656037)
+		prime64  = uint64(1099511628211)
+	)
+	hash := offset64
+	start := uintptr(int(p) + offset)
+	end := start + uintptr(length)
+	for ; start < end; start++ {
+		hash ^= uint64(*(*byte)(unsafe.Pointer(start)))
+		hash *= prime64
+	}
+	return hash
+}
+
+func (p Pointer) WyHash64(seed uint64, offset, length int) uint64 {
+	return wyhash(p.Bytes(offset, length, length), seed)
+}
+
+func (p Pointer) Metro64(seed uint64, offset, length int) uint64 {
+	return metro(p.Bytes(offset, length, length), seed)
+}
+
+func (p *Bytes) Hash32() uint32 {
+	const (
+		offset32 = uint32(2166136261)
+		prime32  = uint32(16777619)
+	)
+	hash := offset32
+	end := p.Pointer + Pointer(p.len)
+	for i := p.Pointer; i < end; i++ {
+		hash ^= uint32(*(*byte)(unsafe.Pointer(i)))
+		hash *= prime32
+	}
+	return hash
+}
+
+func (p *Bytes) Hash64() uint64 {
+	const (
+		offset64 = uint64(14695981039346656037)
+		prime64  = uint64(1099511628211)
+	)
+	hash := offset64
+	end := p.Pointer + Pointer(p.len)
+	for i := p.Pointer; i < end; i++ {
+		hash ^= uint64(*(*byte)(unsafe.Pointer(i)))
+		hash *= prime64
+	}
+	return hash
+}
+
+func (p *Bytes) WyHash64(seed uint64, offset, length int) uint64 {
+	return wyhash(p.Bytes()[offset:length], seed)
+}
+
+func (p *Bytes) Metro64(seed uint64, offset, length int) uint64 {
+	return metro(p.Bytes()[offset:length], seed)
 }

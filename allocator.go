@@ -42,6 +42,7 @@ import (
 // Alloc. It's up to the application to decide how to handle such scenarios.
 //
 // see: http://www.gii.upv.es/tlsf/
+// see: https://github.com/AssemblyScript/assemblyscript
 //
 // - `ffs(x)` is equivalent to `ctz(x)` with x != 0
 // - `fls(x)` is equivalent to `sizeof(x) * 8 - clz(x) - 1`
@@ -143,6 +144,7 @@ const (
 	_TLSFTagsMask         = _TLSFFREE | _TLSFLEFTFREE
 )
 
+//goland:noinspection GoVetUnsafePointer
 func (a *Allocator) Bytes(length, capacity uintptr) Bytes {
 	if capacity < length {
 		capacity = length
@@ -152,44 +154,35 @@ func (a *Allocator) Bytes(length, capacity uintptr) Bytes {
 		return Bytes{}
 	}
 	return Bytes{
-		addr:  p + _TLSFBlockOverhead,
-		len:   uint32(length),
-		cap:   uint32(*(*uintptr)(unsafe.Pointer(p)) & ^_TLSFTagsMask),
-		alloc: uintptr(unsafe.Pointer(a)),
-	}
-}
-
-func (a *Allocator) BytesMut(length, capacity uintptr) BytesMut {
-	b := a.Bytes(length, capacity)
-	if b.addr == 0 {
-		return BytesMut{}
-	}
-	return BytesMut{
-		Bytes: b,
+		Pointer: Pointer(p + _TLSFBlockOverhead),
+		len:     uint32(length),
+		cap:     uint32(*(*uintptr)(unsafe.Pointer(p)) & ^_TLSFTagsMask),
+		alloc:   uintptr(unsafe.Pointer(a)),
 	}
 }
 
 // Alloc allocates a block of memory that fits the size provided
 //goland:noinspection GoVetUnsafePointer
-func (a *Allocator) Alloc(size uintptr) unsafe.Pointer {
+func (a *Allocator) Alloc(size uintptr) Pointer {
 	p := uintptr(unsafe.Pointer(a.allocateBlock(size)))
 	if p == 0 {
-		return nil
+		return Pointer(0)
 	}
-	return unsafe.Pointer(p + _TLSFBlockOverhead)
+	return Pointer(p + _TLSFBlockOverhead)
 }
 
 // Realloc determines the best way to resize an allocation.
-func (a *Allocator) Realloc(ptr unsafe.Pointer, size uintptr) unsafe.Pointer {
+func (a *Allocator) Realloc(ptr Pointer, size uintptr) Pointer {
 	p := uintptr(unsafe.Pointer(a.moveBlock(checkUsedBlock(uintptr(ptr)), size)))
 	if p == 0 {
-		return nil
+		return Pointer(0)
 	}
-	return unsafe.Pointer(p + _TLSFBlockOverhead)
+	return Pointer(p + _TLSFBlockOverhead)
 }
 
 // Free release the allocation back into the free list.
-func (a *Allocator) Free(ptr unsafe.Pointer) {
+//goland:noinspection GoVetUnsafePointer
+func (a *Allocator) Free(ptr Pointer) {
 	a.freeBlock((*tlsfBlock)(unsafe.Pointer(uintptr(ptr) - _TLSFBlockOverhead)))
 	//a.freeBlock(checkUsedBlock(uintptr(ptr)))
 }
@@ -806,6 +799,7 @@ func ctz32(value uint32) uint32 {
 	return uint32(bits.TrailingZeros32(value))
 }
 
+//goland:noinspection GoVetUnsafePointer
 func checkUsedBlock(ptr uintptr) *tlsfBlock {
 	block := (*tlsfBlock)(unsafe.Pointer(ptr - _TLSFBlockOverhead))
 	if !(ptr != 0 && ((ptr & _TLSFALMask) == 0) && ((block.mmInfo & _TLSFFREE) == 0)) {
@@ -814,11 +808,13 @@ func checkUsedBlock(ptr uintptr) *tlsfBlock {
 	return block
 }
 
+//goland:noinspection GoVetUnsafePointer
 func allocationSize0(ptr uintptr) uintptr {
 	return ((*tlsfBlock)(unsafe.Pointer(ptr - _TLSFBlockOverhead))).mmInfo & ^_TLSFTagsMask
 }
 
-func allocationSize(ptr unsafe.Pointer) uintptr {
+//goland:noinspection GoVetUnsafePointer
+func allocationSize(ptr Pointer) uintptr {
 	return ((*tlsfBlock)(unsafe.Pointer(uintptr(ptr) - _TLSFBlockOverhead))).mmInfo & ^_TLSFTagsMask
 }
 

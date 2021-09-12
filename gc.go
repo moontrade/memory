@@ -29,10 +29,10 @@ const (
 )
 
 // GC is a Two-Color Mark & Sweep collector on top of a Two-Level Segmented Fit (TLSF)
-// allocator. Similar features to the internal extalloc GC in TinyGo except GC uses a
-// robinhood hashset instead of a treap structure and without the need for a linked list.
-// Instead, a single linear allocation is used for the hashset. Both colors reside in
-// the same hashset.
+// allocator intended for TinyGo. Similar features to the internal extalloc GC in TinyGo
+// except GC uses a robinhood hashset instead of a treap structure and without the need
+// for a linked list. Instead, a single linear allocation is used for the hashset. Both
+// colors reside in the same hashset.
 //
 // Given the constraints of TinyGo, this is a conservative collector. However, GC
 // is tuned for more manual use of the underlying TLSF memory allocator. TLSF is an O(1)
@@ -53,14 +53,14 @@ const (
 // Relatively large TinyGo object graphs should still complete under 50 microseconds.
 type GC struct {
 	allocs      PointerSet
-	first, last uintptr
+	first, last Pointer
 	allocator   *Allocator
 	markGlobals MarkFn
 	markStack   MarkFn
 	GCStats
 }
 
-type MarkFn func(mark func(root uintptr), markRoots func(start, end uintptr))
+type MarkFn func(mark func(root Pointer), markRoots func(start, end Pointer))
 
 // GCStats provides all the monitoring metrics needed to see how the GC
 // is operating and performing.
@@ -134,10 +134,10 @@ func NewGC(
 	initialCapacity uintptr,
 	markGlobals, markStack MarkFn,
 ) *GC {
-	gc := (*GC)(allocator.Alloc(unsafe.Sizeof(GC{})))
+	gc := (*GC)(allocator.Alloc(unsafe.Sizeof(GC{})).Unsafe())
 	gc.allocator = allocator
 	gc.allocs = NewPointerSet(allocator, initialCapacity)
-	gc.first = ^uintptr(0)
+	gc.first = ^Pointer(0)
 	gc.last = 0
 	gc.markGlobals = markGlobals
 	gc.markStack = markStack
@@ -163,8 +163,8 @@ func (gc *GC) Allocator() *Allocator {
 
 // MarkRoot marks a single pointer as a root
 //goland:noinspection ALL
-func (gc *GC) markRoot(root uintptr) {
-	root -= gc_TOTAL_OVERHEAD
+func (gc *GC) markRoot(root Pointer) {
+	root = root.Add(-int(gc_TOTAL_OVERHEAD))
 	if root < gc.first || root > gc.last {
 		return
 	}
@@ -176,7 +176,7 @@ func (gc *GC) markRoot(root uintptr) {
 
 // MarkRoots scans a block of contiguous memory for root pointers.
 //goland:noinspection ALL
-func (gc *GC) markRoots(start, end uintptr) {
+func (gc *GC) markRoots(start, end Pointer) {
 	if gc_TRACE {
 		println("MarkRoots", uint(start), uint(end))
 	}
@@ -200,19 +200,19 @@ func (gc *GC) markRoots(start, end uintptr) {
 	}
 
 	// Align start and end pointers.
-	start = (start + unsafe.Alignof(unsafe.Pointer(nil)) - 1) &^ (unsafe.Alignof(unsafe.Pointer(nil)) - 1)
-	end &^= unsafe.Alignof(unsafe.Pointer(nil)) - 1
+	start = Pointer((uintptr(start) + unsafe.Alignof(unsafe.Pointer(nil)) - 1) &^ (unsafe.Alignof(unsafe.Pointer(nil)) - 1))
+	end &^= Pointer(unsafe.Alignof(unsafe.Pointer(nil)) - 1)
 
 	// Mark all pointers.
-	for ptr := start; ptr < end; ptr += unsafe.Alignof(unsafe.Pointer(nil)) {
-		p := *(*uintptr)(unsafe.Pointer(ptr))
+	for ptr := start; ptr < end; ptr += Pointer(unsafe.Alignof(unsafe.Pointer(nil))) {
+		p := *(*Pointer)(unsafe.Pointer(ptr))
 		gc.markRoot(p)
 	}
 }
 
 //goland:noinspection ALL
-func (gc *GC) markRecursive(root uintptr, depth int) {
-	root -= gc_TOTAL_OVERHEAD
+func (gc *GC) markRecursive(root Pointer, depth int) {
+	root -= Pointer(gc_TOTAL_OVERHEAD)
 	if !gc.allocs.Has(root) {
 		return
 	}
@@ -234,17 +234,17 @@ func (gc *GC) markRecursive(root uintptr, depth int) {
 		if uintptr(obj.rtSize)%unsafe.Sizeof(uintptr(0)) != 0 {
 			return
 		}
-		start := root + gc_TOTAL_OVERHEAD
-		end := start + uintptr(obj.rtSize)
+		start := root + Pointer(gc_TOTAL_OVERHEAD)
+		end := start + Pointer(obj.rtSize)
 		//start = (start + unsafe.Alignof(unsafe.Pointer(nil)) - 1) &^ (unsafe.Alignof(unsafe.Pointer(nil)) - 1)
 		//end &^= unsafe.Alignof(unsafe.Pointer(nil)) - 1
 
-		for ptr := start; ptr < end; ptr += unsafe.Alignof(unsafe.Pointer(nil)) {
-			p := *(*uintptr)(unsafe.Pointer(ptr))
+		for ptr := start; ptr < end; ptr += Pointer(unsafe.Alignof(unsafe.Pointer(nil))) {
+			p := *(*Pointer)(unsafe.Pointer(ptr))
 			if (p < gc.first || p > gc.last) || (p >= start && p < end) {
 				continue
 			}
-			if !gc.allocs.Has(p - gc_TOTAL_OVERHEAD) {
+			if !gc.allocs.Has(p - Pointer(gc_TOTAL_OVERHEAD)) {
 				continue
 			}
 			gc.markRecursive(p, depth+1)
@@ -253,11 +253,11 @@ func (gc *GC) markRecursive(root uintptr, depth int) {
 }
 
 //goland:noinspection ALL
-func (gc *GC) markGraph(root uintptr) {
+func (gc *GC) markGraph(root Pointer) {
 	var (
 		obj   = (*gcObject)(unsafe.Pointer(root))
-		start = root + gc_TOTAL_OVERHEAD
-		end   = start + uintptr(obj.rtSize)
+		start = root + Pointer(gc_TOTAL_OVERHEAD)
+		end   = start + Pointer(obj.rtSize)
 	)
 
 	// unaligned allocation must be some sort of string or data buffer. skip it.
@@ -271,12 +271,12 @@ func (gc *GC) markGraph(root uintptr) {
 	}
 
 	// Mark all pointers.
-	for ptr := start; ptr < end; ptr += unsafe.Alignof(unsafe.Pointer(nil)) {
-		p := *(*uintptr)(unsafe.Pointer(ptr))
+	for ptr := start; ptr < end; ptr += Pointer(unsafe.Alignof(unsafe.Pointer(nil))) {
+		p := *(*Pointer)(unsafe.Pointer(ptr))
 		if (p < gc.first || p > gc.last) || (p >= start && p < end) {
 			continue
 		}
-		if !gc.allocs.Has(p - gc_TOTAL_OVERHEAD) {
+		if !gc.allocs.Has(p - Pointer(gc_TOTAL_OVERHEAD)) {
 			continue
 		}
 		gc.markRecursive(p, 0)
@@ -285,7 +285,7 @@ func (gc *GC) markGraph(root uintptr) {
 
 // New allocates a new GC Object
 //goland:noinspection ALL
-func (gc *GC) New(size uintptr) unsafe.Pointer {
+func (gc *GC) New(size uintptr) Pointer {
 	// Is the size too large?
 	if size > gc_OBJECT_MAXSIZE {
 		panic("allocation too large")
@@ -294,7 +294,7 @@ func (gc *GC) New(size uintptr) unsafe.Pointer {
 	// Allocate memory
 	obj := (*gcObject)(unsafe.Pointer(uintptr(gc.allocator.Alloc(gc_OBJECT_OVERHEAD+size)) - _TLSFBlockOverhead))
 	if obj == nil {
-		return nil
+		return Pointer(0)
 	}
 
 	// Add the runtime size and Add to WHITE
@@ -306,10 +306,10 @@ func (gc *GC) New(size uintptr) unsafe.Pointer {
 	gc.TotalAllocs++
 
 	// Convert to uint pointer
-	ptr := uintptr(unsafe.Pointer(obj))
+	ptr := Pointer(unsafe.Pointer(obj))
 
 	// Zero out the allocation
-	memzero(unsafe.Pointer(ptr+gc_TOTAL_OVERHEAD), size)
+	memzero(unsafe.Pointer(ptr+Pointer(gc_TOTAL_OVERHEAD)), size)
 
 	// Add to allocations map
 	gc.allocs.Add(ptr, 0)
@@ -324,13 +324,13 @@ func (gc *GC) New(size uintptr) unsafe.Pointer {
 	}
 
 	// Return pointer to data
-	return unsafe.Pointer(ptr + gc_TOTAL_OVERHEAD)
+	return Pointer(ptr + Pointer(gc_TOTAL_OVERHEAD))
 }
 
 // Free will immediately remove the GC Object and free up the memory in the allocator.
 //goland:noinspection ALL
-func (gc *GC) Free(ptr unsafe.Pointer) bool {
-	p := uintptr(ptr) - gc_TOTAL_OVERHEAD
+func (gc *GC) Free(ptr Pointer) bool {
+	p := Pointer(ptr) - Pointer(gc_TOTAL_OVERHEAD)
 	if !gc.allocs.Has(p) {
 		return false
 	}
@@ -348,7 +348,7 @@ func (gc *GC) Free(ptr unsafe.Pointer) bool {
 	gc.allocs.Delete(p)
 
 	println("GC free", uint(uintptr(ptr)), "size", uint(size), "rtSize", obj.rtSize)
-	gc.allocator.Free(unsafe.Pointer(p + _TLSFBlockOverhead))
+	gc.allocator.Free(Pointer(p + Pointer(_TLSFBlockOverhead)))
 
 	return true
 }
@@ -361,10 +361,10 @@ func (gc *GC) Collect() {
 	//println("tcmsCollect")
 	var (
 		start = time.Now().UnixNano()
-		k     uintptr
+		k     Pointer
 		obj   *gcObject
-		min   = ^uintptr(0)
-		max   = uintptr(0)
+		min   = ^Pointer(0)
+		max   = Pointer(0)
 	)
 	gc.Cycles++
 
@@ -393,7 +393,7 @@ func (gc *GC) Collect() {
 		itemsEnd  = items + (itemsSize * unsafe.Sizeof(pointerSetItem{}))
 	)
 	for ; items < itemsEnd; items += unsafe.Sizeof(pointerSetItem{}) {
-		k = *(*uintptr)(unsafe.Pointer(items))
+		k = *(*Pointer)(unsafe.Pointer(items))
 		if k == 0 {
 			continue
 		}
@@ -414,7 +414,7 @@ func (gc *GC) Collect() {
 	itemsSize = gc.allocs.size
 	itemsEnd = items + (itemsSize * unsafe.Sizeof(pointerSetItem{}))
 	for ; items < itemsEnd; items += unsafe.Sizeof(pointerSetItem{}) {
-		k = *(*uintptr)(unsafe.Pointer(items))
+		k = *(*Pointer)(unsafe.Pointer(items))
 		// Empty item?
 		if k == 0 {
 			continue
@@ -433,7 +433,7 @@ func (gc *GC) Collect() {
 			//println("GC sweep", uint(k+gc_TOTAL_OVERHEAD), "size", uint(obj.size()), "rtSize", obj.rtSize)
 
 			// Free memory
-			gc.allocator.Free(unsafe.Pointer(k + _TLSFBlockOverhead))
+			gc.allocator.Free(Pointer(k + Pointer(_TLSFBlockOverhead)))
 
 			// Remove from alloc map
 			gc.allocs.Delete(k)
@@ -492,7 +492,7 @@ type PointerSet struct {
 
 // Item represents an entry in the PointerSet.
 type pointerSetItem struct {
-	key      uintptr
+	key      Pointer
 	distance int32 // How far item is from its best position.
 }
 
@@ -511,7 +511,7 @@ var pointerSetHash = fnv32
 //goland:noinspection ALL
 func NewPointerSet(allocator *Allocator, size uintptr) PointerSet {
 	items := allocator.Alloc(unsafe.Sizeof(pointerSetItem{}) * size)
-	memzero(items, unsafe.Sizeof(pointerSetItem{})*size)
+	memzero(items.Unsafe(), unsafe.Sizeof(pointerSetItem{})*size)
 	return PointerSet{
 		items:        uintptr(items),
 		size:         size,
@@ -531,7 +531,7 @@ func (ps *PointerSet) Close() error {
 	if ps.items == 0 {
 		return nil
 	}
-	ps.allocator.Free(unsafe.Pointer(ps.items))
+	ps.allocator.Free(Pointer(ps.items))
 	ps.items = 0
 	return nil
 }
@@ -544,24 +544,24 @@ func (ps *PointerSet) Reset() {
 }
 
 //goland:noinspection GoVetUnsafePointer
-func (ps *PointerSet) isCollision(k uintptr) bool {
+func (ps *PointerSet) isCollision(key Pointer) bool {
 	return *(*uintptr)(unsafe.Pointer(
-		ps.items + (uintptr(pointerSetHash(uint32(k))%uint32(ps.size)) * unsafe.Sizeof(pointerSetItem{})))) != 0
+		ps.items + (uintptr(pointerSetHash(uint32(key))%uint32(ps.size)) * unsafe.Sizeof(pointerSetItem{})))) != 0
 }
 
 // Has returns whether the key exists in the Add.
 //goland:noinspection ALL
-func (ps *PointerSet) Has(k uintptr) bool {
+func (ps *PointerSet) Has(key Pointer) bool {
 	var (
-		idx      = ps.items + (uintptr(pointerSetHash(uint32(k))%uint32(ps.size)) * unsafe.Sizeof(pointerSetItem{}))
+		idx      = ps.items + (uintptr(pointerSetHash(uint32(key))%uint32(ps.size)) * unsafe.Sizeof(pointerSetItem{}))
 		idxStart = idx
 	)
 	for {
-		entry := *(*uintptr)(unsafe.Pointer(idx))
+		entry := *(*Pointer)(unsafe.Pointer(idx))
 		if entry == 0 {
 			return false
 		}
-		if entry == k {
+		if entry == key {
 			return true
 		}
 		idx += unsafe.Sizeof(pointerSetItem{})
@@ -575,8 +575,8 @@ func (ps *PointerSet) Has(k uintptr) bool {
 	}
 }
 
-func (ps *PointerSet) Set(k uintptr) (bool, bool) {
-	return ps.Add(k, 0)
+func (ps *PointerSet) Set(key Pointer) (bool, bool) {
+	return ps.Add(key, 0)
 }
 
 // Add inserts or updates a key into the PointerSet. The returned
@@ -584,11 +584,11 @@ func (ps *PointerSet) Set(k uintptr) (bool, bool) {
 // key, and wasNew will be false if the mutation was an update to an
 // existing key.
 //goland:noinspection GoVetUnsafePointer
-func (ps *PointerSet) Add(k uintptr, depth int) (bool, bool) {
+func (ps *PointerSet) Add(key Pointer, depth int) (bool, bool) {
 	var (
-		idx      = ps.items + (uintptr(pointerSetHash(uint32(k))%uint32(ps.size)) * unsafe.Sizeof(pointerSetItem{}))
+		idx      = ps.items + (uintptr(pointerSetHash(uint32(key))%uint32(ps.size)) * unsafe.Sizeof(pointerSetItem{}))
 		idxStart = idx
-		incoming = pointerSetItem{k, 0}
+		incoming = pointerSetItem{key, 0}
 	)
 	for {
 		entry := (*pointerSetItem)(unsafe.Pointer(idx))
@@ -631,13 +631,13 @@ func (ps *PointerSet) Add(k uintptr, depth int) (bool, bool) {
 
 // Delete removes a key from the PointerSet.
 //goland:noinspection GoVetUnsafePointer
-func (ps *PointerSet) Delete(k uintptr) (uintptr, bool) {
-	if k == 0 {
+func (ps *PointerSet) Delete(key Pointer) (uintptr, bool) {
+	if key == 0 {
 		return 0, false
 	}
 
 	var (
-		idx      = ps.items + (uintptr(pointerSetHash(uint32(k))%uint32(ps.size)) * unsafe.Sizeof(pointerSetItem{}))
+		idx      = ps.items + (uintptr(pointerSetHash(uint32(key))%uint32(ps.size)) * unsafe.Sizeof(pointerSetItem{}))
 		idxStart = idx
 	)
 	for {
@@ -645,7 +645,7 @@ func (ps *PointerSet) Delete(k uintptr) (uintptr, bool) {
 		if entry.key == 0 {
 			return 0, false
 		}
-		if entry.key == k {
+		if entry.key == key {
 			break // Found the item.
 		}
 		idx += unsafe.Sizeof(pointerSetItem{})
@@ -714,13 +714,13 @@ func (ps *PointerSet) Grow() bool {
 	// Add all entries from old to next
 	var success bool
 	for i := ps.items; i < ps.end; i += unsafe.Sizeof(pointerSetItem{}) {
-		if _, success = next.Add(*(*uintptr)(unsafe.Pointer(i)), 0); !success {
+		if _, success = next.Add(*(*Pointer)(unsafe.Pointer(i)), 0); !success {
 			return false
 		}
 	}
 
 	// Free old items
-	ps.allocator.Free(unsafe.Pointer(ps.items))
+	ps.allocator.Free(Pointer(ps.items))
 	ps.items = 0
 
 	// Update to next
