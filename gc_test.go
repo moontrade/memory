@@ -55,7 +55,7 @@ func TestGC(t *testing.T) {
 func BenchmarkHashSet(b *testing.B) {
 	m := make(map[uintptr]struct{}, 16)
 	m[1000] = struct{}{}
-	a := NewAllocatorWithGrow(1, GrowMin(DefaultMalloc))
+	a := NewAllocatorWithGrow(1, NewSliceArena(), GrowMin)
 	set := NewPointerSet(a, 16)
 	set.Set(1000)
 	s := &set
@@ -106,7 +106,7 @@ func BenchmarkHashSet(b *testing.B) {
 }
 
 func BenchmarkHashSetHashAlgos(b *testing.B) {
-	a := NewAllocatorWithGrow(1, GrowMin(DefaultMalloc))
+	a := NewAllocatorWithGrow(1, NewSliceArena(), GrowMin)
 	set := NewPointerSet(a, 16)
 	set.Set(1000)
 	s := &set

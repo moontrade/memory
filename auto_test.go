@@ -32,6 +32,7 @@ func TestAuto_Scope(t *testing.T) {
 	a.Scope(func(a Auto) {
 		for i := 0; i < 100; i++ {
 			a.Alloc(64)
+			a.Bytes(64, 128)
 		}
 	})
 	if a.Allocs != 0 {

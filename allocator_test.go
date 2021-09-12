@@ -3,6 +3,7 @@ package mem
 import (
 	"fmt"
 	"math/rand"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -10,7 +11,7 @@ import (
 )
 
 func Test_AllocatorCounts(t *testing.T) {
-	p := NewAllocatorWithGrow(1, GrowMin(DefaultMalloc))
+	p := NewAllocatorWithGrow(1, NewSliceArena(), GrowMin)
 	p1 := p.Alloc(38)
 	println("alloc size", p.AllocSize)
 	p2 := p.Alloc(81)
@@ -22,7 +23,7 @@ func Test_AllocatorCounts(t *testing.T) {
 }
 
 func Test_AllocatorThrash(t *testing.T) {
-	thrashAllocator(NewAllocatorWithGrow(1, GrowBy(1, DefaultMalloc)), false,
+	thrashAllocator(NewAllocatorWithGrow(1, NewSliceArena(), GrowMin), false,
 		1000000, 100, 15000, 21000,
 		randomSize(0.95, 16, 48),
 		randomSize(0.95, 48, 192),
@@ -32,7 +33,7 @@ func Test_AllocatorThrash(t *testing.T) {
 		//randomSize(0.30, 128, 1024),
 	)
 
-	//thrashAllocator(newTLSF(2), 100000, 100, 12000, 17000,
+	//thrashAllocator(newAllocator(2), 100000, 100, 12000, 17000,
 	//	randomSize(0.80, 24, 96),
 	//	//randomSize(0.70, 128, 512),
 	//	//randomSize(0.15, 128, 512),
@@ -147,7 +148,7 @@ func thrashAllocator(
 
 func Test_Allocator(t *testing.T) {
 	println("ALIGN_SIZE", 10<<3)
-	a := NewAllocatorWithGrow(1, GrowMin(DefaultMalloc))
+	a := NewAllocatorWithGrow(1, NewSliceArena(), GrowMin)
 	AllocatorPrintDebugInfo()
 	ptr := a.Alloc(16)
 	ptr2 := a.Alloc(49)
@@ -163,10 +164,18 @@ func Test_Allocator(t *testing.T) {
 
 func BenchmarkAllocator_Alloc(b *testing.B) {
 	var (
-		min, max = 24, 8096
+		min, max    = 24, 8096
+		showGCStats = false
 	)
+	after := func() {
+		if showGCStats {
+			var memStats runtime.MemStats
+			runtime.ReadMemStats(&memStats)
+			fmt.Println("GC CPU", memStats.GCCPUFraction, "TotalAllocs", memStats.TotalAlloc, "Frees", memStats.Frees, "PauseNs Total", memStats.PauseTotalNs)
+		}
+	}
 	b.Run("Allocator alloc", func(b *testing.B) {
-		a := NewAllocatorWithGrow(1, GrowMin(DefaultMalloc))
+		a := NewAllocatorWithGrow(1, NewSliceArena(), GrowMin)
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
@@ -174,9 +183,10 @@ func BenchmarkAllocator_Alloc(b *testing.B) {
 			b.SetBytes(int64(size))
 			a.Free(a.Alloc(uintptr(size)))
 		}
+		after()
 	})
 	b.Run("Sync Allocator alloc", func(b *testing.B) {
-		a := NewAllocatorWithGrow(1, GrowMin(DefaultMalloc)).ToSync()
+		a := NewAllocatorWithGrow(1, NewSliceArena(), GrowMin).ToSync()
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
@@ -184,6 +194,7 @@ func BenchmarkAllocator_Alloc(b *testing.B) {
 			b.SetBytes(int64(size))
 			a.Free(a.Alloc(uintptr(size)))
 		}
+		after()
 	})
 
 	b.Run("Go GC alloc", func(b *testing.B) {
@@ -194,6 +205,7 @@ func BenchmarkAllocator_Alloc(b *testing.B) {
 			b.SetBytes(int64(size))
 			_ = make([]byte, size)
 		}
+		after()
 	})
 
 	b.Run("Go GC pool", func(b *testing.B) {
@@ -204,75 +216,12 @@ func BenchmarkAllocator_Alloc(b *testing.B) {
 			b.SetBytes(int64(size))
 			PutBytes(GetBytes(size))
 		}
+		after()
 	})
 }
 
 func randomRange(min, max int) int {
 	return rand.Intn(max-min) + min
-}
-
-const (
-	bitsize       = 32 << (^uint(0) >> 63)
-	maxint        = int(1<<(bitsize-1) - 1)
-	maxintHeadBit = 1 << (bitsize - 2)
-)
-
-// LogarithmicRange iterates from ceiled to power of two min to max,
-// calling cb on each iteration.
-func LogarithmicRange(min, max int, cb func(int)) {
-	if min == 0 {
-		min = 1
-	}
-	for n := CeilToPowerOfTwo(min); n <= max; n <<= 1 {
-		cb(n)
-	}
-}
-
-// IsPowerOfTwo reports whether given integer is a power of two.
-func IsPowerOfTwo(n int) bool {
-	return n&(n-1) == 0
-}
-
-// Identity is identity.
-func Identity(n int) int {
-	return n
-}
-
-// CeilToPowerOfTwo returns the least power of two integer value greater than
-// or equal to n.
-func CeilToPowerOfTwo(n int) int {
-	if n&maxintHeadBit != 0 && n > maxintHeadBit {
-		panic("argument is too large")
-	}
-	if n <= 2 {
-		return n
-	}
-	n--
-	n = fillBits(n)
-	n++
-	return n
-}
-
-// FloorToPowerOfTwo returns the greatest power of two integer value less than
-// or equal to n.
-func FloorToPowerOfTwo(n int) int {
-	if n <= 2 {
-		return n
-	}
-	n = fillBits(n)
-	n >>= 1
-	n++
-	return n
-}
-
-func fillBits(n int) int {
-	n |= n >> 1
-	n |= n >> 2
-	n |= n >> 4
-	n |= n >> 8
-	n |= n >> 16
-	n |= n >> 32
-	return n
 }
 
 var (
@@ -360,7 +309,7 @@ var (
 )
 
 func GetBytes(n int) []byte {
-	v := CeilToPowerOfTwo(n)
+	v := ceilToPowerOfTwo(n)
 	switch v {
 	case 0, 1:
 		return pool1.Get().([]byte)[:n]
@@ -377,28 +326,28 @@ func GetBytes(n int) []byte {
 	case 32:
 		return pool32.Get().([]byte)[:n]
 	case 64:
-		switch {
-		case n < 41:
-			return pool40.Get().([]byte)[:n]
-		case n < 49:
-			return pool48.Get().([]byte)[:n]
-		case n < 57:
-			return pool56.Get().([]byte)[:n]
-		}
+		//switch {
+		//case n < 41:
+		//	return pool40.Get().([]byte)[:n]
+		//case n < 49:
+		//	return pool48.Get().([]byte)[:n]
+		//case n < 57:
+		//	return pool56.Get().([]byte)[:n]
+		//}
 		return pool64.Get().([]byte)[:n]
 	case 128:
-		switch {
-		case n < 73:
-			return pool72.Get().([]byte)[:n]
-		case n < 97:
-			return pool96.Get().([]byte)[:n]
-		}
+		//switch {
+		//case n < 73:
+		//	return pool72.Get().([]byte)[:n]
+		//case n < 97:
+		//	return pool96.Get().([]byte)[:n]
+		//}
 		return pool128.Get().([]byte)[:n]
 	case 256:
-		switch {
-		case n < 193:
-			return pool192.Get().([]byte)[:n]
-		}
+		//switch {
+		//case n < 193:
+		//	return pool192.Get().([]byte)[:n]
+		//}
 		return pool256.Get().([]byte)[:n]
 	case 512:
 		if n <= 384 {

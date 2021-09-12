@@ -89,16 +89,38 @@ func (au Auto) Alloc(size uintptr) unsafe.Pointer {
 	}
 	h := (*autoHead)(unsafe.Pointer(au))
 	p := ((*Allocator)(unsafe.Pointer(h.allocator))).Alloc(size)
-	au.Add(p)
+	au.add(p)
 	return p
 }
 
 //goland:noinspection GoVetUnsafePointer
-func (au *Auto) Add(ptr unsafe.Pointer) {
+func (au Auto) Bytes(length, capacity uintptr) Bytes {
+	if au == 0 {
+		return Bytes{}
+	}
+	h := (*autoHead)(unsafe.Pointer(au))
+	p := ((*Allocator)(unsafe.Pointer(h.allocator))).Bytes(length, capacity)
+	au.add(unsafe.Pointer(p.addr))
+	return p
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (au Auto) BytesMut(length, capacity uintptr) BytesMut {
+	if au == 0 {
+		return BytesMut{}
+	}
+	h := (*autoHead)(unsafe.Pointer(au))
+	p := ((*Allocator)(unsafe.Pointer(h.allocator))).BytesMut(length, capacity)
+	au.add(unsafe.Pointer(p.addr))
+	return p
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (au *Auto) add(ptr unsafe.Pointer) {
 	if au == nil {
 		return
 	}
-	h := (*autoHead)(unsafe.Pointer(uintptr(*au)))
+	h := (*autoHead)(unsafe.Pointer(*au))
 	n := (*autoNode)(unsafe.Pointer(h.head))
 	if n == nil {
 		return
@@ -140,7 +162,7 @@ func (au *Auto) Free() {
 	if au == nil {
 		return
 	}
-	head := (*autoHead)(unsafe.Pointer(uintptr(*au)))
+	head := (*autoHead)(unsafe.Pointer(*au))
 	n := (*autoNode)(unsafe.Pointer(head.head))
 	if n == nil {
 		return
@@ -174,7 +196,7 @@ func (au *Auto) Free() {
 
 //goland:noinspection GoVetUnsafePointer
 func (au *Auto) Print() {
-	head := (*autoHead)(unsafe.Pointer(uintptr(*au)))
+	head := (*autoHead)(unsafe.Pointer(*au))
 	n := (*autoNode)(unsafe.Pointer(head.head))
 	if n == nil {
 		return

@@ -15,42 +15,53 @@ import (
 
 var (
 	allocs   = make(map[uintptr][]byte)
-	allocsMu sync.Mutex
+	arenasMu sync.Mutex
 )
 
-func malloc(size uintptr) unsafe.Pointer {
-	b := make([]byte, size)
-	p := unsafe.Pointer(&b[0])
-	allocsMu.Lock()
-	defer allocsMu.Unlock()
-	allocs[uintptr(p)] = b
-	return p
+//func malloc(size uintptr) unsafe.Pointer {
+//	b := make([]byte, size)
+//	p := unsafe.Pointer(&b[0])
+//	arenasMu.Lock()
+//	defer arenasMu.Unlock()
+//	allocs[uintptr(p)] = b
+//	return p
+//}
+
+func memequal(a, b unsafe.Pointer, n uintptr) bool {
+	if a == nil {
+		return b == nil
+	}
+	return *(*string)(unsafe.Pointer(&reflect.SliceHeader{
+		Data: uintptr(a),
+		Len:  int(n),
+	})) == *(*string)(unsafe.Pointer(&reflect.SliceHeader{
+		Data: uintptr(b),
+		Len:  int(n),
+	}))
 }
 
-func realloc(ptr unsafe.Pointer, size uintptr) unsafe.Pointer {
-	allocsMu.Lock()
-	old := allocs[uintptr(ptr)]
-	allocsMu.Unlock()
-	if old == nil {
-		return nil
+func memcmp(a, b unsafe.Pointer, n uintptr) int {
+	if a == nil {
+		if b == nil {
+			return 0
+		}
+		return -1
 	}
-
-	b := make([]byte, size)
-	copy(b, old)
-	np := unsafe.Pointer(&b[0])
-	allocsMu.Lock()
-	allocs[uintptr(np)] = b
-	allocsMu.Unlock()
-	return np
-}
-
-func free(ptr unsafe.Pointer) {
-	allocsMu.Lock()
-	defer allocsMu.Unlock()
-	b := allocs[uintptr(ptr)]
-	if b != nil {
-		delete(allocs, uintptr(ptr))
+	ab := *(*string)(unsafe.Pointer(&reflect.SliceHeader{
+		Data: uintptr(a),
+		Len:  int(n),
+	}))
+	bb := *(*string)(unsafe.Pointer(&reflect.SliceHeader{
+		Data: uintptr(b),
+		Len:  int(n),
+	}))
+	if ab < bb {
+		return -1
 	}
+	if ab == bb {
+		return 0
+	}
+	return 1
 }
 
 func memcpy(dst, src unsafe.Pointer, n uintptr) {
@@ -91,78 +102,78 @@ func memzero(ptr unsafe.Pointer, size uintptr) {
 	}
 }
 
-func DefaultMalloc(size uintptr) unsafe.Pointer {
-	return malloc(size)
-}
+type GrowFactory func(arena Arena) Grow
 
-func GrowByDouble(malloc Malloc) Grow {
+func GrowByDouble(arena Arena) Grow {
 	return func(pagesBefore, pagesNeeded int32, minSize uintptr) (pagesAdded int32, start, end uintptr) {
 		if pagesBefore > pagesNeeded {
 			pagesAdded = pagesBefore
 		} else {
 			pagesAdded = pagesNeeded
 		}
-		ptr := malloc(uintptr(pagesAdded) * _TLSFPageSize)
-		if ptr == nil {
+		start, end = arena.Alloc(uintptr(pagesAdded) * _TLSFPageSize)
+		if start == 0 {
 			pagesAdded = pagesNeeded
-			ptr = malloc(uintptr(pagesAdded) * _TLSFPageSize)
-			if ptr == nil {
+			start, end = arena.Alloc(uintptr(pagesAdded) * _TLSFPageSize)
+			if start == 0 {
 				return 0, 0, 0
 			}
 		}
-		start = uintptr(ptr)
-		end = start + (uintptr(pagesAdded) * _TLSFPageSize)
 		return
 	}
 }
 
-func GrowBy(pages int32, malloc Malloc) Grow {
+func GrowBy(pages int32, arena Arena) Grow {
 	return func(pagesBefore, pagesNeeded int32, minSize uintptr) (pagesAdded int32, start, end uintptr) {
 		if pages > pagesNeeded {
 			pagesAdded = pages
 		} else {
 			pagesAdded = pagesNeeded
 		}
-		ptr := malloc(uintptr(pagesAdded) * _TLSFPageSize)
-		if ptr == nil {
+		start, end = arena.Alloc(uintptr(pagesAdded) * _TLSFPageSize)
+		if start == 0 {
 			pagesAdded = pagesNeeded
-			ptr = malloc(uintptr(pagesAdded) * _TLSFPageSize)
-			if ptr == nil {
+			start, end = arena.Alloc(uintptr(pagesAdded) * _TLSFPageSize)
+			if start == 0 {
 				return 0, 0, 0
 			}
 		}
-		start = uintptr(ptr)
-		end = start + (uintptr(pagesAdded) * _TLSFPageSize)
 		return
 	}
 }
 
-func GrowMin(malloc Malloc) Grow {
+func GrowMin(arena Arena) Grow {
 	return func(pagesBefore, pagesNeeded int32, minSize uintptr) (int32, uintptr, uintptr) {
-		ptr := malloc(uintptr(pagesNeeded) * _TLSFPageSize)
-		if ptr == nil {
+		start, end := arena.Alloc(uintptr(pagesNeeded) * _TLSFPageSize)
+		if start == 0 {
 			return 0, 0, 0
 		}
-		return pagesNeeded, uintptr(ptr), uintptr(ptr) + (uintptr(pagesNeeded) * _TLSFPageSize)
+		return pagesNeeded, start, end
 	}
 }
 
 func NewAllocator(pages int32) *Allocator {
-	return NewAllocatorWithGrow(pages, GrowMin(DefaultMalloc))
+	return NewAllocatorWithGrow(pages, NewSliceArena(), GrowMin)
 }
 
-func NewAllocatorWithGrow(pages int32, grow Grow) *Allocator {
+func NewAllocatorWithGrow(pages int32, arena Arena, grow GrowFactory) *Allocator {
 	if pages <= 0 {
 		pages = 1
 	}
-	pagesAdded, start, end := grow(0, pages, 0)
-	return Bootstrap(start, end, pagesAdded, grow)
+	g := grow(arena)
+	if g == nil {
+		g = GrowMin(arena)
+	}
+	pagesAdded, start, end := g(0, pages, 0)
+	a := bootstrap(start, end, pagesAdded, g)
+	a.arena = uintptr(unsafe.Pointer(&arena))
+	return a
 }
 
 type SyncAllocator struct {
 	a     *Allocator
 	stats Stats
-	mu    sync.Mutex
+	sync.Mutex
 }
 
 func (a *Allocator) ToSync() *SyncAllocator {
@@ -172,8 +183,8 @@ func (a *Allocator) ToSync() *SyncAllocator {
 // Alloc allocates a block of memory that fits the size provided
 //goland:noinspection GoVetUnsafePointer
 func (a *SyncAllocator) Alloc(size uintptr) unsafe.Pointer {
-	a.mu.Lock()
-	defer a.mu.Unlock()
+	a.Lock()
+	defer a.Unlock()
 	p := uintptr(unsafe.Pointer(a.a.allocateBlock(size)))
 	if p == 0 {
 		return nil
@@ -183,14 +194,14 @@ func (a *SyncAllocator) Alloc(size uintptr) unsafe.Pointer {
 
 // Realloc determines the best way to resize an allocation.
 func (a *SyncAllocator) Realloc(ptr unsafe.Pointer, size uintptr) unsafe.Pointer {
-	a.mu.Lock()
-	defer a.mu.Unlock()
+	a.Lock()
+	defer a.Unlock()
 	return unsafe.Pointer(uintptr(unsafe.Pointer(a.a.moveBlock(checkUsedBlock(uintptr(ptr)), size))) + _TLSFBlockOverhead)
 }
 
 // Free release the allocation back into the free list.
 func (a *SyncAllocator) Free(ptr unsafe.Pointer) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
+	a.Lock()
+	defer a.Unlock()
 	a.a.freeBlock(checkUsedBlock(uintptr(ptr)))
 }

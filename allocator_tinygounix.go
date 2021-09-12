@@ -171,7 +171,7 @@ func newTLSF(pages int32) *Allocator {
 	}
 	size := uintptr(pages * wasmPageSize)
 	segment := uintptr(malloc(size))
-	return Bootstrap(segment, segment+size, pages)
+	return bootstrap(segment, segment+size, pages)
 }
 
 func (a *Allocator) Grow(pages int32) (uintptr, uintptr) {

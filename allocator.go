@@ -57,6 +57,7 @@ type Allocator struct {
 	root      *root
 	HeapStart uintptr
 	HeapEnd   uintptr
+	arena     uintptr
 	Grow      Grow
 	Stats
 }
@@ -88,9 +89,6 @@ func (s *Stats) Fragmentation() float32 {
 // Grow provides the ability to Grow the heap and allocate a contiguous
 // chunk of system memory to add to the allocator.
 type Grow func(pagesBefore, pagesNeeded int32, minSize uintptr) (pagesAdded int32, start, end uintptr)
-
-// Malloc provides the actual system allocation
-type Malloc func(size uintptr) unsafe.Pointer
 
 const (
 	_TLSFPageSize = uintptr(64 * 1024)
@@ -145,6 +143,32 @@ const (
 	_TLSFTagsMask         = _TLSFFREE | _TLSFLEFTFREE
 )
 
+func (a *Allocator) Bytes(length, capacity uintptr) Bytes {
+	if capacity < length {
+		capacity = length
+	}
+	p := uintptr(unsafe.Pointer(a.allocateBlock(capacity)))
+	if p == 0 {
+		return Bytes{}
+	}
+	return Bytes{
+		addr:  p + _TLSFBlockOverhead,
+		len:   uint32(length),
+		cap:   uint32(*(*uintptr)(unsafe.Pointer(p)) & ^_TLSFTagsMask),
+		alloc: uintptr(unsafe.Pointer(a)),
+	}
+}
+
+func (a *Allocator) BytesMut(length, capacity uintptr) BytesMut {
+	b := a.Bytes(length, capacity)
+	if b.addr == 0 {
+		return BytesMut{}
+	}
+	return BytesMut{
+		Bytes: b,
+	}
+}
+
 // Alloc allocates a block of memory that fits the size provided
 //goland:noinspection GoVetUnsafePointer
 func (a *Allocator) Alloc(size uintptr) unsafe.Pointer {
@@ -166,7 +190,8 @@ func (a *Allocator) Realloc(ptr unsafe.Pointer, size uintptr) unsafe.Pointer {
 
 // Free release the allocation back into the free list.
 func (a *Allocator) Free(ptr unsafe.Pointer) {
-	a.freeBlock(checkUsedBlock(uintptr(ptr)))
+	a.freeBlock((*tlsfBlock)(unsafe.Pointer(uintptr(ptr) - _TLSFBlockOverhead)))
+	//a.freeBlock(checkUsedBlock(uintptr(ptr)))
 }
 
 // Scope creates an Auto free list that automatically reclaims memory
@@ -180,14 +205,14 @@ func (a *Allocator) Scope(fn func(a Auto)) {
 	fn(auto)
 }
 
-// Bootstrap bootstraps the Allocator with the initial block of contiguous memory
+// bootstrap bootstraps the Allocator with the initial block of contiguous memory
 // that at least fits the minimum required to fit the bitmap.
 //goland:noinspection GoVetUnsafePointer
-func Bootstrap(start, end uintptr, pages int32, grow Grow) *Allocator {
+func bootstrap(start, end uintptr, pages int32, grow Grow) *Allocator {
 	start = (start + unsafe.Alignof(unsafe.Pointer(nil)) - 1) &^ (unsafe.Alignof(unsafe.Pointer(nil)) - 1)
 
 	//if a.T {
-	//	println("Bootstrap", "pages", pages, uint(start), uint(end), uint(end-start))
+	//	println("bootstrap", "pages", pages, uint(start), uint(end), uint(end-start))
 	//}
 	// init allocator
 	a := (*Allocator)(unsafe.Pointer(start))
@@ -789,10 +814,8 @@ func checkUsedBlock(ptr uintptr) *tlsfBlock {
 	return block
 }
 
-func assert(truthy bool, message string) {
-	if !truthy {
-		panic(message)
-	}
+func allocationSize0(ptr uintptr) uintptr {
+	return ((*tlsfBlock)(unsafe.Pointer(ptr - _TLSFBlockOverhead))).mmInfo & ^_TLSFTagsMask
 }
 
 func allocationSize(ptr unsafe.Pointer) uintptr {
