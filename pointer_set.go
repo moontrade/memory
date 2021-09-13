@@ -12,7 +12,7 @@ type PointerSet struct {
 
 	// Number of keys in the PointerSet.
 	count     uintptr
-	allocator *Allocator
+	allocator *TLSF
 	// When any item's distance gets too large, Grow the PointerSet.
 	// Defaults to 10.
 	maxDistance int32
@@ -40,7 +40,7 @@ var pointerSetHash = fnv32
 
 // NewPointerSet returns a new robinhood hashmap.
 //goland:noinspection ALL
-func NewPointerSet(allocator *Allocator, size Pointer) PointerSet {
+func NewPointerSet(allocator *TLSF, size Pointer) PointerSet {
 	items := allocator.Alloc(Pointer(unsafe.Sizeof(pointerSetItem{})) * size)
 	memzero(items.Unsafe(), unsafe.Sizeof(pointerSetItem{})*uintptr(size))
 	return PointerSet{

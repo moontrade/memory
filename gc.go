@@ -54,7 +54,7 @@ const (
 type GC struct {
 	allocs      PointerSet
 	first, last Pointer
-	allocator   *Allocator
+	allocator   *TLSF
 	markGlobals MarkFn
 	markStack   MarkFn
 	GCStats
@@ -130,7 +130,7 @@ func GCPrintDebug() {
 
 //goland:noinspection ALL
 func NewGC(
-	allocator *Allocator,
+	allocator *TLSF,
 	initialCapacity Pointer,
 	markGlobals, markStack MarkFn,
 ) *GC {
@@ -157,7 +157,7 @@ func (o *gcObject) size() Pointer {
 	return _TLSFBlockOverhead + (o.mmInfo & ^Pointer(3))
 }
 
-func (gc *GC) Allocator() *Allocator {
+func (gc *GC) Allocator() *TLSF {
 	return gc.allocator
 }
 

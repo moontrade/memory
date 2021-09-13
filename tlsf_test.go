@@ -11,7 +11,7 @@ import (
 )
 
 func Test_AllocatorCounts(t *testing.T) {
-	p := NewAllocatorWithGrow(1, NewSliceArena(), GrowMin)
+	p := NewTLSFArena(1, NewSliceArena(), GrowMin)
 	p1 := p.Alloc(38)
 	println("alloc size", p.AllocSize)
 	p2 := p.Alloc(81)
@@ -23,7 +23,7 @@ func Test_AllocatorCounts(t *testing.T) {
 }
 
 func Test_AllocatorThrash(t *testing.T) {
-	thrashAllocator(NewAllocatorWithGrow(1, NewSliceArena(), GrowMin), false,
+	thrashAllocator(NewTLSFArena(1, NewSliceArena(), GrowMin), false,
 		1000000, 100, 15000, 21000,
 		randomSize(0.95, 16, 48),
 		randomSize(0.95, 48, 192),
@@ -61,7 +61,7 @@ func (s *sizeClass) nextRandom() int {
 }
 
 func thrashAllocator(
-	allocator *Allocator, shuffle bool,
+	allocator *TLSF, shuffle bool,
 	iterations, allocsPerIteration, minAllocs, maxAllocs int,
 	sizeClasses ...*sizeClass,
 ) {
@@ -147,24 +147,24 @@ func thrashAllocator(
 }
 
 func TestAllocatorKind(t *testing.T) {
-	a := NewAllocatorWithGrow(1, NewSliceArena(), GrowMin)
+	a := NewTLSFArena(1, NewSliceArena(), GrowMin)
 	s := a.ToSync()
 
-	p1 := toIAllocator(a)
-	p2 := toIAllocatorSync(s)
+	p1 := toTLSFAllocator(a)
+	p2 := toTLSFSyncAllocator(s)
 
 	p1.Free(p1.Alloc(64))
 	p2.Free(p2.Alloc(128))
 
-	println(p1, p1|_AllocatorNoSync)
-	println(p2, p2|_AllocatorSync, (p2|_AllocatorSync) & ^_AllocatorMask)
-	println((p2 | _AllocatorSync) & ^_AllocatorMask)
-	println((p1 | _AllocatorNoSync) & _AllocatorMask)
-	println((p2 | _AllocatorSync) & _AllocatorMask)
+	println(p1, p1|_TLSFNoSync)
+	println(p2, p2|_TLSFSync, (p2|_TLSFSync) & ^_AllocatorMask)
+	println((p2 | _TLSFSync) & ^_AllocatorMask)
+	println((p1 | _TLSFNoSync) & _AllocatorMask)
+	println((p2 | _TLSFSync) & _AllocatorMask)
 }
 
 func Test_Allocator(t *testing.T) {
-	a := NewAllocatorWithGrow(1, NewSliceArena(), GrowMin)
+	a := NewTLSFArena(1, NewSliceArena(), GrowMin)
 	AllocatorPrintDebugInfo()
 	ptr := a.Alloc(16)
 	ptr2 := a.Alloc(49)
@@ -226,8 +226,8 @@ func BenchmarkAllocator_Alloc(b *testing.B) {
 		randomRangeSizes = append(randomRangeSizes, Pointer(randomRange(min, max)))
 	}
 
-	b.Run("Allocator alloc", func(b *testing.B) {
-		a := NewAllocatorWithGrow(1, NewSliceArena(), GrowMin)
+	b.Run("TLSF alloc", func(b *testing.B) {
+		a := NewTLSFArena(1, NewSliceArena(), GrowMin)
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
@@ -237,9 +237,20 @@ func BenchmarkAllocator_Alloc(b *testing.B) {
 		}
 		after()
 	})
-	b.Run("IAllocator alloc", func(b *testing.B) {
-		al := NewAllocatorWithGrow(1, NewSliceArena(), GrowMin)
-		a := toIAllocator(al)
+	b.Run("Allocator alloc", func(b *testing.B) {
+		al := NewTLSFArena(1, NewSliceArena(), GrowMin)
+		a := toTLSFAllocator(al)
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			size := randomRangeSizes[i%len(randomRangeSizes)]
+			b.SetBytes(int64(size))
+			a.Free(a.Alloc(size))
+		}
+		after()
+	})
+	b.Run("Sync TLSF alloc", func(b *testing.B) {
+		a := NewTLSFArena(1, NewSliceArena(), GrowMin).ToSync()
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
@@ -250,19 +261,8 @@ func BenchmarkAllocator_Alloc(b *testing.B) {
 		after()
 	})
 	b.Run("Sync Allocator alloc", func(b *testing.B) {
-		a := NewAllocatorWithGrow(1, NewSliceArena(), GrowMin).ToSync()
-		b.ReportAllocs()
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			size := randomRangeSizes[i%len(randomRangeSizes)]
-			b.SetBytes(int64(size))
-			a.Free(a.Alloc(Pointer(size)))
-		}
-		after()
-	})
-	b.Run("Sync IAllocator alloc", func(b *testing.B) {
-		al := NewAllocatorWithGrow(1, NewSliceArena(), GrowMin).ToSync()
-		a := toIAllocatorSync(al)
+		al := NewTLSFArena(1, NewSliceArena(), GrowMin).ToSync()
+		a := toTLSFSyncAllocator(al)
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {

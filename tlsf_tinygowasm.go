@@ -9,7 +9,7 @@ import "unsafe"
 const wasmPageSize = 64 * 1024
 
 // WASM environments only have a single system allocator
-var allocator *Allocator
+var allocator *TLSF
 
 //export llvm.wasm.memory.size.i32
 func wasm_memory_size(index int32) int32
@@ -33,7 +33,7 @@ func initAllocator(heapStart, heapEnd uintptr) {
 	)
 
 	// Need to add a page initially to fit minimum size required by allocator?
-	if heapStart == 0 || heapStart+unsafe.Sizeof(Allocator{})+_TLSFRootSize+_TLSFALMask+16 > uintptr(pagesBefore)*uintptr(wasmPageSize) {
+	if heapStart == 0 || heapStart+unsafe.Sizeof(TLSF{})+_TLSFRootSize+_TLSFALMask+16 > uintptr(pagesBefore)*uintptr(wasmPageSize) {
 		wasm_memory_grow(0, 1)
 		pagesAfter = wasm_memory_size(0)
 	}

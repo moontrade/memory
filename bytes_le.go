@@ -23,10 +23,10 @@ type Bytes struct {
 	Pointer
 	len   uint32
 	cap   uint32
-	alloc IAllocator
+	alloc Allocator
 }
 
-func (b *Bytes) Allocator() IAllocator {
+func (b *Bytes) Allocator() Allocator {
 	return b.alloc
 }
 

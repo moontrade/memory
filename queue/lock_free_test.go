@@ -10,11 +10,11 @@ import (
 
 func TestLockFreeQueue(t *testing.T) {
 	const taskNum = 10000
-	a := mem.NewAllocator(1000).ToSync()
-	a2 := mem.NewAllocator(1000).ToSync()
+	a := mem.NewTLSF(1000).ToSync()
+	a2 := mem.NewTLSF(1000).ToSync()
 	_ = a2
 	a.AllocZeroed(24)
-	q := AllocLockFreeQueue(mem.IAllocator(unsafe.Pointer(a)))
+	q := AllocLockFreeQueue(mem.Allocator(unsafe.Pointer(a)))
 
 	b := a.Bytes(24)
 	b.Free()

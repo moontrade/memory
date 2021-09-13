@@ -16,7 +16,7 @@ type Map struct {
 
 	// Number of keys in the Map.
 	count     uintptr
-	allocator *Allocator
+	allocator *TLSF
 
 	// When any item's distance gets too large, Grow the Map.
 	// Defaults to 10.
@@ -37,7 +37,7 @@ type mapItem struct {
 
 // NewMap returns a new robinhood hashmap.
 //goland:noinspection ALL
-func NewMap(allocator *Allocator, size uintptr) Map {
+func NewMap(allocator *TLSF, size uintptr) Map {
 	items := allocator.Alloc(Pointer(unsafe.Sizeof(mapItem{}) * size))
 	memzero(items.Unsafe(), unsafe.Sizeof(mapItem{})*size)
 	return Map{

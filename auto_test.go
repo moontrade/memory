@@ -3,10 +3,10 @@ package mem
 import "testing"
 
 func TestAuto_Add(t *testing.T) {
-	a := NewAllocator(1)
+	a := NewTLSF(1)
 
 	sizeBefore := a.AllocSize
-	auto := NewAuto(a, 20)
+	auto := NewAuto(a.AsAllocator(), 20)
 
 	for i := 0; i < 100; i++ {
 		auto.Alloc(64)
@@ -28,7 +28,7 @@ func TestAuto_Add(t *testing.T) {
 }
 
 func TestAuto_Scope(t *testing.T) {
-	a := NewAllocator(1)
+	a := NewTLSF(1)
 	a.Scope(func(a Auto) {
 		for i := 0; i < 100; i++ {
 			a.Alloc(64)

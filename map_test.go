@@ -3,7 +3,7 @@ package mem
 import "testing"
 
 func TestMap(t *testing.T) {
-	a := NewAllocator(1)
+	a := NewTLSF(1)
 	m := NewMap(a, 16)
 
 	key := a.BytesCapacity(0, 16)

@@ -45,7 +45,7 @@ func extfree(ptr unsafe.Pointer) {
 	allocator.Free(ptr)
 }
 
-func getAllocator() *Allocator {
+func getAllocator() *TLSF {
 	return allocator
 }
 
@@ -165,7 +165,7 @@ func GrowMin() Grow {
 	}
 }
 
-func newTLSF(pages int32) *Allocator {
+func newTLSF(pages int32) *TLSF {
 	if pages <= 0 {
 		pages = 1
 	}
@@ -174,7 +174,7 @@ func newTLSF(pages int32) *Allocator {
 	return bootstrap(segment, segment+size, pages)
 }
 
-func (a *Allocator) Grow(pages int32) (uintptr, uintptr) {
+func (a *TLSF) Grow(pages int32) (uintptr, uintptr) {
 	if pages <= 0 {
 		pages = 1
 	}

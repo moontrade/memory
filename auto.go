@@ -10,8 +10,8 @@ import (
 type Auto uintptr
 
 //goland:noinspection GoVetUnsafePointer
-func (a Auto) Allocator() *Allocator {
-	return (*Allocator)(unsafe.Pointer(((*autoHead)(unsafe.Pointer(a))).allocator))
+func (a Auto) Allocator() Allocator {
+	return ((*autoHead)(unsafe.Pointer(a))).alloc
 }
 
 //goland:noinspection GoVetUnsafePointer
@@ -30,11 +30,11 @@ func (a Auto) Max() Pointer {
 }
 
 type autoHead struct {
-	head      Pointer // pointer to the head node
-	allocator Pointer // allocator instance used
-	max       Pointer // max number of entries per node
-	count     Pointer
-	bytes     Pointer
+	head  Pointer   // pointer to the head node
+	alloc Allocator // allocator instance used
+	max   Pointer   // max number of entries per node
+	count Pointer
+	bytes Pointer
 }
 
 type autoNode struct {
@@ -44,14 +44,14 @@ type autoNode struct {
 }
 
 //goland:noinspection GoVetUnsafePointer
-func NewAuto(a *Allocator, nodeSize Pointer) Auto {
+func NewAuto(a Allocator, nodeSize Pointer) Auto {
 	if nodeSize == 0 {
 		nodeSize = 32
 	}
 	p := a.Alloc(Pointer(unsafe.Sizeof(autoHead{}) + unsafe.Sizeof(autoNode{}) + (uintptr(nodeSize) * unsafe.Sizeof(Pointer(0)))))
 	h := (*autoHead)(p.Unsafe())
 	h.head = Pointer(uintptr(p) + unsafe.Sizeof(autoHead{}))
-	h.allocator = Pointer(unsafe.Pointer(a))
+	h.alloc = a
 	h.max = nodeSize
 	h.count = 0
 	h.bytes = allocationSize(p)
@@ -88,7 +88,7 @@ func (au Auto) Alloc(size Pointer) Pointer {
 		return Pointer(0)
 	}
 	h := (*autoHead)(unsafe.Pointer(au))
-	p := ((*Allocator)(unsafe.Pointer(h.allocator))).Alloc(size)
+	p := h.alloc.Alloc(size)
 	au.add(p)
 	return p
 }
@@ -99,7 +99,7 @@ func (au Auto) Bytes(length, capacity Pointer) Bytes {
 		return Bytes{}
 	}
 	h := (*autoHead)(unsafe.Pointer(au))
-	p := ((*Allocator)(unsafe.Pointer(h.allocator))).Bytes(length)
+	p := h.alloc.Bytes(length)
 	au.add(p.Pointer)
 	return p
 }
@@ -115,7 +115,7 @@ func (au *Auto) add(ptr Pointer) {
 		return
 	}
 	if n.len == h.max {
-		nextPtr := ((*Allocator)(unsafe.Pointer(h.allocator))).Alloc(Pointer(unsafe.Sizeof(autoNode{}) + (uintptr(h.max) * unsafe.Sizeof(Pointer(0)))))
+		nextPtr := h.alloc.Alloc(Pointer(unsafe.Sizeof(autoNode{}) + (uintptr(h.max) * unsafe.Sizeof(Pointer(0)))))
 		h.bytes += allocationSize(nextPtr) + allocationSize(ptr)
 		next := (*autoNode)(nextPtr.Unsafe())
 		// Add length to 1
@@ -156,7 +156,7 @@ func (au *Auto) Free() {
 	if n == nil {
 		return
 	}
-	a := (*Allocator)(unsafe.Pointer(head.allocator))
+	a := head.alloc
 	for n != nil {
 		var (
 			start = Pointer(unsafe.Pointer(&n.first))

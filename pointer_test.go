@@ -6,14 +6,14 @@ import (
 )
 
 func TestPointerBE(t *testing.T) {
-	a := NewAllocator(1)
+	a := NewTLSF(1)
 	p := Pointer(a.Alloc(32))
 	p.SetInt32BE(0, 100)
 	println(p.Int32BE(0), p.Int32BESlow(), p.LoadInt32(), p.Int32(0))
 }
 
 func BenchmarkPointerBE(b *testing.B) {
-	a := NewAllocator(1)
+	a := NewTLSF(1)
 	p := Pointer(a.Alloc(32))
 
 	b.Run("Int32", func(b *testing.B) {
@@ -97,7 +97,7 @@ func (p Pointer) Int32BESlow() int32 {
 }
 
 func BenchmarkPointerBESet(b *testing.B) {
-	a := NewAllocator(1)
+	a := NewTLSF(1)
 	p := Pointer(a.Alloc(32))
 
 	b.Run("SetInt32At", func(b *testing.B) {
