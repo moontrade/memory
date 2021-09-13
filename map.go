@@ -38,7 +38,7 @@ type mapItem struct {
 // NewMap returns a new robinhood hashmap.
 //goland:noinspection ALL
 func NewMap(allocator *Allocator, size uintptr) Map {
-	items := allocator.Alloc(unsafe.Sizeof(mapItem{}) * size)
+	items := allocator.Alloc(Pointer(unsafe.Sizeof(mapItem{}) * size))
 	memzero(items.Unsafe(), unsafe.Sizeof(mapItem{})*size)
 	return Map{
 		items:        uintptr(items),
@@ -75,9 +75,9 @@ func (ps *Map) freeAll() {
 		if item.key.Pointer == 0 {
 			continue
 		}
-		item.key.Drop()
+		item.key.Free()
 		if item.value.Pointer != 0 {
-			item.value.Drop()
+			item.value.Free()
 		}
 	}
 }
@@ -275,7 +275,7 @@ func (ps *Map) Grow() bool {
 	}
 
 	// Allocate new items table
-	items := uintptr(ps.allocator.Alloc(newSize * unsafe.Sizeof(mapItem{})))
+	items := uintptr(ps.allocator.Alloc(Pointer(newSize * unsafe.Sizeof(mapItem{}))))
 	// Calculate end
 	itemsEnd := items + (newSize * unsafe.Sizeof(mapItem{}))
 	// Zero the allocation out

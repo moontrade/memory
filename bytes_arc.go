@@ -27,7 +27,7 @@ func (p *BytesARC) Drop() {
 		return
 	}
 	if atomic.AddInt32(&p.count, -1) == 0 {
-		p.Bytes.Drop()
+		p.Bytes.Free()
 		p.Pointer = 0
 	}
 }

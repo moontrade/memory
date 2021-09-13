@@ -23,13 +23,13 @@ func TestGC(t *testing.T) {
 	gc := NewGC(a, 16, markGlobals, nil)
 
 	// Allocate root
-	root := func(size uintptr) Pointer {
+	root := func(size Pointer) Pointer {
 		p := gc.New(size)
 		roots[p] = struct{}{}
 		return p
 	}
 	// Allocate and leak
-	leak := func(size uintptr) Pointer {
+	leak := func(size Pointer) Pointer {
 		return gc.New(size)
 	}
 
@@ -177,7 +177,7 @@ func Test_ThrashPointerSet(t *testing.T) {
 	)
 
 	run := func(name string, fn func(uint32) uint32) {
-		_set := NewPointerSet(allocator, uintptr(maxAllocs*128))
+		_set := NewPointerSet(allocator, Pointer(maxAllocs*128))
 		set := &_set
 		defer set.Close()
 		pointerSetHash = fn

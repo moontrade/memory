@@ -7,6 +7,7 @@ import (
 	"sync"
 	"testing"
 	"time"
+	"unsafe"
 )
 
 func Test_AllocatorCounts(t *testing.T) {
@@ -95,7 +96,7 @@ func thrashAllocator(
 
 		for _, size := range sz {
 			allocs = append(allocs, allocation{
-				ptr:  allocator.Alloc(uintptr(size)), //tlsfalloc(uintptr(size)),
+				ptr:  allocator.Alloc(Pointer(size)), //tlsfalloc(uintptr(size)),
 				size: size,
 			})
 			allocSize += size
@@ -145,15 +146,31 @@ func thrashAllocator(
 	println("fragmentation		", fmt.Sprintf("%.2f", allocator.Stats.Fragmentation()))
 }
 
+func TestAllocatorKind(t *testing.T) {
+	a := NewAllocatorWithGrow(1, NewSliceArena(), GrowMin)
+	s := a.ToSync()
+
+	p1 := toIAllocator(a)
+	p2 := toIAllocatorSync(s)
+
+	p1.Free(p1.Alloc(64))
+	p2.Free(p2.Alloc(128))
+
+	println(p1, p1|_AllocatorNoSync)
+	println(p2, p2|_AllocatorSync, (p2|_AllocatorSync) & ^_AllocatorMask)
+	println((p2 | _AllocatorSync) & ^_AllocatorMask)
+	println((p1 | _AllocatorNoSync) & _AllocatorMask)
+	println((p2 | _AllocatorSync) & _AllocatorMask)
+}
+
 func Test_Allocator(t *testing.T) {
-	println("ALIGN_SIZE", 10<<3)
 	a := NewAllocatorWithGrow(1, NewSliceArena(), GrowMin)
 	AllocatorPrintDebugInfo()
 	ptr := a.Alloc(16)
 	ptr2 := a.Alloc(49)
 	ptr4 := a.Alloc(8224)
-	println("ptr", uint(uintptr(ptr)))
-	println("ptr2", uint(uintptr(ptr2)))
+	println("ptr", uint(ptr))
+	println("ptr2", uint(ptr2))
 	ptr3 := a.Alloc(517)
 	a.Free(ptr)
 	a.Free(ptr4)
@@ -161,9 +178,31 @@ func Test_Allocator(t *testing.T) {
 	a.Free(ptr3)
 }
 
+func BenchmarkMemzero(b *testing.B) {
+	buf := make([]byte, 16)
+	buf[0] = 77
+	buf[15] = 88
+
+	memzero(unsafe.Pointer(&buf[0]), uintptr(len(buf)))
+
+	ptr := unsafe.Pointer(&buf[0])
+
+	b.Run("memclr", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			memzero(ptr, uintptr(len(buf)))
+		}
+	})
+
+	b.Run("slow", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			memzeroSlow(ptr, uintptr(len(buf)))
+		}
+	})
+}
+
 func BenchmarkAllocator_Alloc(b *testing.B) {
 	var (
-		min, max    = 24, 8096
+		min, max    = 24, 1024
 		showGCStats = false
 	)
 	after := func() {
@@ -173,14 +212,40 @@ func BenchmarkAllocator_Alloc(b *testing.B) {
 			fmt.Println("GC CPU", memStats.GCCPUFraction, "TotalAllocs", memStats.TotalAlloc, "Frees", memStats.Frees, "PauseNs Total", memStats.PauseTotalNs)
 		}
 	}
+	//b.Run("Random Range time", func(b *testing.B) {
+	//	b.ReportAllocs()
+	//	b.ResetTimer()
+	//	for i := 0; i < b.N; i++ {
+	//		randomRange(min, max)
+	//	}
+	//	after()
+	//})
+
+	randomRangeSizes := make([]Pointer, 0, 256)
+	for i := 0; i < 1000; i++ {
+		randomRangeSizes = append(randomRangeSizes, Pointer(randomRange(min, max)))
+	}
+
 	b.Run("Allocator alloc", func(b *testing.B) {
 		a := NewAllocatorWithGrow(1, NewSliceArena(), GrowMin)
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			size := randomRange(min, max)
+			size := randomRangeSizes[i%len(randomRangeSizes)]
 			b.SetBytes(int64(size))
-			a.Free(a.Alloc(uintptr(size)))
+			a.Free(a.Alloc(Pointer(size)))
+		}
+		after()
+	})
+	b.Run("IAllocator alloc", func(b *testing.B) {
+		al := NewAllocatorWithGrow(1, NewSliceArena(), GrowMin)
+		a := toIAllocator(al)
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			size := randomRangeSizes[i%len(randomRangeSizes)]
+			b.SetBytes(int64(size))
+			a.Free(a.Alloc(Pointer(size)))
 		}
 		after()
 	})
@@ -189,9 +254,21 @@ func BenchmarkAllocator_Alloc(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			size := randomRange(min, max)
+			size := randomRangeSizes[i%len(randomRangeSizes)]
 			b.SetBytes(int64(size))
-			a.Free(a.Alloc(uintptr(size)))
+			a.Free(a.Alloc(Pointer(size)))
+		}
+		after()
+	})
+	b.Run("Sync IAllocator alloc", func(b *testing.B) {
+		al := NewAllocatorWithGrow(1, NewSliceArena(), GrowMin).ToSync()
+		a := toIAllocatorSync(al)
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			size := randomRangeSizes[i%len(randomRangeSizes)]
+			b.SetBytes(int64(size))
+			a.Free(a.Alloc(Pointer(size)))
 		}
 		after()
 	})
@@ -200,7 +277,7 @@ func BenchmarkAllocator_Alloc(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			size := randomRange(min, max)
+			size := randomRangeSizes[i%len(randomRangeSizes)]
 			b.SetBytes(int64(size))
 			_ = make([]byte, size)
 		}
@@ -211,9 +288,9 @@ func BenchmarkAllocator_Alloc(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			size := randomRange(min, max)
+			size := randomRangeSizes[i%len(randomRangeSizes)]
 			b.SetBytes(int64(size))
-			PutBytes(GetBytes(size))
+			PutBytes(GetBytes(int(size)))
 		}
 		after()
 	})

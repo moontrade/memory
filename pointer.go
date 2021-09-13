@@ -24,7 +24,7 @@ func (p Pointer) Add(offset int) Pointer {
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 //goland:noinspection GoVetUnsafePointer
-func (p Pointer) CastInt8() int8 {
+func (p Pointer) LoadInt8() int8 {
 	return *(*int8)(unsafe.Pointer(p))
 }
 
@@ -34,7 +34,7 @@ func (p Pointer) Int8(offset int) int8 {
 }
 
 //goland:noinspection GoVetUnsafePointer
-func (p Pointer) CastUInt8() uint8 {
+func (p Pointer) LoadUInt8() uint8 {
 	return *(*uint8)(unsafe.Pointer(p))
 }
 
@@ -44,7 +44,7 @@ func (p Pointer) UInt8(offset int) uint8 {
 }
 
 //goland:noinspection GoVetUnsafePointer
-func (p Pointer) CastByte() byte {
+func (p Pointer) LoadByte() byte {
 	return *(*byte)(unsafe.Pointer(p))
 }
 
@@ -58,7 +58,7 @@ func (p Pointer) Byte(offset int) byte {
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 //goland:noinspection GoVetUnsafePointer
-func (p Pointer) CastInt16() int16 {
+func (p Pointer) LoadInt16() int16 {
 	return *(*int16)(unsafe.Pointer(p))
 }
 
@@ -72,7 +72,7 @@ func (p Pointer) Int16(offset int) int16 {
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 //goland:noinspection GoVetUnsafePointer
-func (p Pointer) CastInt16BE() int16 {
+func (p Pointer) LoadInt16BE() int16 {
 	return int16(bits.ReverseBytes16(*(*uint16)(unsafe.Pointer(p))))
 }
 
@@ -86,7 +86,7 @@ func (p Pointer) Int16BE(offset int) int16 {
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 //goland:noinspection GoVetUnsafePointer
-func (p Pointer) CastUInt16() uint16 {
+func (p Pointer) LoadUInt16() uint16 {
 	return *(*uint16)(unsafe.Pointer(p))
 }
 
@@ -100,7 +100,7 @@ func (p Pointer) UInt16(offset int) uint16 {
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 //goland:noinspection GoVetUnsafePointer
-func (p Pointer) CastUInt16BE() uint16 {
+func (p Pointer) LoadUInt16BE() uint16 {
 	return bits.ReverseBytes16(*(*uint16)(unsafe.Pointer(p)))
 }
 
@@ -114,7 +114,7 @@ func (p Pointer) UInt16BE(offset int) uint16 {
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 //goland:noinspection GoVetUnsafePointer
-func (p Pointer) CastInt24() int32 {
+func (p Pointer) LoadInt24() int32 {
 	return int32(*(*byte)(unsafe.Pointer(p))) |
 		int32(*(*byte)(unsafe.Pointer(p + 1)))<<8 |
 		int32(*(*byte)(unsafe.Pointer(p + 2)))<<16
@@ -132,7 +132,7 @@ func (p Pointer) Int24(offset int) int32 {
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 //goland:noinspection GoVetUnsafePointer
-func (p Pointer) CastInt24BE() int32 {
+func (p Pointer) LoadInt24BE() int32 {
 	return int32(*(*byte)(unsafe.Pointer(p + 2))) |
 		int32(*(*byte)(unsafe.Pointer(p + 1)))<<8 |
 		int32(*(*byte)(unsafe.Pointer(p)))<<16
@@ -150,7 +150,7 @@ func (p Pointer) Int24BE(offset int) int32 {
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 //goland:noinspection GoVetUnsafePointer
-func (p Pointer) CastUInt24() uint32 {
+func (p Pointer) LoadUInt24() uint32 {
 	return uint32(*(*byte)(unsafe.Pointer(p))) |
 		uint32(*(*byte)(unsafe.Pointer(p + 1)))<<8 |
 		uint32(*(*byte)(unsafe.Pointer(p + 2)))<<16
@@ -168,7 +168,7 @@ func (p Pointer) UInt24(offset int) uint32 {
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 //goland:noinspection GoVetUnsafePointer
-func (p Pointer) CastInt32() int32 {
+func (p Pointer) LoadInt32() int32 {
 	return *(*int32)(unsafe.Pointer(p))
 }
 
@@ -182,7 +182,7 @@ func (p Pointer) Int32(offset int) int32 {
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 //goland:noinspection GoVetUnsafePointer
-func (p Pointer) CastInt32BE() int32 {
+func (p Pointer) LoadInt32BE() int32 {
 	return int32(bits.ReverseBytes32(*(*uint32)(unsafe.Pointer(p))))
 }
 
@@ -196,7 +196,7 @@ func (p Pointer) Int32BE(offset int) int32 {
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 //goland:noinspection GoVetUnsafePointer
-func (p Pointer) CastUInt32() uint32 {
+func (p Pointer) LoadUInt32() uint32 {
 	return *(*uint32)(unsafe.Pointer(p))
 }
 
@@ -210,7 +210,7 @@ func (p Pointer) UInt32(offset int) uint32 {
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 //goland:noinspection GoVetUnsafePointer
-func (p Pointer) CastUInt32BE() uint32 {
+func (p Pointer) LoadUInt32BE() uint32 {
 	return bits.ReverseBytes32(*(*uint32)(unsafe.Pointer(p)))
 }
 
@@ -232,7 +232,7 @@ func (p Pointer) UInt32BE(offset int) uint32 {
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 //goland:noinspection GoVetUnsafePointer
-func (p Pointer) CastInt40() int64 {
+func (p Pointer) LoadInt40() int64 {
 	return int64(*(*byte)(unsafe.Pointer(p))) |
 		int64(*(*byte)(unsafe.Pointer(p + 1)))<<8 |
 		int64(*(*byte)(unsafe.Pointer(p + 2)))<<16 |
@@ -254,7 +254,7 @@ func (p Pointer) Int40(offset int) int64 {
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 //goland:noinspection GoVetUnsafePointer
-func (p Pointer) CastInt40BE() int64 {
+func (p Pointer) LoadInt40BE() int64 {
 	return int64(*(*byte)(unsafe.Pointer(p + 4))) |
 		int64(*(*byte)(unsafe.Pointer(p + 3)))<<8 |
 		int64(*(*byte)(unsafe.Pointer(p + 2)))<<16 |
@@ -276,7 +276,7 @@ func (p Pointer) Int40BE(offset int) int64 {
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 //goland:noinspection GoVetUnsafePointer
-func (p Pointer) CastUInt40() uint64 {
+func (p Pointer) LoadUInt40() uint64 {
 	return uint64(*(*byte)(unsafe.Pointer(p))) |
 		uint64(*(*byte)(unsafe.Pointer(p + 1)))<<8 |
 		uint64(*(*byte)(unsafe.Pointer(p + 2)))<<16 |
@@ -298,7 +298,7 @@ func (p Pointer) UInt40(offset int) uint64 {
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 //goland:noinspection GoVetUnsafePointer
-func (p Pointer) CastUInt40BE() uint64 {
+func (p Pointer) LoadUInt40BE() uint64 {
 	return uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + 4)))) |
 		uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + 3))))<<8 |
 		uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + 2))))<<16 |
@@ -320,7 +320,7 @@ func (p Pointer) UInt40BE(offset int) uint64 {
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 //goland:noinspection GoVetUnsafePointer
-func (p Pointer) CastInt48() int64 {
+func (p Pointer) LoadInt48() int64 {
 	return int64(*(*byte)(unsafe.Pointer(p))) |
 		int64(*(*byte)(unsafe.Pointer(p + 1)))<<8 |
 		int64(*(*byte)(unsafe.Pointer(p + 2)))<<16 |
@@ -344,7 +344,7 @@ func (p Pointer) Int48(offset int) int64 {
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 //goland:noinspection GoVetUnsafePointer
-func (p Pointer) CastInt48BE() int64 {
+func (p Pointer) LoadInt48BE() int64 {
 	return int64(*(*byte)(unsafe.Pointer(p + 5))) |
 		int64(*(*byte)(unsafe.Pointer(p + 4)))<<8 |
 		int64(*(*byte)(unsafe.Pointer(p + 3)))<<16 |
@@ -368,7 +368,7 @@ func (p Pointer) Int48BE(offset int) int64 {
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 //goland:noinspection GoVetUnsafePointer
-func (p Pointer) CastUInt48() uint64 {
+func (p Pointer) LoadUInt48() uint64 {
 	return uint64(*(*byte)(unsafe.Pointer(p))) |
 		uint64(*(*byte)(unsafe.Pointer(p + 1)))<<8 |
 		uint64(*(*byte)(unsafe.Pointer(p + 2)))<<16 |
@@ -392,7 +392,7 @@ func (p Pointer) UInt48(offset int) uint64 {
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 //goland:noinspection GoVetUnsafePointer
-func (p Pointer) CastUInt48BE() uint64 {
+func (p Pointer) LoadUInt48BE() uint64 {
 	return uint64(*(*byte)(unsafe.Pointer(p + 6))) |
 		uint64(*(*byte)(unsafe.Pointer(p + 5)))<<8 |
 		uint64(*(*byte)(unsafe.Pointer(p + 4)))<<16 |
@@ -416,7 +416,7 @@ func (p Pointer) UInt48BE(offset int) uint64 {
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 //goland:noinspection GoVetUnsafePointer
-func (p Pointer) CastInt56() int64 {
+func (p Pointer) LoadInt56() int64 {
 	return int64(*(*byte)(unsafe.Pointer(p))) |
 		int64(*(*byte)(unsafe.Pointer(p + 1)))<<8 |
 		int64(*(*byte)(unsafe.Pointer(p + 2)))<<16 |
@@ -442,7 +442,7 @@ func (p Pointer) Int56(offset int) int64 {
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 //goland:noinspection GoVetUnsafePointer
-func (p Pointer) CastInt56BE() int64 {
+func (p Pointer) LoadInt56BE() int64 {
 	return int64(*(*byte)(unsafe.Pointer(p + 6))) |
 		int64(*(*byte)(unsafe.Pointer(p + 5)))<<8 |
 		int64(*(*byte)(unsafe.Pointer(p + 4)))<<16 |
@@ -468,7 +468,7 @@ func (p Pointer) Int56BE(offset int) int64 {
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 //goland:noinspection GoVetUnsafePointer
-func (p Pointer) CastUInt56() uint64 {
+func (p Pointer) LoadUInt56() uint64 {
 	return uint64(*(*byte)(unsafe.Pointer(p))) |
 		uint64(*(*byte)(unsafe.Pointer(p + 1)))<<8 |
 		uint64(*(*byte)(unsafe.Pointer(p + 2)))<<16 |
@@ -494,7 +494,7 @@ func (p Pointer) UInt56(offset int) uint64 {
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 //goland:noinspection GoVetUnsafePointer
-func (p Pointer) CastUInt56BE() uint64 {
+func (p Pointer) LoadUInt56BE() uint64 {
 	return uint64(*(*byte)(unsafe.Pointer(p + 6))) |
 		uint64(*(*byte)(unsafe.Pointer(p + 5)))<<8 |
 		uint64(*(*byte)(unsafe.Pointer(p + 4)))<<16 |
@@ -520,7 +520,7 @@ func (p Pointer) UInt56BE(offset int) uint64 {
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 //goland:noinspection GoVetUnsafePointer
-func (p Pointer) CastInt64() int64 {
+func (p Pointer) LoadInt64() int64 {
 	return *(*int64)(unsafe.Pointer(p))
 }
 
@@ -534,7 +534,7 @@ func (p Pointer) Int64(offset int) int64 {
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 //goland:noinspection GoVetUnsafePointer
-func (p Pointer) CastInt64BE() int64 {
+func (p Pointer) LoadInt64BE() int64 {
 	return int64(bits.ReverseBytes64(*(*uint64)(unsafe.Pointer(p))))
 }
 
@@ -548,7 +548,7 @@ func (p Pointer) Int64BE(offset int) int64 {
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 //goland:noinspection GoVetUnsafePointer
-func (p Pointer) CastUInt64() uint64 {
+func (p Pointer) LoadUInt64() uint64 {
 	return *(*uint64)(unsafe.Pointer(p))
 }
 
@@ -562,7 +562,7 @@ func (p Pointer) UInt64(offset int) uint64 {
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 //goland:noinspection GoVetUnsafePointer
-func (p Pointer) CastUInt64BE() uint64 {
+func (p Pointer) LoadUInt64BE() uint64 {
 	return bits.ReverseBytes64(*(*uint64)(unsafe.Pointer(p)))
 }
 
@@ -572,11 +572,39 @@ func (p Pointer) UInt64BE(offset int) uint64 {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
+// uintptr
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) LoadUintptr() int64 {
+	return *(*int64)(unsafe.Pointer(p))
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) Uintptr(offset int) uintptr {
+	return *(*uintptr)(unsafe.Pointer(uintptr(int(p) + offset)))
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Pointer
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) LoadPointer() Pointer {
+	return *(*Pointer)(unsafe.Pointer(p))
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) Pointer(offset int) Pointer {
+	return *(*Pointer)(unsafe.Pointer(uintptr(int(p) + offset)))
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
 // Float32 Little Endian
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 //goland:noinspection GoVetUnsafePointer
-func (p Pointer) CastFloat32() float32 {
+func (p Pointer) LoadFloat32() float32 {
 	return *(*float32)(unsafe.Pointer(p))
 }
 
@@ -590,7 +618,7 @@ func (p Pointer) Float32(offset int) float32 {
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 //goland:noinspection GoVetUnsafePointer
-func (p Pointer) CastFloat32BE() float32 {
+func (p Pointer) LoadFloat32BE() float32 {
 	return float32(bits.ReverseBytes32(*(*uint32)(unsafe.Pointer(p))))
 }
 
@@ -604,7 +632,7 @@ func (p Pointer) Float32BE(offset int) float32 {
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 //goland:noinspection GoVetUnsafePointer
-func (p Pointer) CastFloat64() float64 {
+func (p Pointer) LoadFloat64() float64 {
 	return *(*float64)(unsafe.Pointer(p))
 }
 
@@ -618,7 +646,7 @@ func (p Pointer) Float64(offset int) float64 {
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 //goland:noinspection GoVetUnsafePointer
-func (p Pointer) CastFloat64BE() float64 {
+func (p Pointer) LoadFloat64BE() float64 {
 	return float64(bits.ReverseBytes64(*(*uint64)(unsafe.Pointer(p))))
 }
 
@@ -637,7 +665,7 @@ type _string struct {
 }
 
 //goland:noinspection GoVetUnsafePointer
-func (p Pointer) CastString(size int) string {
+func (p Pointer) LoadString(size int) string {
 	return *(*string)(unsafe.Pointer(&_string{
 		ptr: uintptr(p),
 		len: size,
@@ -663,7 +691,7 @@ type _bytes struct {
 }
 
 //goland:noinspection GoVetUnsafePointer
-func (p Pointer) CastBytes(length, capacity int) []byte {
+func (p Pointer) LoadBytes(length, capacity int) []byte {
 	return *(*[]byte)(unsafe.Pointer(&_bytes{
 		Data: uintptr(p),
 		Len:  length,
@@ -884,6 +912,24 @@ func (p Pointer) SetUInt64(offset int, v uint64) {
 //goland:noinspection GoVetUnsafePointer
 func (p Pointer) SetUInt64BE(offset int, v uint64) {
 	*(*uint64)(unsafe.Pointer(uintptr(int(p) + offset))) = bits.ReverseBytes64(v)
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+// uintptr
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) SetUintptr(offset int, v uintptr) {
+	*(*uintptr)(unsafe.Pointer(uintptr(int(p) + offset))) = v
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+// uintptr
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) SetPointer(offset int, v Pointer) {
+	*(*Pointer)(unsafe.Pointer(uintptr(int(p) + offset))) = v
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////

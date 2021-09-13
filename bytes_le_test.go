@@ -6,7 +6,7 @@ import (
 
 func TestPointer(t *testing.T) {
 	a := NewAllocator(1)
-	b := a.Bytes(128, 252)
+	b := a.Bytes(128)
 	b.SetUInt32(0, 5)
 	println(b.UInt32(0))
 

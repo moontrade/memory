@@ -21,10 +21,13 @@ func (p *BytesSlice) Drop() {
 // Bytes is a fat pointer to a heap allocation from an Allocator
 type Bytes struct {
 	Pointer
-	//addr  uintptr
 	len   uint32
 	cap   uint32
-	alloc uintptr
+	alloc IAllocator
+}
+
+func (b *Bytes) Allocator() IAllocator {
+	return b.alloc
 }
 
 //goland:noinspection GoVetUnsafePointer
@@ -36,17 +39,47 @@ func (p *Bytes) Equals(b *Bytes) bool {
 }
 
 //goland:noinspection GoVetUnsafePointer
-func (p *Bytes) Drop() {
+func (p *Bytes) EqualsSlice(b *BytesSlice) bool {
+	if p.len == b.len {
+		return p.Pointer == b.Pointer || memequal(
+			unsafe.Pointer(p.Pointer),
+			unsafe.Pointer(b.Pointer), uintptr(p.len))
+	}
+	return false
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p *Bytes) EqualsSliceAt(offset, length int, b *BytesSlice) bool {
+	if p.len == b.len {
+		return p.Pointer == b.Pointer || memequal(
+			unsafe.Pointer(uintptr(int(p.Pointer)+offset)),
+			unsafe.Pointer(b.Pointer), uintptr(p.len))
+	}
+	return false
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p *Bytes) Free() {
 	if p == nil || p.Pointer == 0 {
 		return
 	}
-	((*Allocator)(unsafe.Pointer(p.alloc))).Free(p.Pointer)
+	p.alloc.Free(p.Pointer)
 	*p = Bytes{}
 }
 
 func (p *Bytes) Len() int {
 	return int(p.len)
 }
+
+//// HasPrefix tests whether the byte slice s begins with prefix.
+//func (b *Bytes) HasPrefix(prefix *Bytes) bool {
+//	return len(s) >= len(prefix) && Equal(s[0:len(prefix)], prefix)
+//}
+//
+//// HasSuffix tests whether the byte slice s ends with suffix.
+//func HasSuffix(s, suffix []byte) bool {
+//	return len(s) >= len(suffix) && Equal(s[len(s)-len(suffix):], suffix)
+//}
 
 //func Wrap(b []byte) Bytes {
 //	return Bytes{
@@ -150,86 +183,61 @@ func (p *Bytes) Slice(offset, length int) BytesSlice {
 
 //goland:noinspection GoVetUnsafePointer
 func (p *Bytes) SetInt8(offset int, value int8) {
-	if p.CheckBounds(offset + 1) {
-		return
-	}
-	p.Pointer.SetInt8(offset, value)
-}
-
-//goland:noinspection GoVetUnsafePointer
-func (p *Bytes) SetInt8Unsafe(offset int, value int8) {
+	p.ensureCap(offset + 1)
 	p.Pointer.SetInt8(offset, value)
 }
 
 //goland:noinspection GoVetUnsafePointer
 func (p *Bytes) SetUInt8(offset int, value uint8) {
-	if p.CheckBounds(offset + 1) {
-		return
-	}
+	p.ensureCap(offset + 1)
 	p.Pointer.SetUInt8(offset, value)
 }
 
 //goland:noinspection GoVetUnsafePointer
 func (p *Bytes) SetByte(offset int, value byte) {
-	if p.CheckBounds(offset + 1) {
-		return
-	}
+	p.ensureCap(offset + 1)
 	p.Pointer.SetByte(offset, value)
 }
 
 //goland:noinspection GoVetUnsafePointer
 func (p *Bytes) SetInt16(offset int, value int16) {
-	if p.CheckBounds(offset + 2) {
-		return
-	}
+	p.ensureCap(offset + 2)
 	p.Pointer.SetInt16(offset, value)
 }
 
 //goland:noinspection GoVetUnsafePointer
 func (p *Bytes) SetUInt16(offset int, value uint16) {
-	if p.CheckBounds(offset + 2) {
-		return
-	}
+	p.ensureCap(offset + 2)
 	p.Pointer.SetUInt16(offset, value)
 }
 
 //goland:noinspection GoVetUnsafePointer
 func (p *Bytes) SetInt32(offset int, value int32) {
-	if p.CheckBounds(offset + 4) {
-		return
-	}
+	p.ensureCap(offset + 4)
 	p.Pointer.SetInt32(offset, value)
 }
 
 //goland:noinspection GoVetUnsafePointer
 func (p *Bytes) SetUInt32(offset int, value uint32) {
-	if p.CheckBounds(offset + 4) {
-		return
-	}
+	p.ensureCap(offset + 4)
 	p.Pointer.SetUInt32(offset, value)
 }
 
 //goland:noinspection GoVetUnsafePointer
 func (p *Bytes) SetInt64(offset int, value int64) {
-	if p.CheckBounds(offset + 8) {
-		return
-	}
+	p.ensureCap(offset + 8)
 	p.Pointer.SetInt64(offset, value)
 }
 
 //goland:noinspection GoVetUnsafePointer
 func (p *Bytes) SetUInt64(offset int, value uint64) {
-	if p.CheckBounds(offset + 8) {
-		return
-	}
+	p.ensureCap(offset + 8)
 	p.Pointer.SetUInt64(offset, value)
 }
 
 //goland:noinspection GoVetUnsafePointer
 func (p *Bytes) SetFloat32(offset int, value float32) {
-	if p.CheckBounds(offset + 4) {
-		return
-	}
+	p.ensureCap(offset + 4)
 	p.Pointer.SetFloat32(offset, value)
 }
 
@@ -253,9 +261,7 @@ func (p *Bytes) SetString(offset int, value string) {
 	copy(dst, value)
 }
 func (p *Bytes) SetBytes(offset int, value []byte) {
-	if p.CheckBounds(offset + len(value)) {
-		return
-	}
+	p.ensureCap(offset + len(value))
 	dst := *(*[]byte)(unsafe.Pointer(&_bytes{
 		Data: uintptr(p.Pointer.Add(offset)),
 		Len:  len(value),
@@ -278,7 +284,8 @@ func (p *Bytes) ensureCap(neededCap int) bool {
 		return true
 	}
 	newCap := uint32(neededCap - int(p.cap))
-	addr := ((*Allocator)(unsafe.Pointer(p.alloc))).Realloc(p.Pointer, uintptr(newCap))
+	addr := p.alloc.Realloc(p.Pointer, Pointer(newCap))
+	//addr := ((*Allocator)(unsafe.Pointer(p.alloc))).Realloc(p.Pointer, Pointer(newCap))
 	if addr == 0 {
 		return false
 	}
@@ -293,7 +300,8 @@ func (p *Bytes) ensureCapU32(neededCap uint32) bool {
 		return true
 	}
 	newCap := neededCap - p.cap
-	addr := ((*Allocator)(unsafe.Pointer(p.alloc))).Realloc(p.Pointer, uintptr(newCap))
+	addr := p.alloc.Realloc(p.Pointer, Pointer(newCap))
+	//addr := ((*Allocator)(unsafe.Pointer(p.alloc))).Realloc(p.Pointer, Pointer(newCap))
 	if addr == 0 {
 		return false
 	}
@@ -303,7 +311,7 @@ func (p *Bytes) ensureCapU32(neededCap uint32) bool {
 }
 
 func (p *Bytes) Clone() Bytes {
-	b := ((*Allocator)(p.Unsafe())).Bytes(uintptr(p.len), uintptr(p.len))
+	b := p.alloc.Bytes(Pointer(p.len))
 	memcpy(b.Unsafe(), p.Unsafe(), uintptr(p.len))
 	return b
 }

@@ -21,7 +21,7 @@ func (p *BytesRC) Drop() {
 	p.count--
 
 	if p.count == 0 {
-		p.Bytes.Drop()
+		p.Bytes.Free()
 		*p = BytesRC{}
 	}
 }
