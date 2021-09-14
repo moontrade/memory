@@ -1,3 +1,6 @@
+//go:build !tinygo
+// +build !tinygo
+
 package queue
 
 import (
@@ -33,8 +36,8 @@ func AllocLockFreeQueue(a mem.Allocator) *LockFree {
 
 // Enqueue puts the given value v at the tail of the queue.
 //goland:noinspection GoVetUnsafePointer
-func (q *LockFree) Enqueue(a *mem.TLSFSync, task mem.Bytes) {
-	n := uintptr(a.AllocZeroed(mem.Pointer(unsafe.Sizeof(lockFreeNode{}))))
+func (q *LockFree) Enqueue(task mem.Bytes) {
+	n := uintptr(task.Allocator().AllocZeroed(mem.Pointer(unsafe.Sizeof(lockFreeNode{}))))
 	node := (*lockFreeNode)(unsafe.Pointer(n))
 	node.value = task
 	node.alloc = task.Allocator()
@@ -85,7 +88,6 @@ retry:
 			task := (*lockFreeNode)(unsafe.Pointer(next)).value
 			if atomic.CompareAndSwapUintptr(&q.head, first, next) { // dequeue is done, return value.
 				atomic.AddInt32(&q.length, -1)
-				//println("free", first)
 				firstV.alloc.Free(mem.Pointer(first))
 				return task
 			}

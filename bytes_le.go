@@ -1,3 +1,6 @@
+//go:build 386 || amd64 || arm || arm64 || ppc64le || mips64le || mipsle || riscv64 || wasm || tinygo.wasm
+// +build 386 amd64 arm arm64 ppc64le mips64le mipsle riscv64 wasm tinygo.wasm
+
 package mem
 
 import (
@@ -5,8 +8,7 @@ import (
 )
 
 const (
-	EmptyString        = ""
-	fixedStringLenSize = 2
+	EmptyString = ""
 )
 
 type BytesSlice struct {
@@ -32,20 +34,16 @@ func (b *Bytes) Allocator() Allocator {
 
 //goland:noinspection GoVetUnsafePointer
 func (p *Bytes) Equals(b *Bytes) bool {
-	if p.len == b.len {
-		return p.Pointer == b.Pointer || memequal(unsafe.Pointer(p.Pointer), unsafe.Pointer(b.Pointer), uintptr(p.len))
-	}
-	return false
+	return p.len == b.len && (p.Pointer == b.Pointer || memequal(
+		unsafe.Pointer(p.Pointer),
+		unsafe.Pointer(b.Pointer), uintptr(p.len)))
 }
 
 //goland:noinspection GoVetUnsafePointer
 func (p *Bytes) EqualsSlice(b *BytesSlice) bool {
-	if p.len == b.len {
-		return p.Pointer == b.Pointer || memequal(
-			unsafe.Pointer(p.Pointer),
-			unsafe.Pointer(b.Pointer), uintptr(p.len))
-	}
-	return false
+	return p.len == b.len && (p.Pointer == b.Pointer || memequal(
+		unsafe.Pointer(p.Pointer),
+		unsafe.Pointer(b.Pointer), uintptr(p.len)))
 }
 
 //goland:noinspection GoVetUnsafePointer
@@ -183,73 +181,74 @@ func (p *Bytes) Slice(offset, length int) BytesSlice {
 
 //goland:noinspection GoVetUnsafePointer
 func (p *Bytes) SetInt8(offset int, value int8) {
-	p.ensureCap(offset + 1)
+	p.EnsureCap(offset + 1)
 	p.Pointer.SetInt8(offset, value)
 }
 
+// SetUInt8 is safe version. Will grow allocation if needed.
 //goland:noinspection GoVetUnsafePointer
 func (p *Bytes) SetUInt8(offset int, value uint8) {
-	p.ensureCap(offset + 1)
+	p.EnsureCap(offset + 1)
 	p.Pointer.SetUInt8(offset, value)
 }
 
 //goland:noinspection GoVetUnsafePointer
 func (p *Bytes) SetByte(offset int, value byte) {
-	p.ensureCap(offset + 1)
+	p.EnsureCap(offset + 1)
 	p.Pointer.SetByte(offset, value)
 }
 
 //goland:noinspection GoVetUnsafePointer
 func (p *Bytes) SetInt16(offset int, value int16) {
-	p.ensureCap(offset + 2)
+	p.EnsureCap(offset + 2)
 	p.Pointer.SetInt16(offset, value)
 }
 
 //goland:noinspection GoVetUnsafePointer
 func (p *Bytes) SetUInt16(offset int, value uint16) {
-	p.ensureCap(offset + 2)
+	p.EnsureCap(offset + 2)
 	p.Pointer.SetUInt16(offset, value)
 }
 
 //goland:noinspection GoVetUnsafePointer
 func (p *Bytes) SetInt32(offset int, value int32) {
-	p.ensureCap(offset + 4)
+	p.EnsureCap(offset + 4)
 	p.Pointer.SetInt32(offset, value)
 }
 
 //goland:noinspection GoVetUnsafePointer
 func (p *Bytes) SetUInt32(offset int, value uint32) {
-	p.ensureCap(offset + 4)
+	p.EnsureCap(offset + 4)
 	p.Pointer.SetUInt32(offset, value)
 }
 
 //goland:noinspection GoVetUnsafePointer
 func (p *Bytes) SetInt64(offset int, value int64) {
-	p.ensureCap(offset + 8)
+	p.EnsureCap(offset + 8)
 	p.Pointer.SetInt64(offset, value)
 }
 
 //goland:noinspection GoVetUnsafePointer
 func (p *Bytes) SetUInt64(offset int, value uint64) {
-	p.ensureCap(offset + 8)
+	p.EnsureCap(offset + 8)
 	p.Pointer.SetUInt64(offset, value)
 }
 
 //goland:noinspection GoVetUnsafePointer
 func (p *Bytes) SetFloat32(offset int, value float32) {
-	p.ensureCap(offset + 4)
+	p.EnsureCap(offset + 4)
 	p.Pointer.SetFloat32(offset, value)
 }
 
 //goland:noinspection GoVetUnsafePointer
 func (p *Bytes) SetFloat64(offset int, value float64) {
-	p.ensureCap(offset + 8)
+	p.EnsureCap(offset + 8)
 	p.Pointer.SetFloat64(offset, value)
 }
 
 func (p *Bytes) SetString(offset int, value string) {
 	length := offset + len(value)
-	p.ensureCap(length)
+	p.EnsureCap(length)
 	if int(p.len) < length {
 		p.len = uint32(length)
 	}
@@ -261,7 +260,7 @@ func (p *Bytes) SetString(offset int, value string) {
 	copy(dst, value)
 }
 func (p *Bytes) SetBytes(offset int, value []byte) {
-	p.ensureCap(offset + len(value))
+	p.EnsureCap(offset + len(value))
 	dst := *(*[]byte)(unsafe.Pointer(&_bytes{
 		Data: uintptr(p.Pointer.Add(offset)),
 		Len:  len(value),
@@ -279,7 +278,7 @@ func (p *Bytes) SetBytesUnsafe(offset int, value []byte) {
 }
 
 //goland:noinspection GoVetUnsafePointer
-func (p *Bytes) ensureCap(neededCap int) bool {
+func (p *Bytes) EnsureCap(neededCap int) bool {
 	if int(p.cap) >= neededCap {
 		return true
 	}

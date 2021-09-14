@@ -1,3 +1,6 @@
+//go:build !tinygo && !wasm && !wasi && !tinygo.wasm
+// +build !tinygo,!wasm,!wasi,!tinygo.wasm
+
 package mem
 
 import (
@@ -16,6 +19,7 @@ type SliceArena struct {
 }
 
 func NewSliceArena() *SliceArena {
+	// Allocate on Go GC
 	a := &SliceArena{
 		allocs: make(map[Pointer][]byte, 16),
 	}

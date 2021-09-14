@@ -22,6 +22,24 @@ func Test_AllocatorCounts(t *testing.T) {
 	println("alloc size", p.AllocSize)
 }
 
+//func Benchmark_Ctz32(b *testing.B) {
+//	b.Run("bits.TrailingZeroes32", func(b *testing.B) {
+//		for i := 0; i < b.N; i++ {
+//			bits.TrailingZeros32(100)
+//			bits.TrailingZeros32(101)
+//			bits.TrailingZeros32(102)
+//		}
+//	})
+//
+//	b.Run("Ctz32", func(b *testing.B) {
+//		for i := 0; i < b.N; i++ {
+//			Ctz32(100)
+//			Ctz32(101)
+//			Ctz32(102)
+//		}
+//	})
+//}
+
 func Test_AllocatorThrash(t *testing.T) {
 	thrashAllocator(NewTLSFArena(1, NewSliceArena(), GrowMin), false,
 		1000000, 100, 15000, 21000,

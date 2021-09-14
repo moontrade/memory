@@ -200,8 +200,8 @@ func (a *TLSF) Realloc(ptr Pointer, size Pointer) Pointer {
 // Free release the allocation back into the free list.
 //goland:noinspection GoVetUnsafePointer
 func (a *TLSF) Free(ptr Pointer) {
-	a.freeBlock((*tlsfBlock)(unsafe.Pointer(ptr - _TLSFBlockOverhead)))
-	//a.freeBlock(checkUsedBlock(Pointer(ptr)))
+	//a.freeBlock((*tlsfBlock)(unsafe.Pointer(ptr - _TLSFBlockOverhead)))
+	a.freeBlock(checkUsedBlock(ptr))
 }
 
 // Scope creates an Auto free list that automatically reclaims memory

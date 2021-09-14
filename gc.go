@@ -28,8 +28,10 @@ const (
 	gc_TOTAL_OVERHEAD = _TLSFBlockOverhead + gc_OBJECT_OVERHEAD
 )
 
+type GCObject uintptr
+
 // GC is a Two-Color Mark & Sweep collector on top of a Two-Level Segmented Fit (TLSF)
-// allocator intended for TinyGo. Similar features to the internal extalloc GC in TinyGo
+// allocator built for TinyGo. Similar features to the internal extalloc GC in TinyGo
 // except GC uses a robinhood hashset instead of a treap structure and without the need
 // for a linked list. Instead, a single linear allocation is used for the hashset. Both
 // colors reside in the same hashset.
@@ -363,8 +365,8 @@ func (gc *GC) Collect() {
 		start = time.Now().UnixNano()
 		k     Pointer
 		obj   *gcObject
-		min   = ^Pointer(0)
-		max   = Pointer(0)
+		first = ^Pointer(0)
+		last  = Pointer(0)
 	)
 	gc.Cycles++
 
@@ -414,12 +416,15 @@ func (gc *GC) Collect() {
 	itemsSize = gc.allocs.size
 	itemsEnd = items + (itemsSize * unsafe.Sizeof(pointerSetItem{}))
 	for ; items < itemsEnd; items += unsafe.Sizeof(pointerSetItem{}) {
+		// dereference pointer
 		k = *(*Pointer)(unsafe.Pointer(items))
 		// Empty item?
 		if k == 0 {
 			continue
 		}
+		// cast to object
 		obj = (*gcObject)(unsafe.Pointer(k))
+		// free all WHITE objects
 		if obj.color == gc_WHITE {
 			gc.LiveBytes -= obj.size()
 			gc.LastSweepBytes += int64(obj.size())
@@ -438,12 +443,12 @@ func (gc *GC) Collect() {
 			// Remove from alloc map
 			gc.allocs.Delete(k)
 			//items -= unsafe.Sizeof(pointerSetItem{})
-		} else {
-			if k < min {
-				min = k
+		} else { // turn all BLACK objects into WHITE objects
+			if k < first {
+				first = k
 			}
-			if k > max {
-				max = k
+			if k > last {
+				last = k
 			}
 			if gc_TRACE {
 				//println("GC retained", uint(k), "size", uint(obj.size()))
@@ -452,8 +457,8 @@ func (gc *GC) Collect() {
 		}
 	}
 
-	gc.first = min
-	gc.last = max
+	gc.first = first
+	gc.last = last
 	end = time.Now().UnixNano()
 	sweepTime := end - start
 	gc.LastMarkRootsTime = markTime
