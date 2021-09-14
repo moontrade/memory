@@ -77,6 +77,14 @@ func (p Pointer) UInt24BESlow() uint32 {
 }
 
 //goland:noinspection GoVetUnsafePointer
+func (p Pointer) UInt32LESlow() uint32 {
+	return uint32(*(*byte)(unsafe.Pointer(p + 3))) |
+		uint32(*(*byte)(unsafe.Pointer(p + 2)))<<8 |
+		uint32(*(*byte)(unsafe.Pointer(p + 1)))<<16 |
+		uint32(*(*byte)(unsafe.Pointer(p)))<<24
+}
+
+//goland:noinspection GoVetUnsafePointer
 func (p Pointer) UInt64BESlow() uint64 {
 	return uint64(*(*byte)(unsafe.Pointer(p + 7))) |
 		uint64(*(*byte)(unsafe.Pointer(p + 6)))<<8 |

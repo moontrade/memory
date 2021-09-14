@@ -1,1 +1,549 @@
 package mem
+
+import (
+	"unsafe"
+)
+
+type BytesSlice struct {
+	Bytes
+	p Bytes
+}
+
+func (p *BytesSlice) Free() {
+	// Noop
+}
+
+// Bytes is a fat pointer to a heap allocation from an Allocator
+type Bytes struct {
+	Pointer
+	len   uint32
+	cap   uint32
+	alloc Allocator
+}
+
+func (b *Bytes) Allocator() Allocator {
+	return b.alloc
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p *Bytes) Equals(b *Bytes) bool {
+	return p.len == b.len && (p.Pointer == b.Pointer || memequal(
+		unsafe.Pointer(p.Pointer),
+		unsafe.Pointer(b.Pointer), uintptr(p.len)))
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p *Bytes) EqualsSlice(b *BytesSlice) bool {
+	return p.len == b.len && (p.Pointer == b.Pointer || memequal(
+		unsafe.Pointer(p.Pointer),
+		unsafe.Pointer(b.Pointer), uintptr(p.len)))
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p *Bytes) EqualsSliceAt(offset, length int, b *BytesSlice) bool {
+	if p.len == b.len {
+		return p.Pointer == b.Pointer || memequal(
+			unsafe.Pointer(uintptr(int(p.Pointer)+offset)),
+			unsafe.Pointer(b.Pointer), uintptr(p.len))
+	}
+	return false
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p *Bytes) Free() {
+	if p == nil || p.Pointer == 0 {
+		return
+	}
+	p.alloc.Free(p.Pointer)
+	*p = Bytes{}
+}
+
+func (p *Bytes) Len() int {
+	return int(p.len)
+}
+
+func (p *Bytes) String() string {
+	if p.IsEmpty() {
+		return EmptyString
+	}
+	return p.Pointer.String(0, int(p.len))
+}
+
+func (p *Bytes) Substring(offset, length int) string {
+	if p.IsEmpty() {
+		return EmptyString
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	if length+offset > int(p.cap) {
+		length = int(p.cap) - offset
+	}
+	if length <= 0 {
+		return EmptyString
+	}
+	return *(*string)(unsafe.Pointer(&_string{
+		ptr: uintptr(p.Pointer) + uintptr(offset),
+		len: length,
+	}))
+}
+
+func (p *Bytes) Bytes() []byte {
+	if p.IsNil() {
+		return nil
+	}
+	return p.Pointer.Bytes(0, int(p.len), int(p.len))
+}
+
+func (p *Bytes) IsNil() bool {
+	return p == nil || p.Pointer == 0
+}
+
+func (p *Bytes) IsEmpty() bool {
+	return p.Pointer == 0 || p.len == 0
+}
+
+func (p *Bytes) CheckBounds(offset int) bool {
+	return uintptr(p.Pointer) == 0 || int(p.len) < offset
+}
+
+//func (p *Bytes) Substr(offset, length int) string {
+//	return p.Slice(offset, length).String()
+//}
+//
+//func (p *Bytes) SliceBytes(offset, length int) []byte {
+//	return p.Slice(offset, length).Bytes()
+//}
+//
+func (p *Bytes) Slice(offset, length int) BytesSlice {
+	if p.IsNil() {
+		return BytesSlice{}
+	}
+	if offset+length > int(p.len) {
+		return BytesSlice{}
+	}
+	return BytesSlice{
+		Bytes: Bytes{
+			Pointer: p.Add(offset),
+			len:     uint32(length),
+			cap:     p.cap - uint32(offset),
+		},
+		p: *p,
+	}
+}
+
+func (p *Bytes) Int8(offset int) int8 {
+	p.EnsureCap(offset + 1)
+	return p.Pointer.Int8(offset)
+}
+func (p *Bytes) SetInt8(offset int, value int8) {
+	p.EnsureCap(offset + 1)
+	p.Pointer.SetInt8(offset, value)
+}
+
+func (p *Bytes) UInt8(offset int) uint8 {
+	p.EnsureCap(offset + 1)
+	return p.Pointer.UInt8(offset)
+}
+
+// SetUInt8 is safe version. Will grow allocation if needed.
+func (p *Bytes) SetUInt8(offset int, value uint8) {
+	p.EnsureCap(offset + 1)
+	p.Pointer.SetUInt8(offset, value)
+}
+
+func (p *Bytes) Byte(offset int) byte {
+	p.EnsureCap(offset + 1)
+	return p.Pointer.Byte(offset)
+}
+
+func (p *Bytes) SetByte(offset int, value byte) {
+	p.EnsureCap(offset + 1)
+	p.Pointer.SetByte(offset, value)
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////
+// Int16
+///////////////////////////////////////////////////////////////////////////////////////////
+
+func (p *Bytes) Int16(offset int) int16 {
+	p.EnsureCap(offset + 2)
+	return p.Pointer.Int16(offset)
+}
+func (p *Bytes) Int16LE(offset int) int16 {
+	p.EnsureCap(offset + 2)
+	return p.Pointer.Int16LE(offset)
+}
+func (p *Bytes) Int16BE(offset int) int16 {
+	p.EnsureCap(offset + 2)
+	return p.Pointer.Int16BE(offset)
+}
+func (p *Bytes) SetInt16(offset int, value int16) {
+	p.EnsureCap(offset + 2)
+	p.Pointer.SetInt16(offset, value)
+}
+func (p *Bytes) SetInt16LE(offset int, value int16) {
+	p.EnsureCap(offset + 2)
+	p.Pointer.SetInt16LE(offset, value)
+}
+func (p *Bytes) SetInt16BE(offset int, value int16) {
+	p.EnsureCap(offset + 2)
+	p.Pointer.SetInt16BE(offset, value)
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////
+// UInt16
+///////////////////////////////////////////////////////////////////////////////////////////
+
+func (p *Bytes) UInt16(offset int) uint16 {
+	p.EnsureCap(offset + 2)
+	return p.Pointer.UInt16(offset)
+}
+func (p *Bytes) UInt16LE(offset int) uint16 {
+	p.EnsureCap(offset + 2)
+	return p.Pointer.UInt16LE(offset)
+}
+func (p *Bytes) UInt16BE(offset int) uint16 {
+	p.EnsureCap(offset + 2)
+	return p.Pointer.UInt16BE(offset)
+}
+func (p *Bytes) SetUInt16(offset int, value uint16) {
+	p.EnsureCap(offset + 2)
+	p.Pointer.SetUInt16(offset, value)
+}
+func (p *Bytes) SetUInt16LE(offset int, value uint16) {
+	p.EnsureCap(offset + 2)
+	p.Pointer.SetUInt16LE(offset, value)
+}
+func (p *Bytes) SetUInt16BE(offset int, value uint16) {
+	p.EnsureCap(offset + 2)
+	p.Pointer.SetUInt16BE(offset, value)
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////
+// Int32
+///////////////////////////////////////////////////////////////////////////////////////////
+
+func (p *Bytes) Int32(offset int) int32 {
+	p.EnsureCap(offset + 4)
+	return p.Pointer.Int32(offset)
+}
+func (p *Bytes) Int32LE(offset int) int32 {
+	p.EnsureCap(offset + 4)
+	return p.Pointer.Int32LE(offset)
+}
+func (p *Bytes) Int32BE(offset int) int32 {
+	p.EnsureCap(offset + 4)
+	return p.Pointer.Int32BE(offset)
+}
+func (p *Bytes) SetInt32(offset int, value int32) {
+	p.EnsureCap(offset + 4)
+	p.Pointer.SetInt32(offset, value)
+}
+
+func (p *Bytes) SetInt32LE(offset int, value int32) {
+	p.EnsureCap(offset + 4)
+	p.Pointer.SetInt32LE(offset, value)
+}
+
+func (p *Bytes) SetInt32BE(offset int, value int32) {
+	p.EnsureCap(offset + 4)
+	p.Pointer.SetInt32BE(offset, value)
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////
+// UInt32
+///////////////////////////////////////////////////////////////////////////////////////////
+
+func (p *Bytes) UInt32(offset int) uint32 {
+	p.EnsureCap(offset + 4)
+	return p.Pointer.UInt32(offset)
+}
+func (p *Bytes) UInt32LE(offset int) uint32 {
+	p.EnsureCap(offset + 4)
+	return p.Pointer.UInt32LE(offset)
+}
+func (p *Bytes) UInt32BE(offset int) uint32 {
+	p.EnsureCap(offset + 4)
+	return p.Pointer.UInt32BE(offset)
+}
+
+func (p *Bytes) SetUInt32(offset int, value uint32) {
+	p.EnsureCap(offset + 4)
+	p.Pointer.SetUInt32(offset, value)
+}
+
+func (p *Bytes) SetUInt32LE(offset int, value uint32) {
+	p.EnsureCap(offset + 4)
+	p.Pointer.SetUInt32LE(offset, value)
+}
+
+func (p *Bytes) SetUInt32BE(offset int, value uint32) {
+	p.EnsureCap(offset + 4)
+	p.Pointer.SetUInt32BE(offset, value)
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////
+// Int64
+///////////////////////////////////////////////////////////////////////////////////////////
+
+func (p *Bytes) Int64(offset int) int64 {
+	p.EnsureCap(offset + 8)
+	return p.Pointer.Int64(offset)
+}
+func (p *Bytes) Int64LE(offset int) int64 {
+	p.EnsureCap(offset + 8)
+	return p.Pointer.Int64LE(offset)
+}
+func (p *Bytes) Int64BE(offset int) int64 {
+	p.EnsureCap(offset + 8)
+	return p.Pointer.Int64BE(offset)
+}
+func (p *Bytes) SetInt64(offset int, value int64) {
+	p.EnsureCap(offset + 8)
+	p.Pointer.SetInt64(offset, value)
+}
+
+func (p *Bytes) SetInt64LE(offset int, value int64) {
+	p.EnsureCap(offset + 8)
+	p.Pointer.SetInt64LE(offset, value)
+}
+
+func (p *Bytes) SetInt64BE(offset int, value int64) {
+	p.EnsureCap(offset + 8)
+	p.Pointer.SetInt64BE(offset, value)
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////
+// UInt64
+///////////////////////////////////////////////////////////////////////////////////////////
+
+func (p *Bytes) UInt64(offset int) uint64 {
+	p.EnsureCap(offset + 8)
+	return p.Pointer.UInt64(offset)
+}
+func (p *Bytes) UInt64LE(offset int) uint64 {
+	p.EnsureCap(offset + 8)
+	return p.Pointer.UInt64LE(offset)
+}
+func (p *Bytes) UInt64BE(offset int) uint64 {
+	p.EnsureCap(offset + 8)
+	return p.Pointer.UInt64BE(offset)
+}
+func (p *Bytes) SetUInt64(offset int, value uint64) {
+	p.EnsureCap(offset + 8)
+	p.Pointer.SetUInt64(offset, value)
+}
+func (p *Bytes) SetUInt64LE(offset int, value uint64) {
+	p.EnsureCap(offset + 8)
+	p.Pointer.SetUInt64LE(offset, value)
+}
+func (p *Bytes) SetUInt64BE(offset int, value uint64) {
+	p.EnsureCap(offset + 8)
+	p.Pointer.SetUInt64BE(offset, value)
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////
+// Float32
+///////////////////////////////////////////////////////////////////////////////////////////
+
+func (p *Bytes) Float32(offset int) float32 {
+	p.EnsureCap(offset + 4)
+	return p.Pointer.Float32(offset)
+}
+func (p *Bytes) Float32LE(offset int) float32 {
+	p.EnsureCap(offset + 4)
+	return p.Pointer.Float32LE(offset)
+}
+func (p *Bytes) Float32BE(offset int) float32 {
+	p.EnsureCap(offset + 4)
+	return p.Pointer.Float32BE(offset)
+}
+func (p *Bytes) SetFloat32(offset int, value float32) {
+	p.EnsureCap(offset + 4)
+	p.Pointer.SetFloat32(offset, value)
+}
+func (p *Bytes) SetFloat32LE(offset int, value float32) {
+	p.EnsureCap(offset + 4)
+	p.Pointer.SetFloat32LE(offset, value)
+}
+func (p *Bytes) SetFloat32BE(offset int, value float32) {
+	p.EnsureCap(offset + 4)
+	p.Pointer.SetFloat32BE(offset, value)
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////
+// Float64
+///////////////////////////////////////////////////////////////////////////////////////////
+
+func (p *Bytes) Float64(offset int) float64 {
+	p.EnsureCap(offset + 8)
+	return p.Pointer.Float64(offset)
+}
+func (p *Bytes) Float64LE(offset int) float64 {
+	p.EnsureCap(offset + 8)
+	return p.Pointer.Float64LE(offset)
+}
+func (p *Bytes) Float64BE(offset int) float64 {
+	p.EnsureCap(offset + 8)
+	return p.Pointer.Float64BE(offset)
+}
+func (p *Bytes) SetFloat64(offset int, value float64) {
+	p.EnsureCap(offset + 8)
+	p.Pointer.SetFloat64(offset, value)
+}
+
+func (p *Bytes) SetFloat64LE(offset int, value float64) {
+	p.EnsureCap(offset + 8)
+	p.Pointer.SetFloat64(offset, value)
+}
+
+func (p *Bytes) SetFloat64BE(offset int, value float64) {
+	p.EnsureCap(offset + 8)
+	p.Pointer.SetFloat64(offset, value)
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////
+// Pointer
+///////////////////////////////////////////////////////////////////////////////////////////
+
+func (p *Bytes) PointerAt(offset int) Pointer {
+	p.EnsureCap(offset + 8)
+	return p.Pointer.Pointer(offset)
+}
+func (p *Bytes) SetPointerAt(offset int, value Pointer) {
+	p.EnsureCap(offset + int(unsafe.Sizeof(uintptr(0))))
+	p.Pointer.SetPointer(offset, value)
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////
+// uintptr
+///////////////////////////////////////////////////////////////////////////////////////////
+
+func (p *Bytes) Uintptr(offset int) uintptr {
+	p.EnsureCap(offset + int(unsafe.Sizeof(uintptr(0))))
+	return p.Pointer.Uintptr(offset)
+}
+func (p *Bytes) SetUintptr(offset int, value uintptr) {
+	p.EnsureCap(offset + int(unsafe.Sizeof(uintptr(0))))
+	p.Pointer.SetUintptr(offset, value)
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////
+// String
+///////////////////////////////////////////////////////////////////////////////////////////
+
+func (p *Bytes) SetString(offset int, value string) {
+	p.EnsureCap(offset + len(value))
+	length := offset + len(value)
+	if int(p.len) < length {
+		p.len = uint32(length)
+	}
+	p.Pointer.SetString(offset, value)
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////
+// Bytes
+///////////////////////////////////////////////////////////////////////////////////////////
+
+func (p *Bytes) Set(offset int, value Bytes) {
+	if value.IsNil() || value.len == 0 {
+		return
+	}
+	length := offset + int(value.len)
+	p.EnsureCap(offset + length)
+	if int(p.len) < length {
+		p.len = uint32(length)
+	}
+	memcpy(p.Unsafe(), value.Unsafe(), uintptr(value.len))
+}
+
+func (p *Bytes) SetBytes(offset int, value []byte) {
+	p.EnsureCap(offset + len(value))
+	length := offset + len(value)
+	if int(p.len) < length {
+		p.len = uint32(length)
+	}
+	p.Pointer.SetBytes(offset, value)
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p *Bytes) EnsureCap(neededCap int) bool {
+	if int(p.cap) >= neededCap {
+		return true
+	}
+	newCap := uint32(neededCap - int(p.cap))
+	addr := p.alloc.Realloc(p.Pointer, Pointer(newCap))
+	//addr := ((*Allocator)(unsafe.Pointer(p.alloc))).Realloc(p.Pointer, Pointer(newCap))
+	if addr == 0 {
+		return false
+	}
+	p.Pointer = addr
+	p.cap = newCap
+	return true
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p *Bytes) ensureCapU32(neededCap uint32) bool {
+	if p.cap >= neededCap {
+		return true
+	}
+	newCap := neededCap - p.cap
+	addr := p.alloc.Realloc(p.Pointer, Pointer(newCap))
+	//addr := ((*Allocator)(unsafe.Pointer(p.alloc))).Realloc(p.Pointer, Pointer(newCap))
+	if addr == 0 {
+		return false
+	}
+	p.Pointer = addr
+	p.cap = newCap
+	return true
+}
+
+func (p *Bytes) Clone() Bytes {
+	b := p.alloc.Bytes(Pointer(p.len))
+	memcpy(b.Unsafe(), p.Unsafe(), uintptr(p.len))
+	return b
+}
+
+// Reset zeroes out the entire allocation and sets the length back to 0
+func (p *Bytes) Reset() {
+	memzero(p.Unsafe(), uintptr(p.cap))
+	p.len = 0
+}
+
+// Zero zeroes out the entire allocation.
+func (p *Bytes) Zero() {
+	memzero(p.Unsafe(), uintptr(p.cap))
+}
+
+func (p *Bytes) Append(value Bytes) int {
+	p.ensureCapU32(p.len + value.len)
+	i := p.len
+	p.len += value.len
+	return int(i)
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p *Bytes) AppendBytes(value []byte) int {
+	p.EnsureCap(int(p.len) + len(value))
+	i := p.len
+	memcpy(unsafe.Pointer(p.Pointer), unsafe.Pointer(&value[0]), uintptr(len(value)))
+	p.len += uint32(len(value))
+	return int(i)
+}
+
+func (p *Bytes) AppendString(value string) int {
+	p.ensureCapU32(p.len + uint32(len(value)))
+	i := p.len
+	p.len += uint32(len(value))
+	return int(i)
+}
+
+func (p *Bytes) SetLength(length int) {
+	p.ensureCapU32(uint32(length))
+	p.len = uint32(length)
+}
+
+func (p *Bytes) Extend(length int) {
+	p.ensureCapU32(p.len + uint32(length))
+}

@@ -18,6 +18,11 @@ func (p Pointer) Add(offset int) Pointer {
 	return Pointer(uintptr(int(p) + offset))
 }
 
+// Zero zeroes out the entire allocation.
+func (p Pointer) Zero(size uintptr) {
+	memzero(p.Unsafe(), size)
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////
 // Byte
 ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -72,6 +77,196 @@ func (p Pointer) SetByte(offset int, v byte) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
+// Int16 Native Endian
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) LoadInt16() int16 {
+	return *(*int16)(unsafe.Pointer(p))
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) Int16(offset int) int16 {
+	return *(*int16)(unsafe.Pointer(uintptr(int(p) + offset)))
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) SetInt16(offset int, v int16) {
+	*(*int16)(unsafe.Pointer(uintptr(int(p) + offset))) = v
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+// UInt16 Native Endian
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) LoadUInt16() uint16 {
+	return *(*uint16)(unsafe.Pointer(p))
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) UInt16(offset int) uint16 {
+	return *(*uint16)(unsafe.Pointer(uintptr(int(p) + offset)))
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) SetUInt16(offset int, v uint16) {
+	*(*uint16)(unsafe.Pointer(uintptr(int(p) + offset))) = v
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Int32 Native Endian
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) LoadInt32() int32 {
+	return *(*int32)(unsafe.Pointer(p))
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) Int32(offset int) int32 {
+	return *(*int32)(unsafe.Pointer(uintptr(int(p) + offset)))
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) SetInt32(offset int, v int32) {
+	*(*int32)(unsafe.Pointer(uintptr(int(p) + offset))) = v
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+// UInt32 Native Endian
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) LoadUInt32() uint32 {
+	return *(*uint32)(unsafe.Pointer(p))
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) UInt32(offset int) uint32 {
+	return *(*uint32)(unsafe.Pointer(uintptr(int(p) + offset)))
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) SetUInt32(offset int, v uint32) {
+	*(*uint32)(unsafe.Pointer(uintptr(int(p) + offset))) = v
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Int64 Native Endian
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) LoadInt64() int64 {
+	return *(*int64)(unsafe.Pointer(p))
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) Int64(offset int) int64 {
+	return *(*int64)(unsafe.Pointer(uintptr(int(p) + offset)))
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) SetInt64(offset int, v int64) {
+	*(*int64)(unsafe.Pointer(uintptr(int(p) + offset))) = v
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+// UInt64 Native Endian
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) LoadUInt64() uint64 {
+	return *(*uint64)(unsafe.Pointer(p))
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) UInt64(offset int) uint64 {
+	return *(*uint64)(unsafe.Pointer(uintptr(int(p) + offset)))
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) SetUInt64(offset int, v uint64) {
+	*(*uint64)(unsafe.Pointer(uintptr(int(p) + offset))) = v
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Float32 Native Endian
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) LoadFloat32() float32 {
+	return *(*float32)(unsafe.Pointer(p))
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) Float32(offset int) float32 {
+	return *(*float32)(unsafe.Pointer(uintptr(int(p) + offset)))
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) SetFloat32(offset int, v float32) {
+	*(*float32)(unsafe.Pointer(uintptr(int(p) + offset))) = v
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Float64 Native Endian
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) LoadFloat64() float64 {
+	return *(*float64)(unsafe.Pointer(p))
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) Float64(offset int) float64 {
+	return *(*float64)(unsafe.Pointer(uintptr(int(p) + offset)))
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) SetFloat64(offset int, v float64) {
+	*(*float64)(unsafe.Pointer(uintptr(int(p) + offset))) = v
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+// uintptr
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) LoadUintptr() int64 {
+	return *(*int64)(unsafe.Pointer(p))
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) Uintptr(offset int) uintptr {
+	return *(*uintptr)(unsafe.Pointer(uintptr(int(p) + offset)))
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) SetUintptr(offset int, v uintptr) {
+	*(*uintptr)(unsafe.Pointer(uintptr(int(p) + offset))) = v
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Pointer
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) LoadPointer() Pointer {
+	return *(*Pointer)(unsafe.Pointer(p))
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) Pointer(offset int) Pointer {
+	return *(*Pointer)(unsafe.Pointer(uintptr(int(p) + offset)))
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) SetPointer(offset int, v Pointer) {
+	*(*Pointer)(unsafe.Pointer(uintptr(int(p) + offset))) = v
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
 // String
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -94,6 +289,24 @@ func (p Pointer) String(offset, size int) string {
 		ptr: uintptr(int(p) + offset),
 		len: size,
 	}))
+}
+
+func (p Pointer) SetString(offset int, value string) {
+	dst := *(*[]byte)(unsafe.Pointer(&_bytes{
+		Data: uintptr(int(p) + offset),
+		Len:  len(value),
+		Cap:  len(value),
+	}))
+	copy(dst, value)
+}
+
+func (p Pointer) SetBytes(offset int, value []byte) {
+	dst := *(*[]byte)(unsafe.Pointer(&_bytes{
+		Data: uintptr(int(p) + offset),
+		Len:  len(value),
+		Cap:  len(value),
+	}))
+	copy(dst, value)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -122,4 +335,512 @@ func (p Pointer) Bytes(offset, length, capacity int) []byte {
 		Len:  length,
 		Cap:  capacity,
 	}))
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Int24 Little Endian
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) LoadInt24LE() int32 {
+	return int32(*(*byte)(unsafe.Pointer(p))) |
+		int32(*(*byte)(unsafe.Pointer(p + 1)))<<8 |
+		int32(*(*byte)(unsafe.Pointer(p + 2)))<<16
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) Int24LE(offset int) int32 {
+	return int32(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset)))) |
+		int32(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 1))))<<8 |
+		int32(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 2))))<<16
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) SetInt24LE(offset int, v int32) {
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset))) = byte(v)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 1))) = byte(v >> 8)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 2))) = byte(v >> 16)
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Int24 Big Endian
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) LoadInt24BE() int32 {
+	return int32(*(*byte)(unsafe.Pointer(p + 2))) |
+		int32(*(*byte)(unsafe.Pointer(p + 1)))<<8 |
+		int32(*(*byte)(unsafe.Pointer(p)))<<16
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) Int24BE(offset int) int32 {
+	return int32(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 2)))) |
+		int32(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 1))))<<8 |
+		int32(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset))))<<16
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) SetInt24BE(offset int, v int32) {
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset))) = byte(v >> 16)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 1))) = byte(v >> 8)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 2))) = byte(v)
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+// UInt24 Little Endian
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) LoadUInt24LE() uint32 {
+	return uint32(*(*byte)(unsafe.Pointer(p))) |
+		uint32(*(*byte)(unsafe.Pointer(p + 1)))<<8 |
+		uint32(*(*byte)(unsafe.Pointer(p + 2)))<<16
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) UInt24LE(offset int) uint32 {
+	return uint32(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset)))) |
+		uint32(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 1))))<<8 |
+		uint32(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 2))))<<16
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) SetUInt24LE(offset int, v uint32) {
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset))) = byte(v)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 1))) = byte(v >> 8)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 2))) = byte(v >> 16)
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+// UInt24 Big Endian
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) LoadUInt24BE() uint32 {
+	return uint32(*(*byte)(unsafe.Pointer(p + 2))) |
+		uint32(*(*byte)(unsafe.Pointer(p + 1)))<<8 |
+		uint32(*(*byte)(unsafe.Pointer(p)))<<16
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) UInt24BE(offset int) uint32 {
+	return uint32(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 2)))) |
+		uint32(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 1))))<<8 |
+		uint32(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset))))<<16
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) SetUInt24BE(offset int, v uint32) {
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset))) = byte(v >> 16)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 1))) = byte(v >> 8)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 2))) = byte(v)
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Int40 Little Endian
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) LoadInt40LE() int64 {
+	return int64(*(*byte)(unsafe.Pointer(p))) |
+		int64(*(*byte)(unsafe.Pointer(p + 1)))<<8 |
+		int64(*(*byte)(unsafe.Pointer(p + 2)))<<16 |
+		int64(*(*byte)(unsafe.Pointer(p + 3)))<<24 |
+		int64(*(*byte)(unsafe.Pointer(p + 4)))<<32
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) Int40LE(offset int) int64 {
+	return int64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset)))) |
+		int64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 1))))<<8 |
+		int64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 2))))<<16 |
+		int64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 3))))<<24 |
+		int64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 4))))<<32
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) SetInt40LE(offset int, v int64) {
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset))) = byte(v)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 1))) = byte(v >> 8)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 2))) = byte(v >> 16)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 3))) = byte(v >> 24)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 4))) = byte(v >> 32)
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Int40 Big Endian
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) LoadInt40BE() int64 {
+	return int64(*(*byte)(unsafe.Pointer(p + 4))) |
+		int64(*(*byte)(unsafe.Pointer(p + 3)))<<8 |
+		int64(*(*byte)(unsafe.Pointer(p + 2)))<<16 |
+		int64(*(*byte)(unsafe.Pointer(p + 1)))<<24 |
+		int64(*(*byte)(unsafe.Pointer(p)))<<32
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) Int40BE(offset int) int64 {
+	return int64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 4)))) |
+		int64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 3))))<<8 |
+		int64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 2))))<<16 |
+		int64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 1))))<<24 |
+		int64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset))))<<32
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) SetInt40BE(offset int, v int64) {
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset))) = byte(v >> 32)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 1))) = byte(v >> 24)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 2))) = byte(v >> 16)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 3))) = byte(v >> 8)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 4))) = byte(v)
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+// UInt40 Little Endian
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) LoadUInt40LE() uint64 {
+	return uint64(*(*byte)(unsafe.Pointer(p))) |
+		uint64(*(*byte)(unsafe.Pointer(p + 1)))<<8 |
+		uint64(*(*byte)(unsafe.Pointer(p + 2)))<<16 |
+		uint64(*(*byte)(unsafe.Pointer(p + 3)))<<24 |
+		uint64(*(*byte)(unsafe.Pointer(p + 4)))<<32
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) UInt40LE(offset int) uint64 {
+	return uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset)))) |
+		uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 1))))<<8 |
+		uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 2))))<<16 |
+		uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 3))))<<24 |
+		uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 4))))<<32
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) SetUInt40LE(offset int, v uint64) {
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset))) = byte(v)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 1))) = byte(v >> 8)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 2))) = byte(v >> 16)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 3))) = byte(v >> 24)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 4))) = byte(v >> 32)
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+// UInt40 Big Endian
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) LoadUInt40BE() uint64 {
+	return uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + 4)))) |
+		uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + 3))))<<8 |
+		uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + 2))))<<16 |
+		uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + 1))))<<24 |
+		uint64(*(*byte)(unsafe.Pointer(uintptr(int(p)))))<<32
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) UInt40BE(offset int) uint64 {
+	return uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 4)))) |
+		uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 3))))<<8 |
+		uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 2))))<<16 |
+		uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 1))))<<24 |
+		uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset))))<<32
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) SetUInt40BE(offset int, v uint64) {
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset))) = byte(v >> 32)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 1))) = byte(v >> 24)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 2))) = byte(v >> 16)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 3))) = byte(v >> 8)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 4))) = byte(v)
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Int48 Little Endian
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) LoadInt48LE() int64 {
+	return int64(*(*byte)(unsafe.Pointer(p))) |
+		int64(*(*byte)(unsafe.Pointer(p + 1)))<<8 |
+		int64(*(*byte)(unsafe.Pointer(p + 2)))<<16 |
+		int64(*(*byte)(unsafe.Pointer(p + 3)))<<24 |
+		int64(*(*byte)(unsafe.Pointer(p + 4)))<<32 |
+		int64(*(*byte)(unsafe.Pointer(p + 5)))<<40
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) Int48LE(offset int) int64 {
+	return int64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset)))) |
+		int64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 1))))<<8 |
+		int64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 2))))<<16 |
+		int64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 3))))<<24 |
+		int64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 4))))<<32 |
+		int64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 5))))<<40
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) SetInt48LE(offset int, v int64) {
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset))) = byte(v)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 1))) = byte(v >> 8)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 2))) = byte(v >> 16)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 3))) = byte(v >> 24)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 4))) = byte(v >> 32)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 5))) = byte(v >> 40)
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Int48 Big Endian
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) LoadInt48BE() int64 {
+	return int64(*(*byte)(unsafe.Pointer(p + 5))) |
+		int64(*(*byte)(unsafe.Pointer(p + 4)))<<8 |
+		int64(*(*byte)(unsafe.Pointer(p + 3)))<<16 |
+		int64(*(*byte)(unsafe.Pointer(p + 2)))<<24 |
+		int64(*(*byte)(unsafe.Pointer(p + 1)))<<32 |
+		int64(*(*byte)(unsafe.Pointer(p)))<<40
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) Int48BE(offset int) int64 {
+	return int64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 5)))) |
+		int64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 4))))<<8 |
+		int64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 3))))<<16 |
+		int64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 2))))<<24 |
+		int64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 1))))<<32 |
+		int64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset))))<<40
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) SetInt48BE(offset int, v int64) {
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset))) = byte(v >> 40)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 1))) = byte(v >> 32)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 2))) = byte(v >> 24)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 3))) = byte(v >> 16)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 4))) = byte(v >> 8)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 5))) = byte(v)
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+// UInt48 Little Endian
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) LoadUInt48LE() uint64 {
+	return uint64(*(*byte)(unsafe.Pointer(p))) |
+		uint64(*(*byte)(unsafe.Pointer(p + 1)))<<8 |
+		uint64(*(*byte)(unsafe.Pointer(p + 2)))<<16 |
+		uint64(*(*byte)(unsafe.Pointer(p + 3)))<<24 |
+		uint64(*(*byte)(unsafe.Pointer(p + 4)))<<32 |
+		uint64(*(*byte)(unsafe.Pointer(p + 5)))<<40
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) UInt48LE(offset int) uint64 {
+	return uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset)))) |
+		uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 1))))<<8 |
+		uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 2))))<<16 |
+		uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 3))))<<24 |
+		uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 4))))<<32 |
+		uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 5))))<<40
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) SetUInt48LE(offset int, v uint64) {
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset))) = byte(v)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 1))) = byte(v >> 8)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 2))) = byte(v >> 16)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 3))) = byte(v >> 24)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 4))) = byte(v >> 32)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 5))) = byte(v >> 40)
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+// UInt48 Big Endian
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) LoadUInt48BE() uint64 {
+	return uint64(*(*byte)(unsafe.Pointer(p + 6))) |
+		uint64(*(*byte)(unsafe.Pointer(p + 5)))<<8 |
+		uint64(*(*byte)(unsafe.Pointer(p + 4)))<<16 |
+		uint64(*(*byte)(unsafe.Pointer(p + 3)))<<24 |
+		uint64(*(*byte)(unsafe.Pointer(p + 2)))<<32 |
+		uint64(*(*byte)(unsafe.Pointer(p + 1)))<<40
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) UInt48BE(offset int) uint64 {
+	return uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 5)))) |
+		uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 4))))<<8 |
+		uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 3))))<<16 |
+		uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 2))))<<24 |
+		uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 1))))<<32 |
+		uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset))))<<40
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) SetUInt48BE(offset int, v uint64) {
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset))) = byte(v >> 40)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 1))) = byte(v >> 32)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 2))) = byte(v >> 24)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 3))) = byte(v >> 16)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 4))) = byte(v >> 8)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 5))) = byte(v)
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Int56 Little Endian
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) LoadInt56LE() int64 {
+	return int64(*(*byte)(unsafe.Pointer(p))) |
+		int64(*(*byte)(unsafe.Pointer(p + 1)))<<8 |
+		int64(*(*byte)(unsafe.Pointer(p + 2)))<<16 |
+		int64(*(*byte)(unsafe.Pointer(p + 3)))<<24 |
+		int64(*(*byte)(unsafe.Pointer(p + 4)))<<32 |
+		int64(*(*byte)(unsafe.Pointer(p + 5)))<<40 |
+		int64(*(*byte)(unsafe.Pointer(p + 6)))<<48
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) Int56LE(offset int) int64 {
+	return int64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset)))) |
+		int64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 1))))<<8 |
+		int64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 2))))<<16 |
+		int64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 3))))<<24 |
+		int64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 4))))<<32 |
+		int64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 5))))<<40 |
+		int64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 6))))<<48
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) SetInt56LE(offset int, v int64) {
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset))) = byte(v)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 1))) = byte(v >> 8)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 2))) = byte(v >> 16)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 3))) = byte(v >> 24)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 4))) = byte(v >> 32)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 5))) = byte(v >> 40)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 6))) = byte(v >> 48)
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+// Int56 Big Endian
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) LoadInt56BE() int64 {
+	return int64(*(*byte)(unsafe.Pointer(p + 6))) |
+		int64(*(*byte)(unsafe.Pointer(p + 5)))<<8 |
+		int64(*(*byte)(unsafe.Pointer(p + 4)))<<16 |
+		int64(*(*byte)(unsafe.Pointer(p + 3)))<<24 |
+		int64(*(*byte)(unsafe.Pointer(p + 2)))<<32 |
+		int64(*(*byte)(unsafe.Pointer(p + 1)))<<40 |
+		int64(*(*byte)(unsafe.Pointer(p)))<<48
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) Int56BE(offset int) int64 {
+	return int64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 6)))) |
+		int64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 5))))<<8 |
+		int64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 4))))<<16 |
+		int64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 3))))<<24 |
+		int64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 2))))<<32 |
+		int64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 1))))<<40 |
+		int64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset))))<<48
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) SetInt56BE(offset int, v int64) {
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset))) = byte(v >> 48)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 1))) = byte(v >> 40)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 2))) = byte(v >> 32)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 3))) = byte(v >> 24)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 4))) = byte(v >> 16)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 5))) = byte(v >> 8)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 6))) = byte(v)
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+// UInt56 Little Endian
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) LoadUInt56LE() uint64 {
+	return uint64(*(*byte)(unsafe.Pointer(p))) |
+		uint64(*(*byte)(unsafe.Pointer(p + 1)))<<8 |
+		uint64(*(*byte)(unsafe.Pointer(p + 2)))<<16 |
+		uint64(*(*byte)(unsafe.Pointer(p + 3)))<<24 |
+		uint64(*(*byte)(unsafe.Pointer(p + 4)))<<32 |
+		uint64(*(*byte)(unsafe.Pointer(p + 5)))<<40 |
+		uint64(*(*byte)(unsafe.Pointer(p + 6)))<<48
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) UInt56LE(offset int) uint64 {
+	return uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset)))) |
+		uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 1))))<<8 |
+		uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 2))))<<16 |
+		uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 3))))<<24 |
+		uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 4))))<<32 |
+		uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 5))))<<40 |
+		uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 6))))<<48
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) SetUInt56LE(offset int, v uint64) {
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset))) = byte(v)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 1))) = byte(v >> 8)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 2))) = byte(v >> 16)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 3))) = byte(v >> 24)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 4))) = byte(v >> 32)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 5))) = byte(v >> 40)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 6))) = byte(v >> 48)
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+// UInt56 Big Endian
+///////////////////////////////////////////////////////////////////////////////////////////////
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) LoadUInt56BE() uint64 {
+	return uint64(*(*byte)(unsafe.Pointer(p + 6))) |
+		uint64(*(*byte)(unsafe.Pointer(p + 5)))<<8 |
+		uint64(*(*byte)(unsafe.Pointer(p + 4)))<<16 |
+		uint64(*(*byte)(unsafe.Pointer(p + 3)))<<24 |
+		uint64(*(*byte)(unsafe.Pointer(p + 2)))<<32 |
+		uint64(*(*byte)(unsafe.Pointer(p + 1)))<<40 |
+		uint64(*(*byte)(unsafe.Pointer(p)))<<48
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) UInt56BE(offset int) uint64 {
+	return uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 6)))) |
+		uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 5))))<<8 |
+		uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 4))))<<16 |
+		uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 3))))<<24 |
+		uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 2))))<<32 |
+		uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 1))))<<40 |
+		uint64(*(*byte)(unsafe.Pointer(uintptr(int(p) + offset))))<<48
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) SetUInt56BE(offset int, v uint64) {
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset))) = byte(v >> 48)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 1))) = byte(v >> 40)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 2))) = byte(v >> 32)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 3))) = byte(v >> 24)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 4))) = byte(v >> 16)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 5))) = byte(v >> 8)
+	*(*byte)(unsafe.Pointer(uintptr(int(p) + offset + 6))) = byte(v)
 }
