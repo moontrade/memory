@@ -55,7 +55,7 @@ import (
 // └───────────────────────────────────────────────┴───────╨───────┘
 // FL: first level, SL: second level, AL: alignment, SB: small block
 type TLSF struct {
-	root      *root
+	root      *tlsfRoot
 	HeapStart Pointer
 	HeapEnd   Pointer
 	arena     Pointer
@@ -162,7 +162,7 @@ func (a *TLSF) BytesCapacity(length, capacity Pointer) Bytes {
 		Pointer: p + _TLSFBlockOverhead,
 		len:     uint32(length),
 		cap:     uint32(*(*Pointer)(unsafe.Pointer(p)) & ^_TLSFTagsMask),
-		alloc:   toTLSFAllocator(a),
+		alloc:   a.AsAllocator(),
 	}
 }
 
@@ -190,7 +190,7 @@ func (a *TLSF) AllocZeroed(size Pointer) Pointer {
 
 // Realloc determines the best way to resize an allocation.
 func (a *TLSF) Realloc(ptr Pointer, size Pointer) Pointer {
-	p := Pointer(unsafe.Pointer(a.moveBlock(checkUsedBlock(ptr), size)))
+	p := Pointer(unsafe.Pointer(a.moveBlock(tlsfCheckUsedBlock(ptr), size)))
 	if p == 0 {
 		return 0
 	}
@@ -201,7 +201,7 @@ func (a *TLSF) Realloc(ptr Pointer, size Pointer) Pointer {
 //goland:noinspection GoVetUnsafePointer
 func (a *TLSF) Free(ptr Pointer) {
 	//a.freeBlock((*tlsfBlock)(unsafe.Pointer(ptr - _TLSFBlockOverhead)))
-	a.freeBlock(checkUsedBlock(ptr))
+	a.freeBlock(tlsfCheckUsedBlock(ptr))
 }
 
 // Scope creates an Auto free list that automatically reclaims memory
@@ -238,7 +238,7 @@ func bootstrap(start, end Pointer, pages int32, grow Grow) *TLSF {
 
 	// init root
 	rootOffset := Pointer(unsafe.Sizeof(TLSF{})) + ((start + _TLSFALMask) & ^_TLSFALMask)
-	a.root = (*root)(unsafe.Pointer(rootOffset))
+	a.root = (*tlsfRoot)(unsafe.Pointer(rootOffset))
 	a.root.init()
 
 	// add initial memory
@@ -317,11 +317,11 @@ func (block *tlsfBlock) getRight() *tlsfBlock {
 // │                             tail                              │ ◄────┘
 // └───────────────────────────────────────────────────────────────┘   SIZE   ┘
 // S: Small blocks map
-type root struct {
+type tlsfRoot struct {
 	flMap Pointer
 }
 
-func (r *root) init() {
+func (r *tlsfRoot) init() {
 	r.flMap = 0
 	r.setTail(nil)
 	for fl := Pointer(0); fl < Pointer(_TLSFFLBits); fl++ {
@@ -341,34 +341,34 @@ const (
 )
 
 // Gets the second level map of the specified first level.
-func (r *root) getSL(fl Pointer) uint32 {
+func (r *tlsfRoot) getSL(fl Pointer) uint32 {
 	return *(*uint32)(unsafe.Pointer(Pointer(unsafe.Pointer(r)) + (fl << _TLSFAlignU32) + _TLSFSLStart))
 }
 
 // Sets the second level map of the specified first level.
-func (r *root) setSL(fl Pointer, slMap uint32) {
+func (r *tlsfRoot) setSL(fl Pointer, slMap uint32) {
 	*(*uint32)(unsafe.Pointer(Pointer(unsafe.Pointer(r)) + (fl << _TLSFAlignU32) + _TLSFSLStart)) = slMap
 }
 
 // Gets the head of the free list for the specified combination of first and second level.
-func (r *root) getHead(fl Pointer, sl uint32) *tlsfBlock {
+func (r *tlsfRoot) getHead(fl Pointer, sl uint32) *tlsfBlock {
 	return *(**tlsfBlock)(unsafe.Pointer(Pointer(unsafe.Pointer(r)) + _TLSFHLStart +
 		(((fl << _TLSFSLBits) + Pointer(sl)) << _TLSFAlignSizeLog2)))
 }
 
 // Sets the head of the free list for the specified combination of first and second level.
-func (r *root) setHead(fl Pointer, sl uint32, head *tlsfBlock) {
+func (r *tlsfRoot) setHead(fl Pointer, sl uint32, head *tlsfBlock) {
 	*(*Pointer)(unsafe.Pointer(Pointer(unsafe.Pointer(r)) + _TLSFHLStart +
 		(((fl << _TLSFSLBits) + Pointer(sl)) << _TLSFAlignSizeLog2))) = Pointer(unsafe.Pointer(head))
 }
 
 // Gets the tail block.
-func (r *root) getTail() *tlsfBlock {
+func (r *tlsfRoot) getTail() *tlsfBlock {
 	return *(**tlsfBlock)(unsafe.Pointer(Pointer(unsafe.Pointer(r)) + _TLSFHLEnd))
 }
 
 // Sets the tail block.
-func (r *root) setTail(tail *tlsfBlock) {
+func (r *tlsfRoot) setTail(tail *tlsfBlock) {
 	*(*Pointer)(unsafe.Pointer(Pointer(unsafe.Pointer(r)) + _TLSFHLEnd)) = Pointer(unsafe.Pointer(tail))
 }
 
@@ -817,7 +817,7 @@ func ctz32(value uint32) uint32 {
 }
 
 //goland:noinspection GoVetUnsafePointer
-func checkUsedBlock(ptr Pointer) *tlsfBlock {
+func tlsfCheckUsedBlock(ptr Pointer) *tlsfBlock {
 	block := (*tlsfBlock)(unsafe.Pointer(ptr - _TLSFBlockOverhead))
 	if !(ptr != 0 && ((ptr & _TLSFALMask) == 0) && ((block.mmInfo & _TLSFFREE) == 0)) {
 		panic("used block is not valid to be freed or reallocated")
@@ -831,7 +831,7 @@ func allocationSize0(ptr Pointer) Pointer {
 }
 
 //goland:noinspection GoVetUnsafePointer
-func allocationSize(ptr Pointer) Pointer {
+func tlsfAllocationSize(ptr Pointer) Pointer {
 	return ((*tlsfBlock)(unsafe.Pointer(ptr - _TLSFBlockOverhead))).mmInfo & ^_TLSFTagsMask
 }
 

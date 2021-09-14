@@ -13,12 +13,59 @@ func (p *BytesSlice) Free() {
 	// Noop
 }
 
+type bytes uintptr
+
+type bytesLayout struct {
+	p     Pointer
+	len   uintptr
+	cap   uintptr
+	alloc Allocator
+	data  struct{}
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (b bytes) Data() Pointer {
+	return *(*Pointer)(unsafe.Pointer(b))
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (b bytes) layout() *bytesLayout {
+	return (*bytesLayout)(unsafe.Pointer(b))
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (b bytes) Len() uintptr {
+	return b.layout().len
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (b bytes) Cap() uintptr {
+	return b.layout().cap
+}
+
 // Bytes is a fat pointer to a heap allocation from an Allocator
 type Bytes struct {
 	Pointer
 	len   uint32
 	cap   uint32
 	alloc Allocator
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (p *Bytes) Free() {
+	if p == nil || p.Pointer == 0 {
+		return
+	}
+	p.alloc.Free(p.Pointer)
+	*p = Bytes{}
+}
+
+func (p *Bytes) Len() int {
+	return int(p.len)
+}
+
+func (p *Bytes) Cap() int {
+	return int(p.cap)
 }
 
 func (b *Bytes) Allocator() Allocator {
@@ -49,29 +96,16 @@ func (p *Bytes) EqualsSliceAt(offset, length int, b *BytesSlice) bool {
 	return false
 }
 
-//goland:noinspection GoVetUnsafePointer
-func (p *Bytes) Free() {
-	if p == nil || p.Pointer == 0 {
-		return
-	}
-	p.alloc.Free(p.Pointer)
-	*p = Bytes{}
-}
-
-func (p *Bytes) Len() int {
-	return int(p.len)
-}
-
 func (p *Bytes) String() string {
 	if p.IsEmpty() {
-		return EmptyString
+		return ""
 	}
 	return p.Pointer.String(0, int(p.len))
 }
 
 func (p *Bytes) Substring(offset, length int) string {
 	if p.IsEmpty() {
-		return EmptyString
+		return ""
 	}
 	if offset < 0 {
 		offset = 0
@@ -80,7 +114,7 @@ func (p *Bytes) Substring(offset, length int) string {
 		length = int(p.cap) - offset
 	}
 	if length <= 0 {
-		return EmptyString
+		return ""
 	}
 	return *(*string)(unsafe.Pointer(&_string{
 		ptr: uintptr(p.Pointer) + uintptr(offset),
@@ -141,6 +175,10 @@ func (p *Bytes) SetInt8(offset int, value int8) {
 	p.Pointer.SetInt8(offset, value)
 }
 
+func (p *Bytes) AppendInt8(value int8) {
+	p.Pointer.SetInt8(p.ensureAppend(1), value)
+}
+
 func (p *Bytes) UInt8(offset int) uint8 {
 	p.EnsureCap(offset + 1)
 	return p.Pointer.UInt8(offset)
@@ -150,6 +188,10 @@ func (p *Bytes) UInt8(offset int) uint8 {
 func (p *Bytes) SetUInt8(offset int, value uint8) {
 	p.EnsureCap(offset + 1)
 	p.Pointer.SetUInt8(offset, value)
+}
+
+func (p *Bytes) AppendUInt8(value uint8) {
+	p.Pointer.SetUInt8(p.ensureAppend(1), value)
 }
 
 func (p *Bytes) Byte(offset int) byte {
@@ -162,62 +204,116 @@ func (p *Bytes) SetByte(offset int, value byte) {
 	p.Pointer.SetByte(offset, value)
 }
 
+func (p *Bytes) AppendByte(value byte) {
+	p.Pointer.SetByte(p.ensureAppend(1), value)
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////
-// Int16
+// Int16 Native Endian
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 func (p *Bytes) Int16(offset int) int16 {
 	p.EnsureCap(offset + 2)
 	return p.Pointer.Int16(offset)
 }
-func (p *Bytes) Int16LE(offset int) int16 {
-	p.EnsureCap(offset + 2)
-	return p.Pointer.Int16LE(offset)
-}
-func (p *Bytes) Int16BE(offset int) int16 {
-	p.EnsureCap(offset + 2)
-	return p.Pointer.Int16BE(offset)
-}
+
 func (p *Bytes) SetInt16(offset int, value int16) {
 	p.EnsureCap(offset + 2)
 	p.Pointer.SetInt16(offset, value)
 }
+
+func (p *Bytes) AppendInt16(value int16) {
+	p.Pointer.SetInt16(p.ensureAppend(2), value)
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////
+// Int16 Little Endian
+///////////////////////////////////////////////////////////////////////////////////////////
+
+func (p *Bytes) Int16LE(offset int) int16 {
+	p.EnsureCap(offset + 2)
+	return p.Pointer.Int16LE(offset)
+}
+
 func (p *Bytes) SetInt16LE(offset int, value int16) {
 	p.EnsureCap(offset + 2)
 	p.Pointer.SetInt16LE(offset, value)
 }
+
+func (p *Bytes) AppendInt16LE(value int16) {
+	p.Pointer.SetInt16LE(p.ensureAppend(2), value)
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////
+// Int16 Little Endian
+///////////////////////////////////////////////////////////////////////////////////////////
+
+func (p *Bytes) Int16BE(offset int) int16 {
+	p.EnsureCap(offset + 2)
+	return p.Pointer.Int16BE(offset)
+}
+
 func (p *Bytes) SetInt16BE(offset int, value int16) {
 	p.EnsureCap(offset + 2)
 	p.Pointer.SetInt16BE(offset, value)
 }
 
+func (p *Bytes) AppendInt16BE(value int16) {
+	p.Pointer.SetInt16BE(p.ensureAppend(2), value)
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////
-// UInt16
+// UInt16 Native Endian
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 func (p *Bytes) UInt16(offset int) uint16 {
 	p.EnsureCap(offset + 2)
 	return p.Pointer.UInt16(offset)
 }
-func (p *Bytes) UInt16LE(offset int) uint16 {
-	p.EnsureCap(offset + 2)
-	return p.Pointer.UInt16LE(offset)
-}
-func (p *Bytes) UInt16BE(offset int) uint16 {
-	p.EnsureCap(offset + 2)
-	return p.Pointer.UInt16BE(offset)
-}
+
 func (p *Bytes) SetUInt16(offset int, value uint16) {
 	p.EnsureCap(offset + 2)
 	p.Pointer.SetUInt16(offset, value)
 }
+
+func (p *Bytes) AppendUInt16(value uint16) {
+	p.Pointer.SetUInt16(p.ensureAppend(2), value)
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////
+// UInt16 Little Endian
+///////////////////////////////////////////////////////////////////////////////////////////
+
+func (p *Bytes) UInt16LE(offset int) uint16 {
+	p.EnsureCap(offset + 2)
+	return p.Pointer.UInt16LE(offset)
+}
+
 func (p *Bytes) SetUInt16LE(offset int, value uint16) {
 	p.EnsureCap(offset + 2)
 	p.Pointer.SetUInt16LE(offset, value)
 }
+
+func (p *Bytes) AppendUInt16LE(value uint16) {
+	p.Pointer.SetUInt16LE(p.ensureAppend(2), value)
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////
+// UInt16 Big Endian
+///////////////////////////////////////////////////////////////////////////////////////////
+
+func (p *Bytes) UInt16BE(offset int) uint16 {
+	p.EnsureCap(offset + 2)
+	return p.Pointer.UInt16BE(offset)
+}
+
 func (p *Bytes) SetUInt16BE(offset int, value uint16) {
 	p.EnsureCap(offset + 2)
 	p.Pointer.SetUInt16BE(offset, value)
+}
+
+func (p *Bytes) AppendUInt16BE(value uint16) {
+	p.Pointer.SetUInt16BE(p.ensureAppend(2), value)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -465,6 +561,17 @@ func (p *Bytes) SetBytes(offset int, value []byte) {
 		p.len = uint32(length)
 	}
 	p.Pointer.SetBytes(offset, value)
+}
+
+func (p *Bytes) ensureAppend(extra int) int {
+	offset := int(p.len)
+	p.EnsureCap(offset + extra)
+	p.len += uint32(extra)
+	return offset
+}
+
+func (p *Bytes) EnsureExtra(extra int) bool {
+	return p.EnsureCap(int(p.len) + extra)
 }
 
 //goland:noinspection GoVetUnsafePointer

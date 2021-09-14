@@ -98,12 +98,12 @@ func (a *TLSFSync) BytesCapacity(length, capacity Pointer) Bytes {
 func (a *TLSFSync) Realloc(ptr Pointer, size Pointer) Pointer {
 	a.Lock()
 	defer a.Unlock()
-	return Pointer(unsafe.Pointer(a.a.moveBlock(checkUsedBlock(ptr), size))) + _TLSFBlockOverhead
+	return Pointer(unsafe.Pointer(a.a.moveBlock(tlsfCheckUsedBlock(ptr), size))) + _TLSFBlockOverhead
 }
 
 // Free release the allocation back into the free list.
 func (a *TLSFSync) Free(ptr Pointer) {
 	a.Lock()
 	defer a.Unlock()
-	a.a.freeBlock(checkUsedBlock(ptr))
+	a.a.freeBlock(tlsfCheckUsedBlock(ptr))
 }

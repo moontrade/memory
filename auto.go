@@ -54,7 +54,7 @@ func NewAuto(a Allocator, nodeSize Pointer) Auto {
 	h.alloc = a
 	h.max = nodeSize
 	h.count = 0
-	h.bytes = allocationSize(p)
+	h.bytes = tlsfAllocationSize(p)
 	n := (*autoNode)(unsafe.Pointer(h.head))
 	n.len = 0
 	n.next = 0
@@ -116,7 +116,7 @@ func (au *Auto) add(ptr Pointer) {
 	}
 	if n.len == h.max {
 		nextPtr := h.alloc.Alloc(Pointer(unsafe.Sizeof(autoNode{}) + (uintptr(h.max) * unsafe.Sizeof(Pointer(0)))))
-		h.bytes += allocationSize(nextPtr) + allocationSize(ptr)
+		h.bytes += tlsfAllocationSize(nextPtr) + tlsfAllocationSize(ptr)
 		next := (*autoNode)(nextPtr.Unsafe())
 		// Add length to 1
 		next.len = 1
@@ -127,7 +127,7 @@ func (au *Auto) add(ptr Pointer) {
 		// Add first item
 		*(*uintptr)(unsafe.Pointer(&next.first)) = uintptr(ptr)
 	} else {
-		h.bytes += allocationSize(ptr)
+		h.bytes += tlsfAllocationSize(ptr)
 		// Add item
 		*(*Pointer)(unsafe.Pointer(uintptr(unsafe.Pointer(&n.first)) + (uintptr(n.len) * unsafe.Sizeof(uintptr(0))))) = ptr
 		// Increment length

@@ -33,32 +33,40 @@ func initAllocator(heapStart, heapEnd uintptr) {
 	)
 
 	// Need to add a page initially to fit minimum size required by allocator?
-	if heapStart == 0 || heapStart+unsafe.Sizeof(TLSF{})+_TLSFRootSize+_TLSFALMask+16 > uintptr(pagesBefore)*uintptr(wasmPageSize) {
+	if heapStart == 0 || Pointer(heapStart+unsafe.Sizeof(TLSF{}))+_TLSFRootSize+_TLSFALMask+16 >
+		Pointer(uintptr(pagesBefore)*uintptr(wasmPageSize)) {
 		wasm_memory_grow(0, 1)
 		pagesAfter = wasm_memory_size(0)
 	}
 
 	// Bootstrap allocator which will take over all allocations from now on.
 	allocator = bootstrap(
-		heapStart,
-		uintptr(pagesAfter)*uintptr(wasmPageSize),
+		Pointer(heapStart),
+		Pointer(uintptr(pagesAfter)*uintptr(wasmPageSize)),
 		1,
+		GrowMin,
 	)
 }
 
 // Alloc calls Alloc on the system allocator
-func Alloc(size uintptr) unsafe.Pointer {
+func Alloc(size Pointer) Pointer {
 	return allocator.Alloc(size)
 }
 
 // Realloc calls Realloc on the system allocator
-func Realloc(p unsafe.Pointer, size uintptr) unsafe.Pointer {
+func Realloc(p Pointer, size Pointer) Pointer {
 	return allocator.Realloc(p, size)
 }
 
 // Free calls Free on the system allocator
-func Free(p unsafe.Pointer) {
+func Free(p Pointer) {
 	allocator.Free(p)
+}
+
+func Scope(fn func(a Auto)) {
+	a := NewAuto(allocator.AsAllocator(), 32)
+	fn(a)
+	a.Free()
 }
 
 func SetGrow(grow Grow) {
@@ -71,7 +79,7 @@ func SetGrow(grow Grow) {
 }
 
 // GrowByDouble will double the heap on each Grow
-func GrowByDouble(pagesBefore, pagesNeeded int32, minSize uintptr) (pagesAdded int32, start, end uintptr) {
+func GrowByDouble(pagesBefore, pagesNeeded int32, minSize Pointer) (pagesAdded int32, start, end Pointer) {
 	if pagesBefore > pagesNeeded {
 		pagesAdded = pagesBefore
 	} else {
@@ -90,7 +98,7 @@ func GrowByDouble(pagesBefore, pagesNeeded int32, minSize uintptr) (pagesAdded i
 
 // GrowBy will Grow by the number of pages specified or by the minimum needed, whichever is greater.
 func GrowBy(pages int32) Grow {
-	return func(pagesBefore, pagesNeeded int32, minSize uintptr) (pagesAdded int32, start, end uintptr) {
+	return func(pagesBefore, pagesNeeded int32, minSize Pointer) (pagesAdded int32, start, end Pointer) {
 		if pages > pagesNeeded {
 			pagesAdded = pages
 		} else {
@@ -109,7 +117,7 @@ func GrowBy(pages int32) Grow {
 }
 
 // GrowByMin will Grow by a single page or by the minimum needed, whichever is greater.
-func GrowMin(pagesBefore, pagesNeeded int32, minSize uintptr) (int32, uintptr, uintptr) {
+func GrowMin(pagesBefore, pagesNeeded int32, minSize Pointer) (int32, Pointer, Pointer) {
 	start, end := growBy(pagesNeeded)
 	if start == 0 {
 		return 0, 0, 0
@@ -117,12 +125,12 @@ func GrowMin(pagesBefore, pagesNeeded int32, minSize uintptr) (int32, uintptr, u
 	return pagesNeeded, start, end
 }
 
-func growBy(pages int32) (uintptr, uintptr) {
+func growBy(pages int32) (Pointer, Pointer) {
 	before := wasm_memory_size(0)
 	wasm_memory_grow(0, pages)
 	after := wasm_memory_size(0)
 	if before == after {
 		return 0, 0
 	}
-	return uintptr(before * wasmPageSize), uintptr(after * wasmPageSize)
+	return Pointer(before * wasmPageSize), Pointer(after * wasmPageSize)
 }
