@@ -1,7 +1,6 @@
 package main
 
 import (
-	mem "github.com/moontrade/memory"
 	"runtime"
 	"time"
 )
@@ -14,13 +13,15 @@ func main() {
 
 	go func() {
 		for {
-			mem.Scope(func(a mem.Auto) {
-				a.Alloc(512)
-			})
+			//mem.Scope(func(a mem.Auto) {
+			//	a.Alloc(512)
+			//})
 			b = make([]byte, 4096)
 			b[0] = 10
 			println(time.Now().UnixNano())
+			start := time.Now().UnixNano()
 			runtime.GC()
+			println("full GC", time.Now().UnixNano()-start)
 			time.Sleep(time.Second)
 		}
 	}()

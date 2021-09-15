@@ -60,11 +60,11 @@ type TLSF struct {
 	HeapEnd   Pointer
 	arena     Pointer
 	Grow      Grow
-	Stats
+	TLSFStats
 }
 
-// Stats provides the metrics of an Allocator
-type Stats struct {
+// TLSFStats provides the metrics of an Allocator
+type TLSFStats struct {
 	HeapSize        int64
 	AllocSize       int64
 	MaxUsedSize     int64
@@ -78,7 +78,7 @@ type Stats struct {
 	fragmentation   float32
 }
 
-func (s *Stats) Fragmentation() float32 {
+func (s *TLSFStats) Fragmentation() float32 {
 	if s.HeapSize == 0 || s.MaxUsedSize == 0 {
 		return 0
 	}
@@ -144,35 +144,6 @@ const (
 	_TLSFTagsMask         = _TLSFFREE | _TLSFLEFTFREE
 )
 
-//goland:noinspection GoVetUnsafePointer
-func (a *TLSF) Bytes(length Pointer) Bytes {
-	return a.BytesCapacity(length, length)
-}
-
-//goland:noinspection GoVetUnsafePointer
-func (a *TLSF) BytesCapacity(length, capacity Pointer) Bytes {
-	if capacity < length {
-		capacity = length
-	}
-	size := capacity + Pointer(unsafe.Sizeof(bytesLayout{}))
-	p := Pointer(unsafe.Pointer(a.allocateBlock(size)))
-	if p == 0 {
-		return Bytes{}
-	}
-	return Bytes{
-		Pointer: p + _TLSFBlockOverhead,
-		len:     int(length),
-		cap:     int(*(*Pointer)(unsafe.Pointer(p)) & ^_TLSFTagsMask) - int(unsafe.Sizeof(bytesLayout{})),
-		alloc:   a.AsAllocator(),
-	}
-}
-
-func (a *TLSF) BytesCapacityZeroed(length, capacity Pointer) Bytes {
-	b := a.BytesCapacity(length, capacity)
-	memzero(b.Unsafe(), uintptr(b.Cap()))
-	return b
-}
-
 // Alloc allocates a block of memory that fits the size provided
 //goland:noinspection GoVetUnsafePointer
 func (a *TLSF) Alloc(size Pointer) Pointer {
@@ -180,18 +151,19 @@ func (a *TLSF) Alloc(size Pointer) Pointer {
 	if p == 0 {
 		return 0
 	}
+	memzero(unsafe.Pointer(p), uintptr(size))
 	return p + _TLSFBlockOverhead
 }
 
-// AllocZeroed allocates a block of memory that fits the size provided
+// AllocNotCleared allocates a block of memory that fits the size provided
 //goland:noinspection GoVetUnsafePointer
-func (a *TLSF) AllocZeroed(size Pointer) Pointer {
+func (a *TLSF) AllocNotCleared(size Pointer) Pointer {
 	p := Pointer(unsafe.Pointer(a.allocateBlock(size)))
 	if p == 0 {
 		return 0
 	}
 	p = p + _TLSFBlockOverhead
-	memzero(unsafe.Pointer(p), uintptr(size))
+
 	return p
 }
 
@@ -209,6 +181,37 @@ func (a *TLSF) Realloc(ptr Pointer, size Pointer) Pointer {
 func (a *TLSF) Free(ptr Pointer) {
 	//a.freeBlock((*tlsfBlock)(unsafe.Pointer(ptr - _TLSFBlockOverhead)))
 	a.freeBlock(tlsfCheckUsedBlock(ptr))
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (a *TLSF) Bytes(length Pointer) Bytes {
+	b := a.BytesCapNotCleared(length, length)
+	memzero(b.Unsafe(), uintptr(b.Cap()))
+	return b
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (a *TLSF) BytesCap(length, capacity Pointer) Bytes {
+	b := a.BytesCapNotCleared(length, capacity)
+	memzero(b.Unsafe(), uintptr(b.Cap()))
+	return b
+}
+
+func (a *TLSF) BytesCapNotCleared(length, capacity Pointer) Bytes {
+	if capacity < length {
+		capacity = length
+	}
+	size := capacity + Pointer(unsafe.Sizeof(bytesLayout{}))
+	p := Pointer(unsafe.Pointer(a.allocateBlock(size)))
+	if p == 0 {
+		return Bytes{}
+	}
+	return Bytes{
+		Pointer: p + _TLSFBlockOverhead,
+		len:     int(length),
+		cap:     int(*(*Pointer)(unsafe.Pointer(p)) & ^_TLSFTagsMask) - int(unsafe.Sizeof(bytesLayout{})),
+		alloc:   a.AsAllocator(),
+	}
 }
 
 // Scope creates an Auto free list that automatically reclaims memory
@@ -236,7 +239,7 @@ func bootstrap(start, end Pointer, pages int32, grow Grow) *TLSF {
 	*a = TLSF{
 		HeapStart: start,
 		HeapEnd:   end,
-		Stats: Stats{
+		TLSFStats: TLSFStats{
 			InitialPages: pages,
 			Pages:        pages,
 		},

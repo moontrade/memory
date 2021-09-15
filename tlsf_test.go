@@ -161,7 +161,7 @@ func thrashAllocator(
 	//println("alloc size			", AllocSize)
 	println("max allocs			", maxAllocCount)
 	println("max alloc size		", allocator.MaxUsedSize)
-	println("fragmentation		", fmt.Sprintf("%.2f", allocator.Stats.Fragmentation()))
+	println("fragmentation		", fmt.Sprintf("%.2f", allocator.TLSFStats.Fragmentation()))
 }
 
 func TestAllocatorKind(t *testing.T) {

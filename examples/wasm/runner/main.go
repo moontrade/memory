@@ -70,7 +70,7 @@ func earlyExit(args []wasmer.Value) ([]wasmer.Value, error) {
 //}
 
 func main() {
-	dylib, err := os.ReadFile("../wasm/main.dylib")
+	dylib, err := os.ReadFile("../wasm-local/main.dylib")
 	if err != nil {
 		dylib, err = os.ReadFile("../wasm/main.dylib")
 		if err != nil {

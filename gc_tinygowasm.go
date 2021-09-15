@@ -1,5 +1,5 @@
-//go:build gc.provided
-// +build gc.provided
+//go:build tinygo && gc.provided
+// +build tinygo,gc.provided
 
 package mem
 
@@ -8,17 +8,24 @@ import (
 	"unsafe"
 )
 
-const (
-	gcAllocAny        = 0
-	gcAllocChan       = 1
-	gcAllocChanBuffer = 2
-	gcAllocMap        = 3
-	gcAllocSlice      = 4
-	gcTask            = 5
-	gcTaskStack       = 6
-)
+////////////////////////////////////////////////////////////////////////////////////
+// GC Instance
+////////////////////////////////////////////////////////////////////////////////////
 
 var collector *GC
+
+//export gcInitHeap
+func gcInitHeap(heapStart, heapEnd uintptr) {
+	println("gcInitHeap", uint(heapStart), uint(heapEnd))
+	if allocator == nil {
+		initAllocator(heapStart, heapEnd)
+	}
+	collector = NewGC(allocator, 64, doMarkGlobals, doMarkStack)
+}
+
+////////////////////////////////////////////////////////////////////////////////////
+// gcAlloc hook
+////////////////////////////////////////////////////////////////////////////////////
 
 //export gcAlloc
 func gcAlloc(size uintptr, kind int32) unsafe.Pointer {
@@ -26,27 +33,14 @@ func gcAlloc(size uintptr, kind int32) unsafe.Pointer {
 		println("gcAlloc", uint(size), "kind", kind)
 	}
 
-	//switch kind {
-	//case gcTaskStack:
-	//	//ptr := allocator.Alloc(size)
-	//	//return ptr
-	//}
-	//println("gcAlloc", uint(size), "kind", kind)
-
-	//if size == 65536 || size == 40 {
-	//	return allocator.Alloc(size)
-	//}
-	//return allocator.Alloc(size)
-	//switch kind {
-	//case gcAllocChan:
-	//	return allocator.Alloc(size)
-	//case gcAllocChanBuffer:
-	//	return allocator.Alloc(size)
-	//}
 	ptr := collector.New(Pointer(size))
 	//println("alloc ptr", uint(ptr))
 	return unsafe.Pointer(ptr)
 }
+
+////////////////////////////////////////////////////////////////////////////////////
+// gcFree hook
+////////////////////////////////////////////////////////////////////////////////////
 
 //go:export gcFree
 func gcFree(ptr unsafe.Pointer) {
@@ -58,6 +52,10 @@ func gcFree(ptr unsafe.Pointer) {
 	}
 }
 
+////////////////////////////////////////////////////////////////////////////////////
+// gcRun hook
+////////////////////////////////////////////////////////////////////////////////////
+
 //go:export gcRun
 func gcRun() {
 	start := time.Now().UnixNano()
@@ -65,32 +63,31 @@ func gcRun() {
 	collector.Collect()
 
 	println("full GC", time.Now().UnixNano()-start)
+	collector.Print()
 }
 
 //export KeepAlive
 func gcKeepAlive(x interface{}) {
-	println("gcKeepAlive")
+	//println("gcKeepAlive")
 }
 
 //export gcSetFinalizer
 func gcSetFinalizer(obj interface{}, finalizer interface{}) {
-	println("gcSetFinalizer")
+	//println("gcSetFinalizer")
 }
 
-//export gcInitHeap
-func gcInitHeap(heapStart, heapEnd uintptr) {
-	println("gcInitHeap", uint(heapStart), uint(heapEnd))
-	if allocator == nil {
-		initAllocator(heapStart, heapEnd)
-	}
-	collector = NewGC(allocator, 64, doMarkGlobals, doMarkStack)
-}
+////////////////////////////////////////////////////////////////////////////////////
+// gcSetHeapEnd hook
+////////////////////////////////////////////////////////////////////////////////////
 
-//
 //export gcSetHeapEnd
 func gcSetHeapEnd(newHeapEnd uintptr) {
-	println("gcSetHeapEnd", uint(newHeapEnd))
+	//println("gcSetHeapEnd", uint(newHeapEnd))
 }
+
+////////////////////////////////////////////////////////////////////////////////////
+// markGlobals hook
+////////////////////////////////////////////////////////////////////////////////////
 
 func doMarkGlobals() {
 	markGlobals()
@@ -106,6 +103,10 @@ func gcMarkGlobals(addr, root uintptr) {
 	collector.markRoot(Pointer(root))
 }
 
+////////////////////////////////////////////////////////////////////////////////////
+// markStack hook
+////////////////////////////////////////////////////////////////////////////////////
+
 func doMarkStack() {
 	markStack()
 }
@@ -113,11 +114,19 @@ func doMarkStack() {
 //export markStack
 func markStack()
 
+////////////////////////////////////////////////////////////////////////////////////
+// gcMarkRoots hook
+////////////////////////////////////////////////////////////////////////////////////
+
 //export gcMarkRoots
 func gcMarkRoots(start, end uintptr) {
 	//println("gcMarkRoots", uint(start), uint(end))
 	collector.markRoots(Pointer(start), Pointer(end))
 }
+
+////////////////////////////////////////////////////////////////////////////////////
+// gcMarkRoot hook
+////////////////////////////////////////////////////////////////////////////////////
 
 //export gcMarkRoot
 func gcMarkRoot(addr, root uintptr) {
@@ -125,8 +134,16 @@ func gcMarkRoot(addr, root uintptr) {
 	collector.markRoot(Pointer(root))
 }
 
+////////////////////////////////////////////////////////////////////////////////////
+// markScheduler hook
+////////////////////////////////////////////////////////////////////////////////////
+
 //export markScheduler
 func markScheduler()
+
+////////////////////////////////////////////////////////////////////////////////////
+// gcMarkTask hook
+////////////////////////////////////////////////////////////////////////////////////
 
 //export gcMarkTask
 func gcMarkTask(runQueuePtr, taskPtr uintptr) {

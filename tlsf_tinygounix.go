@@ -11,9 +11,9 @@ import "unsafe"
 
 const wasmPageSize = 64 * 1024
 
-func init() {
-	initAllocator(0)
-}
+//func init() {
+//	initAllocator(0)
+//}
 
 func Alloc(size uintptr) unsafe.Pointer {
 	return allocator.Alloc(size)
@@ -188,9 +188,3 @@ func (a *TLSF) Grow(pages int32) (uintptr, uintptr) {
 	a.HeapEnd = end
 	return start, end
 }
-
-//func markStack() {}
-//
-//func markGlobals() {}
-//
-//func markScheduler() {}

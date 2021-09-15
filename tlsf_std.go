@@ -32,7 +32,7 @@ func NewTLSFArena(pages int32, arena Arena, grow GrowFactory) *TLSF {
 
 type TLSFSync struct {
 	a     *TLSF
-	stats Stats
+	stats TLSFStats
 	sync.Mutex
 }
 
@@ -44,57 +44,24 @@ func (a *TLSFSync) AsAllocator() Allocator {
 	return Allocator(unsafe.Pointer(a)) | _TLSFSync
 }
 
-// Alloc allocates a block of memory that fits the size provided
-//goland:noinspection GoVetUnsafePointer
+// Alloc allocates a block of memory that fits the size provided.
+// The allocation IS cleared / zeroed out.
 func (a *TLSFSync) Alloc(size Pointer) Pointer {
 	a.Lock()
 	defer a.Unlock()
-	p := Pointer(unsafe.Pointer(a.a.allocateBlock(size)))
-	if p == 0 {
-		return p
-	}
-	return p + _TLSFBlockOverhead
+	return a.a.Alloc(size)
 }
 
-// Alloc allocates a block of memory that fits the size provided
-//goland:noinspection GoVetUnsafePointer
-func (a *TLSFSync) AllocZeroed(size Pointer) Pointer {
+// AllocNotCleared allocates a block of memory that fits the size provided.
+// The allocation is NOT cleared / zeroed out.
+func (a *TLSFSync) AllocNotCleared(size Pointer) Pointer {
 	a.Lock()
 	defer a.Unlock()
-	p := Pointer(unsafe.Pointer(a.a.allocateBlock(size)))
-	if p == 0 {
-		return p
-	}
-	p = p + _TLSFBlockOverhead
-	memzero(unsafe.Pointer(p), uintptr(size))
-	return p
-}
-
-//goland:noinspection GoVetUnsafePointer
-func (a *TLSFSync) Bytes(length Pointer) Bytes {
-	return a.BytesCapacity(length, length)
-}
-
-//goland:noinspection GoVetUnsafePointer
-func (a *TLSFSync) BytesCapacity(length, capacity Pointer) Bytes {
-	a.Lock()
-	defer a.Unlock()
-	if capacity < length {
-		capacity = length
-	}
-	p := Pointer(unsafe.Pointer(a.a.allocateBlock(capacity)))
-	if p == 0 {
-		return Bytes{}
-	}
-	return Bytes{
-		Pointer: p + _TLSFBlockOverhead,
-		len:     int(length),
-		cap:     int(*(*Pointer)(unsafe.Pointer(p)) & ^_TLSFTagsMask),
-		alloc:   Allocator(unsafe.Pointer(a)) | _TLSFSync,
-	}
+	return a.a.AllocNotCleared(size)
 }
 
 // Realloc determines the best way to resize an allocation.
+// Any extra size added is NOT cleared / zeroed out.
 func (a *TLSFSync) Realloc(ptr Pointer, size Pointer) Pointer {
 	a.Lock()
 	defer a.Unlock()
@@ -106,4 +73,24 @@ func (a *TLSFSync) Free(ptr Pointer) {
 	a.Lock()
 	defer a.Unlock()
 	a.a.freeBlock(tlsfCheckUsedBlock(ptr))
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (a *TLSFSync) Bytes(length Pointer) Bytes {
+	a.Lock()
+	defer a.Unlock()
+	return a.a.BytesCap(length, length)
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (a *TLSFSync) BytesCap(length, capacity Pointer) Bytes {
+	a.Lock()
+	defer a.Unlock()
+	return a.a.BytesCap(length, capacity)
+}
+
+func (a *TLSFSync) BytesCapNotCleared(length, capacity Pointer) Bytes {
+	a.Lock()
+	defer a.Unlock()
+	return a.a.BytesCapNotCleared(length, capacity)
 }

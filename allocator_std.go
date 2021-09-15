@@ -8,6 +8,18 @@ import (
 	"unsafe"
 )
 
+var allocator *TLSFSync
+
+func init() {
+	allocator = NewTLSF(1).ToSync()
+}
+
+func Scope(fn func(a Auto)) {
+	a := NewAuto(allocator.AsAllocator(), 32)
+	defer a.Free()
+	fn(a)
+}
+
 const (
 	_TLSFNoSync    Allocator = 1 << 0
 	_TLSFSync      Allocator = 1 << 1
@@ -30,26 +42,12 @@ func (a Allocator) Alloc(size Pointer) Pointer {
 	}
 }
 
-func (a Allocator) AllocZeroed(size Pointer) Pointer {
+func (a Allocator) AllocNotCleared(size Pointer) Pointer {
 	if a&_TLSFNoSync != 0 {
-		return (*TLSF)(unsafe.Pointer(a & ^_AllocatorMask)).AllocZeroed(size)
+		return (*TLSF)(unsafe.Pointer(a & ^_AllocatorMask)).AllocNotCleared(size)
 	} else {
-		return (*TLSFSync)(unsafe.Pointer(a & ^_AllocatorMask)).AllocZeroed(size)
+		return (*TLSFSync)(unsafe.Pointer(a & ^_AllocatorMask)).AllocNotCleared(size)
 	}
-}
-
-func (a Allocator) Bytes(length Pointer) Bytes {
-	if a&_TLSFNoSync != 0 {
-		return (*TLSF)(unsafe.Pointer(a & ^_AllocatorMask)).Bytes(length)
-	}
-	return (*TLSFSync)(unsafe.Pointer(a & ^_AllocatorMask)).Bytes(length)
-}
-
-func (a Allocator) BytesCapacity(length, capacity Pointer) Bytes {
-	if a&_TLSFNoSync != 0 {
-		return (*TLSF)(unsafe.Pointer(a & ^_AllocatorMask)).BytesCapacity(length, capacity)
-	}
-	return (*TLSFSync)(unsafe.Pointer(a & ^_AllocatorMask)).BytesCapacity(length, capacity)
 }
 
 func (a Allocator) Realloc(ptr, size Pointer) Pointer {
@@ -65,6 +63,27 @@ func (a Allocator) Free(ptr Pointer) {
 		return
 	}
 	(*TLSFSync)(unsafe.Pointer(a & ^_AllocatorMask)).Free(ptr)
+}
+
+func (a Allocator) Bytes(length Pointer) Bytes {
+	if a&_TLSFNoSync != 0 {
+		return (*TLSF)(unsafe.Pointer(a & ^_AllocatorMask)).Bytes(length)
+	}
+	return (*TLSFSync)(unsafe.Pointer(a & ^_AllocatorMask)).Bytes(length)
+}
+
+func (a Allocator) BytesCap(length, capacity Pointer) Bytes {
+	if a&_TLSFNoSync != 0 {
+		return (*TLSF)(unsafe.Pointer(a & ^_AllocatorMask)).BytesCap(length, capacity)
+	}
+	return (*TLSFSync)(unsafe.Pointer(a & ^_AllocatorMask)).BytesCap(length, capacity)
+}
+
+func (a Allocator) BytesCapNotCleared(length, capacity Pointer) Bytes {
+	if a&_TLSFNoSync != 0 {
+		return (*TLSF)(unsafe.Pointer(a & ^_AllocatorMask)).BytesCapNotCleared(length, capacity)
+	}
+	return (*TLSFSync)(unsafe.Pointer(a & ^_AllocatorMask)).BytesCapNotCleared(length, capacity)
 }
 
 func (a *TLSF) AsAllocator() Allocator {
