@@ -7,8 +7,6 @@ import (
 	"unsafe"
 )
 
-func Scope()
-
 func (a *TLSF) AsAllocator() Allocator {
 	return Allocator(unsafe.Pointer(a))
 }

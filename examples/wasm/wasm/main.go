@@ -1,6 +1,3 @@
-//go:build tinygo.wasm
-// +build tinygo.wasm
-
 package main
 
 import (
