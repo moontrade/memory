@@ -13,14 +13,14 @@ func TestGC(t *testing.T) {
 	// Create a simple roots marking system
 	// This will provided by the runtime / compiler in TinyGo.
 	roots := make(map[Pointer]struct{})
-	markGlobals := func(mark func(root Pointer), markRoots func(start Pointer, end Pointer)) {
+	var gc *GC
+	markGlobals := func() {
 		for k := range roots {
-			mark(k)
+			gc.markRoot(k)
 		}
 	}
-
 	// Create GC
-	gc := NewGC(a, 16, markGlobals, nil)
+	gc = NewGC(a, 16, markGlobals, nil)
 
 	// Allocate root
 	root := func(size Pointer) Pointer {

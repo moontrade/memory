@@ -221,9 +221,9 @@ func (ps *PointerSet) Grow() bool {
 	//newSize := ps.size + 32 // uintptr(float32(ps.size) * ps.growthFactor)
 	newSize := uintptr(float32(ps.size) * ps.growthFactor)
 
-	if gc_TRACE {
-		println("PointerSet.Grow", "newSize", uint(newSize), "oldSize", uint(ps.size))
-	}
+	//if gc_TRACE {
+	//	println("PointerSet.Grow", "newSize", uint(newSize), "oldSize", uint(ps.size))
+	//}
 
 	// Allocate new items table
 	items := uintptr(ps.allocator.Alloc(Pointer(newSize * unsafe.Sizeof(pointerSetItem{}))))

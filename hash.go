@@ -353,38 +353,38 @@ func (p Pointer) Metro64(seed uint64, offset, length int) uint64 {
 	return metro(p.Bytes(offset, length, length), seed)
 }
 
-func (p *Bytes) Hash32() uint32 {
+func (b *Bytes) Hash32() uint32 {
 	const (
 		offset32 = uint32(2166136261)
 		prime32  = uint32(16777619)
 	)
 	hash := offset32
-	end := p.Pointer + Pointer(p.len)
-	for i := p.Pointer; i < end; i++ {
+	end := b.Pointer + Pointer(b.len)
+	for i := b.Pointer; i < end; i++ {
 		hash ^= uint32(*(*byte)(unsafe.Pointer(i)))
 		hash *= prime32
 	}
 	return hash
 }
 
-func (p *Bytes) Hash64() uint64 {
+func (b *Bytes) Hash64() uint64 {
 	const (
 		offset64 = uint64(14695981039346656037)
 		prime64  = uint64(1099511628211)
 	)
 	hash := offset64
-	end := p.Pointer + Pointer(p.len)
-	for i := p.Pointer; i < end; i++ {
+	end := b.Pointer + Pointer(b.len)
+	for i := b.Pointer; i < end; i++ {
 		hash ^= uint64(*(*byte)(unsafe.Pointer(i)))
 		hash *= prime64
 	}
 	return hash
 }
 
-func (p *Bytes) WyHash64(seed uint64, offset, length int) uint64 {
-	return wyhash(p.Bytes()[offset:length], seed)
+func (b *Bytes) WyHash64(seed uint64, offset, length int) uint64 {
+	return wyhash(b.Bytes()[offset:length], seed)
 }
 
-func (p *Bytes) Metro64(seed uint64, offset, length int) uint64 {
-	return metro(p.Bytes()[offset:length], seed)
+func (b *Bytes) Metro64(seed uint64, offset, length int) uint64 {
+	return metro(b.Bytes()[offset:length], seed)
 }

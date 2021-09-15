@@ -4,7 +4,7 @@
 package main
 
 import (
-	mem "github.com/moontrade/memory"
+	"github.com/moontrade/memory"
 	"time"
 )
 

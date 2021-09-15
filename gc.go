@@ -30,6 +30,10 @@ const (
 
 type GCObject uintptr
 
+func (o GCObject) Ptr() Pointer {
+	return Pointer(o)
+}
+
 // GC is a Two-Color Mark & Sweep collector on top of a Two-Level Segmented Fit (TLSF)
 // allocator built for TinyGo. Similar features to the internal extalloc GC in TinyGo
 // except GC uses a robinhood hashset instead of a treap structure and without the need
@@ -62,7 +66,7 @@ type GC struct {
 	GCStats
 }
 
-type MarkFn func(mark func(root Pointer), markRoots func(start, end Pointer))
+type MarkFn func()
 
 // GCStats provides all the monitoring metrics needed to see how the GC
 // is operating and performing.
@@ -358,7 +362,7 @@ func (gc *GC) Free(ptr Pointer) bool {
 //goland:noinspection ALL
 func (gc *GC) Collect() {
 	if gc_TRACE {
-		println("moon GC collect started...")
+		println("GC collect started...")
 	}
 	//println("tcmsCollect")
 	var (
@@ -374,10 +378,10 @@ func (gc *GC) Collect() {
 	// Mark Roots Phase
 	////////////////////////////////////////////////////////////////////////
 	if gc.markStack != nil {
-		gc.markStack(gc.markRoot, gc.markRoots)
+		gc.markStack()
 	}
 	if gc.markGlobals != nil {
-		gc.markGlobals(gc.markRoot, gc.markRoots)
+		gc.markGlobals()
 	}
 	// End of mark roots
 	end := time.Now().UnixNano()

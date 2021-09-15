@@ -9,7 +9,7 @@ func TestPointerBE(t *testing.T) {
 	a := NewTLSF(1)
 	p := Pointer(a.Alloc(32))
 	p.SetInt32BE(0, 100)
-	println(p.Int32BE(0), p.Int32BESlow(), p.LoadInt32(), p.Int32(0))
+	println(p.Int32BE(0), p.Int32BESlow(), p.Int32(0))
 }
 
 func BenchmarkPointerBE(b *testing.B) {

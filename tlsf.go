@@ -154,16 +154,23 @@ func (a *TLSF) BytesCapacity(length, capacity Pointer) Bytes {
 	if capacity < length {
 		capacity = length
 	}
-	p := Pointer(unsafe.Pointer(a.allocateBlock(capacity)))
+	size := capacity + Pointer(unsafe.Sizeof(bytesLayout{}))
+	p := Pointer(unsafe.Pointer(a.allocateBlock(size)))
 	if p == 0 {
 		return Bytes{}
 	}
 	return Bytes{
 		Pointer: p + _TLSFBlockOverhead,
-		len:     uint32(length),
-		cap:     uint32(*(*Pointer)(unsafe.Pointer(p)) & ^_TLSFTagsMask),
+		len:     int(length),
+		cap:     int(*(*Pointer)(unsafe.Pointer(p)) & ^_TLSFTagsMask) - int(unsafe.Sizeof(bytesLayout{})),
 		alloc:   a.AsAllocator(),
 	}
+}
+
+func (a *TLSF) BytesCapacityZeroed(length, capacity Pointer) Bytes {
+	b := a.BytesCapacity(length, capacity)
+	memzero(b.Unsafe(), uintptr(b.Cap()))
+	return b
 }
 
 // Alloc allocates a block of memory that fits the size provided
@@ -651,7 +658,6 @@ func (a *TLSF) addMemory(start, end Pointer) bool {
 			// We don't do this, but a user might `memory.Grow` manually
 			// leading to non-adjacent pages managed by Allocator.
 		}
-
 	} else if _TLSFDebug { // first memory
 		assert(start >= Pointer(unsafe.Pointer(a.root))+_TLSFRootSize, "starts after root")
 	}

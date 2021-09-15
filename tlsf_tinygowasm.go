@@ -8,9 +8,6 @@ import "unsafe"
 
 const wasmPageSize = 64 * 1024
 
-// WASM environments only have a single system allocator
-var allocator *TLSF
-
 //export llvm.wasm.memory.size.i32
 func wasm_memory_size(index int32) int32
 

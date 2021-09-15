@@ -88,8 +88,8 @@ func (a *TLSFSync) BytesCapacity(length, capacity Pointer) Bytes {
 	}
 	return Bytes{
 		Pointer: p + _TLSFBlockOverhead,
-		len:     uint32(length),
-		cap:     uint32(*(*Pointer)(unsafe.Pointer(p)) & ^_TLSFTagsMask),
+		len:     int(length),
+		cap:     int(*(*Pointer)(unsafe.Pointer(p)) & ^_TLSFTagsMask),
 		alloc:   Allocator(unsafe.Pointer(a)) | _TLSFSync,
 	}
 }
