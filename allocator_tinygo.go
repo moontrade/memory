@@ -55,12 +55,6 @@ func memequal(a, b unsafe.Pointer, n uintptr) bool {
 	}))
 }
 
-//export heapAlloc
-func heapAlloc(size uintptr) unsafe.Pointer {
-	//println("heapAlloc")
-	return unsafe.Pointer(allocator.Alloc(Pointer(size)))
-}
-
 //func NewTLSF(pages int32) *TLSF {
 //	if pages <= 0 {
 //		pages = 1

@@ -11,7 +11,7 @@ const wasmPageSize = 64 * 1024
 //export llvm.wasm.memory.size.i32
 func wasm_memory_size(index int32) int32
 
-//export llvm.wasm.memory.Grow.i32
+//export llvm.wasm.memory.grow.i32
 func wasm_memory_grow(index, pages int32) int32
 
 //go:export initAllocator
@@ -130,4 +130,10 @@ func growBy(pages int32) (Pointer, Pointer) {
 		return 0, 0
 	}
 	return Pointer(before * wasmPageSize), Pointer(after * wasmPageSize)
+}
+
+//export heapAlloc
+func heapAlloc(size uintptr) unsafe.Pointer {
+	//println("heapAlloc")
+	return unsafe.Pointer(allocator.Alloc(Pointer(size)))
 }

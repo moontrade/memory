@@ -1,9 +1,15 @@
 package main
 
 import (
-	"github.com/moontrade/memory"
+	mem "github.com/moontrade/memory"
 	"time"
 )
+
+//export llvm.wasm.memory.size.i32
+func wasm_memory_size(index int32) int32
+
+//export llvm.wasm.memory.grow.i32
+func wasm_memory_grow(index, pages int32) int32
 
 var done = make(chan bool, 1)
 var b []byte
