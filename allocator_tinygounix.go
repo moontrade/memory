@@ -1,5 +1,7 @@
-//go:build tinygo && tinygo.wasm
-// +build tinygo,tinygo.wasm
+//go:build tinygo && !tinygo.wasm && (darwin || linux || windows)
+// +build tinygo
+// +build !tinygo.wasm
+// +build darwin linux windows
 
 package mem
 
@@ -62,6 +64,27 @@ func Scope(fn func(a Auto)) {
 	a.Free()
 }
 
+// Scope creates an Auto free list that automatically reclaims memory
+// after callback finishes.
+func (a *TLSF) Scope(fn func(a Auto)) {
+	auto := NewAuto(a.AsAllocator(), 32)
+	fn(auto)
+	auto.Free()
+}
+
+//go:export extalloc
+func extalloc(size uintptr) unsafe.Pointer {
+	ptr := unsafe.Pointer(allocator.Alloc(Pointer(size)))
+	//println("extalloc", uint(uintptr(ptr)))
+	return ptr
+}
+
+//go:export extfree
+func extfree(ptr unsafe.Pointer) {
+	//println("extfree", uint(uintptr(ptr)))
+	allocator.Free(Pointer(ptr))
+}
+
 ////////////////////////////////////////////////////////////////////////////////////
 // Allocator facade
 ////////////////////////////////////////////////////////////////////////////////////
@@ -104,29 +127,8 @@ func (a Allocator) BytesCapNotCleared(length, capacity Pointer) Bytes {
 
 const wasmPageSize = 64 * 1024
 
-func WASMMemorySize(index int32) int32 {
-	return wasm_memory_size(index)
-}
-
-func WASMMemorySizeBytes(index int32) int32 {
-	return wasm_memory_size(index) * wasmPageSize
-}
-
-//export llvm.wasm.memory.size.i32
-func wasm_memory_size(index int32) int32
-
-//export llvm.wasm.memory.grow.i32
-func wasm_memory_grow(index, pages int32) int32
-
-func growBy(pages int32) (Pointer, Pointer) {
-	before := wasm_memory_size(0)
-	wasm_memory_grow(0, pages)
-	after := wasm_memory_size(0)
-	if before == after {
-		return 0, 0
-	}
-	return Pointer(before * wasmPageSize), Pointer(after * wasmPageSize)
-}
+//go:export malloc
+func malloc(size uintptr) unsafe.Pointer
 
 //go:export memcpy
 func memcpy(dst, src unsafe.Pointer, n uintptr)
@@ -156,34 +158,10 @@ func heapAlloc(size uintptr) unsafe.Pointer {
 
 //go:export initAllocator
 func initAllocator(heapStart, heapEnd uintptr) {
-	//println("initAllocator", uint(heapStart))
-	//println("globals", uint(globalsStart), uint(globalsEnd))
-
-	// Did we get called twice?
 	if allocator != nil {
 		return
 	}
-
-	var (
-		pagesBefore = wasm_memory_size(0)
-		pagesAfter  = pagesBefore
-	)
-
-	// Need to add a page initially to fit minimum size required by allocator?
-	if heapStart == 0 || Pointer(heapStart+unsafe.Sizeof(TLSF{}))+_TLSFRootSize+_TLSFALMask+16 >
-		Pointer(uintptr(pagesBefore)*uintptr(wasmPageSize)) {
-		// Just need a single page. Root size is much smaller than a single WASM page.
-		wasm_memory_grow(0, 1)
-		pagesAfter = wasm_memory_size(0)
-	}
-
-	// Bootstrap allocator which will take over all allocations from now on.
-	allocator = bootstrap(
-		Pointer(heapStart),
-		Pointer(uintptr(pagesAfter)*uintptr(wasmPageSize)),
-		1,
-		GrowMin,
-	)
+	allocator = newTLSF(1, GrowMin)
 }
 
 //func NewTLSF(pages int32) *TLSF {
@@ -234,25 +212,27 @@ func SetGrow(grow Grow) {
 	}
 }
 
-// GrowByDouble will double the heap on each Grow
-func GrowByDouble(pagesBefore, pagesNeeded int32, minSize Pointer) (pagesAdded int32, start, end Pointer) {
-	if pagesBefore > pagesNeeded {
-		pagesAdded = pagesBefore
-	} else {
-		pagesAdded = pagesNeeded
-	}
-	start, end = growBy(pagesAdded)
-	if start == 0 {
-		pagesAdded = pagesNeeded
-		start, end = growBy(pagesAdded)
-		if start == 0 {
-			return 0, 0, 0
+func GrowByDouble() Grow {
+	return func(pagesBefore, pagesNeeded int32, minSize Pointer) (pagesAdded int32, start, end Pointer) {
+		if pagesBefore > pagesNeeded {
+			pagesAdded = pagesBefore
+		} else {
+			pagesAdded = pagesNeeded
 		}
+		ptr := Pointer(malloc(uintptr(pagesAdded) * uintptr(_TLSFPageSize)))
+		if ptr == 0 {
+			pagesAdded = pagesNeeded
+			ptr = Pointer(malloc(uintptr(pagesAdded) * uintptr(_TLSFPageSize)))
+			if ptr == 0 {
+				return 0, 0, 0
+			}
+		}
+		start = ptr
+		end = start + (Pointer(pagesAdded) * _TLSFPageSize)
+		return
 	}
-	return
 }
 
-// GrowBy will Grow by the number of pages specified or by the minimum needed, whichever is greater.
 func GrowBy(pages int32) Grow {
 	return func(pagesBefore, pagesNeeded int32, minSize Pointer) (pagesAdded int32, start, end Pointer) {
 		if pages > pagesNeeded {
@@ -260,23 +240,33 @@ func GrowBy(pages int32) Grow {
 		} else {
 			pagesAdded = pagesNeeded
 		}
-		start, end = growBy(pagesAdded)
-		if start == 0 {
+		ptr := Pointer(malloc(uintptr(pagesAdded) * uintptr(_TLSFPageSize)))
+		if ptr == 0 {
 			pagesAdded = pagesNeeded
-			start, end = growBy(pagesAdded)
-			if start == 0 {
+			ptr = Pointer(malloc(uintptr(pagesAdded) * uintptr(_TLSFPageSize)))
+			if ptr == 0 {
 				return 0, 0, 0
 			}
 		}
+		start = ptr
+		end = start + (Pointer(pagesAdded) * _TLSFPageSize)
 		return
 	}
 }
 
-// GrowByMin will Grow by a single page or by the minimum needed, whichever is greater.
 func GrowMin(pagesBefore, pagesNeeded int32, minSize Pointer) (int32, Pointer, Pointer) {
-	start, end := growBy(pagesNeeded)
-	if start == 0 {
+	ptr := Pointer(malloc(uintptr(pagesNeeded) * uintptr(_TLSFPageSize)))
+	if ptr == 0 {
 		return 0, 0, 0
 	}
-	return pagesNeeded, start, end
+	return pagesNeeded, ptr, Pointer(ptr) + (Pointer(pagesNeeded) * _TLSFPageSize)
+}
+
+func newTLSF(pages int32, grow Grow) *TLSF {
+	if pages <= 0 {
+		pages = 1
+	}
+	size := Pointer(pages * wasmPageSize)
+	segment := Pointer(malloc(uintptr(size)))
+	return bootstrap(segment, segment+size, pages, grow)
 }

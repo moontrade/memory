@@ -38,7 +38,9 @@ func (o GCObject) Ptr() Pointer {
 // allocator built for TinyGo. Similar features to the internal extalloc GC in TinyGo
 // except GC uses a robinhood hashset instead of a treap structure and without the need
 // for a linked list. Instead, a single linear allocation is used for the hashset. Both
-// colors reside in the same hashset.
+// colors reside in the same hashset. It should provide faster scan performance which
+// becomes more noticeable as the scan size increases. For large objects, it's more ideal
+// to allocate directly in the TLSF allocator manually.
 //
 // Given the constraints of TinyGo, this is a conservative collector. However, GC
 // is tuned for more manual use of the underlying TLSF memory allocator. TLSF is an O(1)
@@ -170,10 +172,11 @@ func (gc *GC) Allocator() *TLSF {
 // MarkRoot marks a single pointer as a root
 //goland:noinspection ALL
 func (gc *GC) markRoot(root Pointer) {
-	root = root.Add(-int(gc_TOTAL_OVERHEAD))
+	//root = root.Add(-int(gc_TOTAL_OVERHEAD))
 	if root < gc.first || root > gc.last {
 		return
 	}
+	root -= gc_TOTAL_OVERHEAD
 	if gc.allocs.Has(root) {
 		// Mark as BLACK
 		(*(*gcObject)(unsafe.Pointer(root))).color = gc_BLACK
@@ -195,15 +198,7 @@ func (gc *GC) markRoots(start, end Pointer) {
 	}
 
 	// Adjust to keep within range GC range
-	if start < gc.first {
-		if gc.first >= end {
-			return
-		}
-		start = gc.first
-	}
-	if end > gc.last {
-		end = gc.last
-	}
+	//println("MarkRoots", uint(start), uint(end))
 
 	// Align start and end pointers.
 	start = Pointer((uintptr(start) + unsafe.Alignof(unsafe.Pointer(nil)) - 1) &^ (unsafe.Alignof(unsafe.Pointer(nil)) - 1))
@@ -218,10 +213,6 @@ func (gc *GC) markRoots(start, end Pointer) {
 
 //goland:noinspection ALL
 func (gc *GC) markRecursive(root Pointer, depth int) {
-	root -= Pointer(gc_TOTAL_OVERHEAD)
-	if !gc.allocs.Has(root) {
-		return
-	}
 	// Are we too deep?
 	if depth > 64 {
 		return
@@ -246,11 +237,11 @@ func (gc *GC) markRecursive(root Pointer, depth int) {
 		//end &^= unsafe.Alignof(unsafe.Pointer(nil)) - 1
 
 		for ptr := start; ptr < end; ptr += Pointer(unsafe.Alignof(unsafe.Pointer(nil))) {
-			p := *(*Pointer)(unsafe.Pointer(ptr))
-			if (p < gc.first || p > gc.last) || (p >= start && p < end) {
+			p := *(*Pointer)(unsafe.Pointer(ptr)) - gc_TOTAL_OVERHEAD
+			if p < gc.first || p > gc.last {
 				continue
 			}
-			if !gc.allocs.Has(p - Pointer(gc_TOTAL_OVERHEAD)) {
+			if !gc.allocs.Has(p) {
 				continue
 			}
 			gc.markRecursive(p, depth+1)
@@ -271,18 +262,19 @@ func (gc *GC) markGraph(root Pointer) {
 		return
 	}
 
-	pointersToCount := (uint(end) - uint(start)) / uint(unsafe.Sizeof(unsafe.Pointer(nil)))
-	if pointersToCount > 128 {
-		//return
-	}
+	//pointersToCount := (uint(end) - uint(start)) / uint(unsafe.Sizeof(unsafe.Pointer(nil)))
+	//if pointersToCount > 4096 {
+	//	//println("huge object found", uint(pointersToCount), "pointers to scan")
+	//	return
+	//}
 
 	// Mark all pointers.
 	for ptr := start; ptr < end; ptr += Pointer(unsafe.Alignof(unsafe.Pointer(nil))) {
-		p := *(*Pointer)(unsafe.Pointer(ptr))
-		if (p < gc.first || p > gc.last) || (p >= start && p < end) {
+		p := *(*Pointer)(unsafe.Pointer(ptr)) - gc_TOTAL_OVERHEAD
+		if p < gc.first || p > gc.last {
 			continue
 		}
-		if !gc.allocs.Has(p - Pointer(gc_TOTAL_OVERHEAD)) {
+		if !gc.allocs.Has(p) {
 			continue
 		}
 		gc.markRecursive(p, 0)
@@ -329,15 +321,19 @@ func (gc *GC) New(size Pointer) Pointer {
 		gc.last = ptr
 	}
 
+	ptr += Pointer(gc_TOTAL_OVERHEAD)
+	//println("New", uint(ptr))
+
 	// Return pointer to data
-	return Pointer(ptr + Pointer(gc_TOTAL_OVERHEAD))
+	return ptr
 }
 
 // Free will immediately remove the GC Object and free up the memory in the allocator.
 //goland:noinspection ALL
 func (gc *GC) Free(ptr Pointer) bool {
-	p := Pointer(ptr) - Pointer(gc_TOTAL_OVERHEAD)
-	if !gc.allocs.Has(p) {
+	p := ptr - gc_TOTAL_OVERHEAD
+	//if !gc.allocs.Has(p) {
+	if _, ok := gc.allocs.Delete(p); !ok {
 		return false
 	}
 
@@ -351,9 +347,9 @@ func (gc *GC) Free(ptr Pointer) bool {
 	gc.FreedBytes += int64(size)
 	gc.Live--
 	gc.Frees++
-	gc.allocs.Delete(p)
+	//gc.allocs.Delete(p)
 
-	println("GC free", uint(uintptr(ptr)), "size", uint(size), "rtSize", obj.rtSize)
+	//println("GC free", uint(uintptr(ptr)), "size", uint(size), "rtSize", obj.rtSize)
 	gc.allocator.Free(Pointer(p + Pointer(_TLSFBlockOverhead)))
 
 	return true
@@ -439,7 +435,7 @@ func (gc *GC) Collect() {
 				println("GC sweep", uint(k), "size", uint(obj.size()))
 			}
 
-			//println("GC sweep", uint(k+gc_TOTAL_OVERHEAD), "size", uint(obj.size()), "rtSize", obj.rtSize)
+			println("GC sweep", uint(k+gc_TOTAL_OVERHEAD), "size", uint(obj.size()), "rtSize", obj.rtSize)
 
 			// Free memory
 			gc.allocator.Free(Pointer(k + Pointer(_TLSFBlockOverhead)))
@@ -448,6 +444,7 @@ func (gc *GC) Collect() {
 			gc.allocs.Delete(k)
 			//items -= unsafe.Sizeof(pointerSetItem{})
 		} else { // turn all BLACK objects into WHITE objects
+			//k += gc_TOTAL_OVERHEAD
 			if k < first {
 				first = k
 			}

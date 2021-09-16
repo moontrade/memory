@@ -179,6 +179,7 @@ func (a *TLSF) Realloc(ptr Pointer, size Pointer) Pointer {
 // Free release the allocation back into the free list.
 //goland:noinspection GoVetUnsafePointer
 func (a *TLSF) Free(ptr Pointer) {
+	//println("Free", uint(ptr))
 	//a.freeBlock((*tlsfBlock)(unsafe.Pointer(ptr - _TLSFBlockOverhead)))
 	a.freeBlock(tlsfCheckUsedBlock(ptr))
 }
@@ -212,17 +213,6 @@ func (a *TLSF) BytesCapNotCleared(length, capacity Pointer) Bytes {
 		cap:     int(*(*Pointer)(unsafe.Pointer(p)) & ^_TLSFTagsMask) - int(unsafe.Sizeof(bytesLayout{})),
 		alloc:   a.AsAllocator(),
 	}
-}
-
-// Scope creates an Auto free list that automatically reclaims memory
-// after callback finishes.
-func (a *TLSF) Scope(fn func(a Auto)) {
-	if fn == nil {
-		return
-	}
-	auto := NewAuto(a.AsAllocator(), 32)
-	defer auto.Free()
-	fn(auto)
 }
 
 // bootstrap bootstraps the Allocator with the initial block of contiguous memory

@@ -1,5 +1,8 @@
-//go:build gc.provided && tinygo && tinygo.wasm
-// +build gc.provided,tinygo,tinygo.wasm
+//go:build tinygo && gc.provided && !tinygo.wasm && (darwin || linux || windows)
+// +build tinygo
+// +build gc.provided
+// +build !tinygo.wasm
+// +build darwin linux windows
 
 package mem
 
@@ -99,9 +102,9 @@ func markGlobals()
 
 //export gcMarkGlobals
 func gcMarkGlobals(start, end uintptr) {
-	//println("gcMarkGlobals", uint(start), uint(end))
-	collector.markRoots(Pointer(start), Pointer(end))
-	//collector.markRoot(Pointer(root))
+	println("gcMarkGlobals", uint(start), uint(end))
+	//collector.markRoots(Pointer(start), Pointer(end))
+	collector.markRoot(Pointer(end))
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -122,7 +125,15 @@ func markStack()
 //export gcMarkRoots
 func gcMarkRoots(start, end uintptr) {
 	//println("gcMarkRoots", uint(start), uint(end))
-	collector.markRoots(Pointer(start), Pointer(end))
+	if start == 0 {
+		collector.markRoot(Pointer(end))
+	} else {
+		if end-start < 1000000 {
+			collector.markRoots(Pointer(start), Pointer(end))
+		} else {
+			collector.markRoot(Pointer(end))
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -148,6 +159,6 @@ func markScheduler()
 
 //export gcMarkTask
 func gcMarkTask(runQueuePtr, taskPtr uintptr) {
-	//println("gcMarkTask", uint(allocator.HeapStart), uint(runQueuePtr), uint(taskPtr))
+	println("gcMarkTask", uint(allocator.HeapStart), uint(runQueuePtr), uint(taskPtr))
 	collector.markRoot(Pointer(taskPtr))
 }

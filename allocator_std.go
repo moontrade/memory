@@ -20,6 +20,28 @@ func Scope(fn func(a Auto)) {
 	fn(a)
 }
 
+// Scope creates an Auto free list that automatically reclaims memory
+// after callback finishes.
+func (a *TLSF) Scope(fn func(a Auto)) {
+	if fn == nil {
+		return
+	}
+	auto := NewAuto(a.AsAllocator(), 32)
+	defer auto.Free()
+	fn(auto)
+}
+
+// Scope creates an Auto free list that automatically reclaims memory
+// after callback finishes.
+func (a *TLSFSync) Scope(fn func(a Auto)) {
+	if fn == nil {
+		return
+	}
+	auto := NewAuto(a.AsAllocator(), 32)
+	defer auto.Free()
+	fn(auto)
+}
+
 const (
 	_TLSFNoSync    Allocator = 1 << 0
 	_TLSFSync      Allocator = 1 << 1
