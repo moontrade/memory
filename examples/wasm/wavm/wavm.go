@@ -34,6 +34,8 @@ const (
 	WASMExternMemory
 )
 
+type WASMConfigT C.wasm_config_t
+
 // WASMEngineT is an alias for wasm_engine_t
 type WASMEngineT C.wasm_engine_t
 
@@ -43,20 +45,44 @@ type WASMCompartmentT C.wasm_compartment_t
 // WASMStoreT is an alias for wasm_store_T
 type WASMStoreT C.wasm_store_t
 
-// WASMModuleT is an alias for wasm_module_t
-type WASMModuleT C.wasm_module_t
+type WASMValTypeT C.wasm_valtype_t
+type WASMFuncTypeT C.wasm_functype_t
+type WASMTableTypeT C.wasm_tabletype_t
+type WASMMemoryTypeT C.wasm_memorytype_t
+type WASMGlobalTypeT C.wasm_globaltype_t
+type WASMExternTypeT C.wasm_externtype_t
 
-// WASMInstanceT is an alias for wasm_instance_t
-type WASMInstanceT C.wasm_instance_t
-
-// WASMExternT is an alias for wasm_extern_t
-type WASMExternT C.wasm_extern_t
+//type WASMRefT C.wasm_ref_T
 
 // WASMTrapT is an alias for wasm_trap_t
 type WASMTrapT C.wasm_trap_t
 
+type WASMForeignT C.wasm_foreign_t
+
+// WASMModuleT is an alias for wasm_module_t
+type WASMModuleT C.wasm_module_t
+
 // WASMFuncT is an alias for wasm_trap_t
 type WASMFuncT C.wasm_func_t
+
+type WASMTableT C.wasm_table_t
+type WASMMemoryT C.wasm_memory_t
+type WASMGlobalT C.wasm_global_t
+
+// WASMExternT is an alias for wasm_extern_t
+type WASMExternT C.wasm_extern_t
+
+// WASMInstanceT is an alias for wasm_instance_t
+type WASMInstanceT C.wasm_instance_t
+
+type WASMSharedModuleT C.wasm_shared_module_t
+type WASMSharedFuncT C.wasm_shared_func_t
+type WASMSharedTableT C.wasm_shared_table_t
+type WASMSharedMemoryT C.wasm_shared_memory_t
+type WASMSharedForeignT C.wasm_shared_foreign_t
+
+type WASMFloat32 C.float
+type WASMFloat64 C.double
 
 // WASMValT is an alias for wasm_val_t
 type WASMValT C.wasm_val_t
@@ -91,26 +117,26 @@ func (e *WASMEngine) Delete() {
 // LoadModule loads a module from []byte, precompiled modules are supported too.
 // Returns a wasm_module_instance_t pointer.
 // TODO: see if wasm_engine_t needs to be used at some level...
-func (e *WASMEngine) LoadModule(wasmBytes []byte, precompiled bool) *WASMModule {
-	bytes := C.CBytes(wasmBytes)
-	var ptr *C.wasm_module_t
-	if precompiled {
-		ptr = C.wasm_module_precomp_new((*C.char)(bytes), (C.ulong)(len(wasmBytes)))
-	} else {
-		ptr = C.wasm_module_std_new((*C.char)(bytes), (C.ulong)(len(wasmBytes)))
-	}
-	return &WASMModule{
-		ptr: (*WASMModuleT)(ptr),
-	}
-}
+//func (e *WASMEngine) LoadModule(wasmBytes []byte, precompiled bool) *WASMModule {
+//	bytes := C.CBytes(wasmBytes)
+//	var ptr *C.wasm_module_t
+//	if precompiled {
+//		ptr = C.wasm_module_precomp_new((*C.char)(bytes), (C.ulong)(len(wasmBytes)))
+//	} else {
+//		ptr = C.wasm_module_std_new((*C.char)(bytes), (C.ulong)(len(wasmBytes)))
+//	}
+//	return &WASMModule{
+//		ptr: (*WASMModuleT)(ptr),
+//	}
+//}
 
-// WASIRun calls the entrypoint function and returns an instance of the current module
-func (e *WASMEngine) WASIRun(m *WASMModule) *WASMInstance {
-	instancePtr := C.wasi_run(m.Ptr(), e.store.Ptr())
-	return &WASMInstance{
-		ptr: (*WASMInstanceT)(instancePtr),
-	}
-}
+//// WASIRun calls the entrypoint function and returns an instance of the current module
+//func (e *WASMEngine) WASIRun(m *WASMModule) *WASMInstance {
+//	instancePtr := C.wasi_run(m.Ptr(), e.store.Ptr())
+//	return &WASMInstance{
+//		ptr: (*WASMInstanceT)(instancePtr),
+//	}
+//}
 
 // NewInstance initializes a new module instance
 // TODO: clarify whether to use different stores at instance level.
@@ -214,19 +240,19 @@ func (m *WASMModule) GetExport(index int) *WASMExport {
 	}
 }
 
-// NewWASMModule wraps wasm_module_new
-func NewWASMModule(engine *WASMEngine, wasmBytes []byte, precompiled bool) *WASMModule {
-	bytes := C.CBytes(wasmBytes)
-	var ptr *C.wasm_module_t
-	if precompiled {
-		ptr = C.wasm_module_std_new((*C.char)(bytes), (C.ulong)(len(wasmBytes)))
-	} else {
-		ptr = C.wasm_module_precomp_new((*C.char)(bytes), (C.ulong)(len(wasmBytes)))
-	}
-	return &WASMModule{
-		ptr: (*WASMModuleT)(ptr),
-	}
-}
+//// NewWASMModule wraps wasm_module_new
+//func NewWASMModule(engine *WASMEngine, wasmBytes []byte, precompiled bool) *WASMModule {
+//	bytes := C.CBytes(wasmBytes)
+//	var ptr *C.wasm_module_t
+//	if precompiled {
+//		ptr = C.wasm_module_std_new((*C.char)(bytes), (C.ulong)(len(wasmBytes)))
+//	} else {
+//		ptr = C.wasm_module_precomp_new((*C.char)(bytes), (C.ulong)(len(wasmBytes)))
+//	}
+//	return &WASMModule{
+//		ptr: (*WASMModuleT)(ptr),
+//	}
+//}
 
 // Ptr returns a wasm_module_t pointer
 func (m *WASMModule) Ptr() *C.wasm_module_t {
@@ -335,12 +361,12 @@ func wasmExternTypeKind(ptr *WASMExternT) WASMExternKind {
 
 // Precompile precompiles a WASM module, can be held in memory or written to a file. Useful for large modules
 // TODO: allocate in a better way
-func Precompile(filename string, input []byte) (data []byte) {
-	cRawModule := C.CBytes(input)
-	len := C.ulong(len(input))
-	var out unsafe.Pointer = C.malloc(4000000) // ?
-	defer C.free(out)
-	outlen := C.wasm_precompile2((*C.char)(cRawModule), len, (*C.char)(out))
-	data = C.GoBytes(out, outlen)
-	return data
-}
+//func Precompile(filename string, input []byte) (data []byte) {
+//	cRawModule := C.CBytes(input)
+//	len := C.ulong(len(input))
+//	var out unsafe.Pointer = C.malloc(4000000) // ?
+//	defer C.free(out)
+//	outlen := C.wasm_precompile2((*C.char)(cRawModule), len, (*C.char)(out))
+//	data = C.GoBytes(out, outlen)
+//	return data
+//}

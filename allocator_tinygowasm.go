@@ -70,14 +70,12 @@ func (a *TLSF) Scope(fn func(a Auto)) {
 	auto.Free()
 }
 
-//go:export extalloc
 func extalloc(size uintptr) unsafe.Pointer {
 	ptr := unsafe.Pointer(allocator.Alloc(Pointer(size)))
 	println("extalloc", uint(uintptr(ptr)))
 	return ptr
 }
 
-//go:export extfree
 func extfree(ptr unsafe.Pointer) {
 	println("extfree", uint(uintptr(ptr)))
 	allocator.Free(Pointer(ptr))
@@ -149,33 +147,67 @@ func growBy(pages int32) (Pointer, Pointer) {
 	return Pointer(before * wasmPageSize), Pointer(after * wasmPageSize)
 }
 
-//go:export memcpy
+//go:linkname memcpy runtime.memcpy
 func memcpy(dst, src unsafe.Pointer, n uintptr)
 
-//export memzero
-func memzero(ptr unsafe.Pointer, size uintptr)
+//go:linkname memset runtime.memset
+func memset(dst unsafe.Pointer, value byte, n uintptr)
 
-// TODO: Faster LLVM way?
-func memequal(a, b unsafe.Pointer, n uintptr) bool {
-	if a == nil {
-		return b == nil
-	}
-	return *(*string)(unsafe.Pointer(&_string{
-		ptr: uintptr(a),
-		len: int(n),
-	})) == *(*string)(unsafe.Pointer(&_string{
-		ptr: uintptr(b),
-		len: int(n),
-	}))
+//go:linkname gcZero runtime.gcZero
+func gcZero(ptr unsafe.Pointer, size uintptr)
+
+func memzero(ptr unsafe.Pointer, size uintptr) {
+	gcZero(ptr, size)
 }
 
-//export heapAlloc
+func memzeroSlow(ptr unsafe.Pointer, size uintptr) {
+	b := *(*[]byte)(unsafe.Pointer(&_bytes{
+		Data: uintptr(ptr),
+		Len:  int(size),
+		Cap:  int(size),
+	}))
+	switch {
+	case size < 8:
+		for i := 0; i < len(b); i++ {
+			b[i] = 0
+		}
+	case size == 8:
+		*(*uint64)(unsafe.Pointer(&b[0])) = 0
+	default:
+		var i = 0
+		for ; i <= len(b)-8; i += 8 {
+			*(*uint64)(unsafe.Pointer(&b[i])) = 0
+		}
+		for ; i < len(b); i++ {
+			b[i] = 0
+		}
+	}
+}
+
+//go:linkname gcZero runtime.gcZero
+func gcMemequal(x, y unsafe.Pointer, size uintptr) bool
+
+// TODO: Faster LLVM way?
+func memequal(x, y unsafe.Pointer, size uintptr) bool {
+	return gcMemequal(x, y, size)
+	//if a == nil {
+	//	return b == nil
+	//}
+	//return *(*string)(unsafe.Pointer(&_string{
+	//	ptr: uintptr(a),
+	//	len: int(n),
+	//})) == *(*string)(unsafe.Pointer(&_string{
+	//	ptr: uintptr(b),
+	//	len: int(n),
+	//}))
+}
+
 func heapAlloc(size uintptr) unsafe.Pointer {
 	//println("heapAlloc")
 	return unsafe.Pointer(allocator.Alloc(Pointer(size)))
 }
 
-//go:export initAllocator
+//go:linkname initAllocator runtime.initAllocator
 func initAllocator(heapStart, heapEnd uintptr) {
 	//println("initAllocator", uint(heapStart))
 	//println("globals", uint(globalsStart), uint(globalsEnd))

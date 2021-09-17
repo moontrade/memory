@@ -127,36 +127,46 @@ func (a Allocator) BytesCapNotCleared(length, capacity Pointer) Bytes {
 
 const wasmPageSize = 64 * 1024
 
-//go:export malloc
+//go:linkname malloc runtime.malloc
 func malloc(size uintptr) unsafe.Pointer
 
-//go:export memcpy
+//go:linkname memcpy runtime.memcpy
 func memcpy(dst, src unsafe.Pointer, n uintptr)
 
-//export memzero
-func memzero(ptr unsafe.Pointer, size uintptr)
+////go:linkname memzero runtime.memzero
+//func memzero(ptr unsafe.Pointer, size uintptr)
+
+//go:linkname gcZero runtime.gcZero
+func gcZero(ptr unsafe.Pointer, size uintptr)
+
+func memzero(ptr unsafe.Pointer, size uintptr) {
+	gcZero(ptr, size)
+}
+
+//go:linkname gcZero runtime.gcZero
+func gcMemequal(x, y unsafe.Pointer, size uintptr) bool
 
 // TODO: Faster LLVM way?
 func memequal(a, b unsafe.Pointer, n uintptr) bool {
-	if a == nil {
-		return b == nil
-	}
-	return *(*string)(unsafe.Pointer(&_string{
-		ptr: uintptr(a),
-		len: int(n),
-	})) == *(*string)(unsafe.Pointer(&_string{
-		ptr: uintptr(b),
-		len: int(n),
-	}))
+	return gcMemequal(a, b, n)
+	//if a == nil {
+	//	return b == nil
+	//}
+	//return *(*string)(unsafe.Pointer(&_string{
+	//	ptr: uintptr(a),
+	//	len: int(n),
+	//})) == *(*string)(unsafe.Pointer(&_string{
+	//	ptr: uintptr(b),
+	//	len: int(n),
+	//}))
 }
 
-//export heapAlloc
 func heapAlloc(size uintptr) unsafe.Pointer {
 	//println("heapAlloc")
 	return unsafe.Pointer(allocator.Alloc(Pointer(size)))
 }
 
-//go:export initAllocator
+//go:linkname initAllocator runtime.initAllocator
 func initAllocator(heapStart, heapEnd uintptr) {
 	if allocator != nil {
 		return
