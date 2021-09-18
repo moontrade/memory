@@ -101,7 +101,6 @@ func markGlobals()
 func gcMarkGlobals(start, end uintptr) {
 	//println("gcMarkGlobals", uint(start), uint(end))
 	collector.markRoots(Pointer(start), Pointer(end))
-	//collector.markRoot(Pointer(root))
 }
 
 ////////////////////////////////////////////////////////////////////////////////////

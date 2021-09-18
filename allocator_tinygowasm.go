@@ -27,16 +27,19 @@ func Alloc(size Pointer) Pointer {
 }
 
 // Alloc calls Alloc on the system allocator
+//export alloc
 func AllocNotCleared(size Pointer) Pointer {
 	return allocator.AllocNotCleared(size)
 }
 
 // Realloc calls Realloc on the system allocator
+//export realloc
 func Realloc(p Pointer, size Pointer) Pointer {
 	return allocator.Realloc(p, size)
 }
 
 // Free calls Free on the system allocator
+//export free
 func Free(p Pointer) {
 	allocator.Free(p)
 }
@@ -72,12 +75,12 @@ func (a *TLSF) Scope(fn func(a Auto)) {
 
 func extalloc(size uintptr) unsafe.Pointer {
 	ptr := unsafe.Pointer(allocator.Alloc(Pointer(size)))
-	println("extalloc", uint(uintptr(ptr)))
+	//println("extalloc", uint(uintptr(ptr)))
 	return ptr
 }
 
 func extfree(ptr unsafe.Pointer) {
-	println("extfree", uint(uintptr(ptr)))
+	//println("extfree", uint(uintptr(ptr)))
 	allocator.Free(Pointer(ptr))
 }
 
@@ -147,8 +150,12 @@ func growBy(pages int32) (Pointer, Pointer) {
 	return Pointer(before * wasmPageSize), Pointer(after * wasmPageSize)
 }
 
-//go:linkname memcpy runtime.memcpy
-func memcpy(dst, src unsafe.Pointer, n uintptr)
+//go:linkname gcMemcpy runtime.gcMemcpy
+func gcMemcpy(dst, src unsafe.Pointer, n uintptr)
+
+func memcpy(dst, src unsafe.Pointer, n uintptr) {
+	gcMemcpy(dst, src, n)
+}
 
 //go:linkname memset runtime.memset
 func memset(dst unsafe.Pointer, value byte, n uintptr)
