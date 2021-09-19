@@ -16,6 +16,9 @@ type _bytes struct {
 	cap  uintptr
 }
 
+//export stub
+func stub() {}
+
 func main() {
 	//mem.IsPowerOfTwo(0)
 	println("hi moontrade!")
