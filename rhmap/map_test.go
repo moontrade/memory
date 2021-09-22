@@ -1,9 +1,12 @@
-package mem
+package rhmap
 
-import "testing"
+import (
+	mem "github.com/moontrade/memory"
+	"testing"
+)
 
 func TestMap(t *testing.T) {
-	a := NewTLSF(1)
+	a := mem.NewTLSF(1)
 	m := NewMap(a, 16)
 
 	key := a.BytesCap(0, 16)
@@ -14,10 +17,10 @@ func TestMap(t *testing.T) {
 
 	m.Set(key, value)
 
-	v, ok := m.Get(key)
-	if !ok {
+	//v, ok := m.Get(key)
+	//if !ok {
+	//
+	//}
 
-	}
-
-	println(key.String(), v.String())
+	//println(key.String(), v.String())
 }

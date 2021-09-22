@@ -98,7 +98,7 @@ func TestTreeInit(t *testing.T) {
 }
 
 func TestObjFactory(t *testing.T) {
-	factory := newObjFactory()
+	factory := newObjFactory(allocator)
 	n4 := factory.newNode48()
 	assert.NotNil(t, n4)
 	n4v2 := factory.newNode48()
@@ -677,7 +677,7 @@ func TestTreeTraversalPrefix(t *testing.T) {
 				return true
 			}
 			k := node.Key()
-			actual = append(actual, string(k.Bytes.Bytes()))
+			actual = append(actual, string(k.Bytes()))
 			return true
 		})
 
@@ -725,7 +725,7 @@ func TestTreeTraversalForEachPrefixConditionalCallback(t *testing.T) {
 		if node.Kind() == Leaf {
 			totalCalls++
 			k := node.Key()
-			if k.String() == "America#California#Irvine" {
+			if k.Str.String() == "America#California#Irvine" {
 				return false
 			}
 		}

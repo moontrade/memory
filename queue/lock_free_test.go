@@ -13,7 +13,7 @@ func TestLockFreeQueue(t *testing.T) {
 	a := mem.NewTLSF(1000).ToSync()
 	a2 := mem.NewTLSF(1000).ToSync()
 	_ = a2
-	a.AllocNotCleared(24)
+	a.AllocZeroed(24)
 	q := AllocLockFreeQueue(mem.Allocator(unsafe.Pointer(a)))
 
 	b := a.Bytes(24)

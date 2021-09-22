@@ -290,7 +290,7 @@ func (gc *GC) New(size Pointer) Pointer {
 	}
 
 	// Allocate memory
-	obj := (*gcObject)(unsafe.Pointer(Pointer(gc.allocator.AllocNotCleared(gc_OBJECT_OVERHEAD+size)) - _TLSFBlockOverhead))
+	obj := (*gcObject)(unsafe.Pointer(Pointer(gc.allocator.AllocZeroed(gc_OBJECT_OVERHEAD+size)) - _TLSFBlockOverhead))
 	if obj == nil {
 		return Pointer(0)
 	}

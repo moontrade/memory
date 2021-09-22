@@ -8,16 +8,6 @@ import (
 // so Go won't confuse it for a potential GC managed pointer.
 type Pointer uintptr
 
-type String struct {
-	Pointer
-	Size uintptr
-}
-
-// Zero zeroes out the entire allocation.
-func (p String) Zero() {
-	memzero(p.Unsafe(), p.Size)
-}
-
 //goland:noinspection GoVetUnsafePointer
 func (p Pointer) Unsafe() unsafe.Pointer {
 	return unsafe.Pointer(p)

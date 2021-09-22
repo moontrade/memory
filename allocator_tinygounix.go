@@ -30,7 +30,7 @@ func Alloc(size Pointer) Pointer {
 
 // Alloc calls Alloc on the system allocator
 func AllocNotCleared(size Pointer) Pointer {
-	return allocator.AllocNotCleared(size)
+	return allocator.AllocZeroed(size)
 }
 
 // Realloc calls Realloc on the system allocator
@@ -98,7 +98,7 @@ func (a Allocator) Alloc(size Pointer) Pointer {
 }
 
 func (a Allocator) AllocNotCleared(size Pointer) Pointer {
-	return (*TLSF)(unsafe.Pointer(a)).AllocNotCleared(size)
+	return (*TLSF)(unsafe.Pointer(a)).AllocZeroed(size)
 }
 
 func (a Allocator) Realloc(ptr, size Pointer) Pointer {
@@ -159,11 +159,6 @@ func memequal(a, b unsafe.Pointer, n uintptr) bool {
 	//	ptr: uintptr(b),
 	//	len: int(n),
 	//}))
-}
-
-func heapAlloc(size uintptr) unsafe.Pointer {
-	//println("heapAlloc")
-	return unsafe.Pointer(allocator.Alloc(Pointer(size)))
 }
 
 //go:linkname initAllocator runtime.initAllocator

@@ -10,5 +10,5 @@ type Task struct {
 }
 
 //func AllocTask(a mem.Allocator, size uintptr) *Task {
-//	a.AllocNotCleared(mem.Pointer(size + unsafe.Sizeof(Task{})))
+//	a.AllocZeroed(mem.Pointer(size + unsafe.Sizeof(Task{})))
 //}

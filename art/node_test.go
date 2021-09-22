@@ -12,15 +12,15 @@ import (
 var alloc = mem.NewTLSF(1)
 
 func keyOf(v string) Key {
-	b := alloc.Bytes(mem.Pointer(len(v)))
-	b.AppendString(v)
-	return Key{b}
+	s := mem.AllocString(len(v))
+	s.AppendString(v)
+	return Key{s}
 }
 
 func keyOfBytes(v []byte) Key {
-	b := alloc.Bytes(mem.Pointer(len(v)))
-	b.AppendBytes(v)
-	return Key{b}
+	s := mem.AllocString(len(v))
+	s.AppendBytes(v)
+	return Key{s}
 }
 
 func TestNodeKind(t *testing.T) {

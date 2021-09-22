@@ -12,9 +12,14 @@ import (
 ////////////////////////////////////////////////////////////////////////////////////
 
 var allocator *TLSF
+var allocator_ Allocator
 
 func TLSFInstance() *TLSF {
 	return allocator
+}
+
+func NextAllocator() Allocator {
+	return allocator.AsAllocator()
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -28,8 +33,8 @@ func Alloc(size Pointer) Pointer {
 
 // Alloc calls Alloc on the system allocator
 //export alloc
-func AllocNotCleared(size Pointer) Pointer {
-	return allocator.AllocNotCleared(size)
+func AllocZeroed(size Pointer) Pointer {
+	return allocator.AllocZeroed(size)
 }
 
 // Realloc calls Realloc on the system allocator
@@ -97,7 +102,7 @@ func (a Allocator) Alloc(size Pointer) Pointer {
 }
 
 func (a Allocator) AllocNotCleared(size Pointer) Pointer {
-	return (*TLSF)(unsafe.Pointer(a)).AllocNotCleared(size)
+	return (*TLSF)(unsafe.Pointer(a)).AllocZeroed(size)
 }
 
 func (a Allocator) Realloc(ptr, size Pointer) Pointer {
@@ -150,22 +155,25 @@ func growBy(pages int32) (Pointer, Pointer) {
 	return Pointer(before * wasmPageSize), Pointer(after * wasmPageSize)
 }
 
-//go:linkname gcMemcpy runtime.gcMemcpy
-func gcMemcpy(dst, src unsafe.Pointer, n uintptr)
+////go:linkname gcMemcpy runtime.gcMemcpy
+//func gcMemcpy(dst, src unsafe.Pointer, n uintptr)
 
-func memcpy(dst, src unsafe.Pointer, n uintptr) {
-	gcMemcpy(dst, src, n)
-}
+//go:linkname memcpy runtime.gcMemcpy
+func memcpy(dst, src unsafe.Pointer, n uintptr)
 
-//go:linkname memset runtime.memset
-func memset(dst unsafe.Pointer, value byte, n uintptr)
+//go:linkname memmove runtime.gcMemmove
+func memmove(dst, src unsafe.Pointer, size uintptr)
 
-//go:linkname gcZero runtime.gcZero
-func gcZero(ptr unsafe.Pointer, size uintptr)
+//func memmove(dst, src unsafe.Pointer, size uintptr) {
+//	gcMemmove(dst, src, size)
+//}
 
-func memzero(ptr unsafe.Pointer, size uintptr) {
-	gcZero(ptr, size)
-}
+//go:linkname memzero runtime.gcZero
+func memzero(ptr unsafe.Pointer, size uintptr)
+
+//func memzero(ptr unsafe.Pointer, size uintptr) {
+//	gcZero(ptr, size)
+//}
 
 func memzeroSlow(ptr unsafe.Pointer, size uintptr) {
 	b := *(*[]byte)(unsafe.Pointer(&_bytes{
@@ -191,23 +199,22 @@ func memzeroSlow(ptr unsafe.Pointer, size uintptr) {
 	}
 }
 
-//go:linkname gcZero runtime.gcZero
-func gcMemequal(x, y unsafe.Pointer, size uintptr) bool
+//go:linkname memequal runtime.gcMemequal
+func memequal(x, y unsafe.Pointer, size uintptr) bool
 
-// TODO: Faster LLVM way?
-func memequal(x, y unsafe.Pointer, size uintptr) bool {
-	return gcMemequal(x, y, size)
-	//if a == nil {
-	//	return b == nil
-	//}
-	//return *(*string)(unsafe.Pointer(&_string{
-	//	ptr: uintptr(a),
-	//	len: int(n),
-	//})) == *(*string)(unsafe.Pointer(&_string{
-	//	ptr: uintptr(b),
-	//	len: int(n),
-	//}))
-}
+//func memequal(x, y unsafe.Pointer, size uintptr) bool {
+//	return gcMemequal(x, y, size)
+//	//if a == nil {
+//	//	return b == nil
+//	//}
+//	//return *(*string)(unsafe.Pointer(&_string{
+//	//	ptr: uintptr(a),
+//	//	len: int(n),
+//	//})) == *(*string)(unsafe.Pointer(&_string{
+//	//	ptr: uintptr(b),
+//	//	len: int(n),
+//	//}))
+//}
 
 func heapAlloc(size uintptr) unsafe.Pointer {
 	//println("heapAlloc")
@@ -246,41 +253,6 @@ func initAllocator(heapStart, heapEnd uintptr) {
 	)
 }
 
-//func NewTLSF(pages int32) *TLSF {
-//	if pages <= 0 {
-//		pages = 1
-//	}
-//
-//	size := uintptr(pages * wasmPageSize)
-//	start := uintptr(wasm_memory_size(0) * wasmPageSize)
-//	wasm_memory_grow(0, pages)
-//	end := uintptr(wasm_memory_size(0) * wasmPageSize)
-//	if start == end {
-//		panic("out of memory")
-//	}
-//	return initTLSF(start, start+size, pages)
-//}
-//
-//func (a *TLSF) Grow(pages int32) (uintptr, uintptr) {
-//	if pages <= 0 {
-//		pages = 1
-//	}
-//
-//	// wasm memory grow
-//	before := wasm_memory_size(0)
-//	wasm_memory_grow(0, pages)
-//	after := wasm_memory_size(0)
-//	if before == after {
-//		return 0, 0
-//	}
-//
-//	a.Pages += int32(pages)
-//	start := uintptr(before * wasmPageSize)
-//	end := uintptr(after * wasmPageSize)
-//	a.HeapEnd = end
-//	return start, end
-//}
-
 ////////////////////////////////////////////////////////////////////////////////////
 // Grow Strategy
 ////////////////////////////////////////////////////////////////////////////////////
@@ -312,24 +284,31 @@ func GrowByDouble(pagesBefore, pagesNeeded int32, minSize Pointer) (pagesAdded i
 	return
 }
 
+var (
+	growByPages int32 = 1
+)
+
 // GrowBy will Grow by the number of pages specified or by the minimum needed, whichever is greater.
 func GrowBy(pages int32) Grow {
-	return func(pagesBefore, pagesNeeded int32, minSize Pointer) (pagesAdded int32, start, end Pointer) {
-		if pages > pagesNeeded {
-			pagesAdded = pages
-		} else {
-			pagesAdded = pagesNeeded
-		}
+	growByPages = pages
+	return doGrowByPages
+}
+
+func doGrowByPages(pagesBefore, pagesNeeded int32, minSize Pointer) (pagesAdded int32, start, end Pointer) {
+	if growByPages > pagesNeeded {
+		pagesAdded = growByPages
+	} else {
+		pagesAdded = pagesNeeded
+	}
+	start, end = growBy(pagesAdded)
+	if start == 0 {
+		pagesAdded = pagesNeeded
 		start, end = growBy(pagesAdded)
 		if start == 0 {
-			pagesAdded = pagesNeeded
-			start, end = growBy(pagesAdded)
-			if start == 0 {
-				return 0, 0, 0
-			}
+			return 0, 0, 0
 		}
-		return
 	}
+	return
 }
 
 // GrowByMin will Grow by a single page or by the minimum needed, whichever is greater.

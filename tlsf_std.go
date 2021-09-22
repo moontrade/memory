@@ -30,9 +30,29 @@ func NewTLSFArena(pages int32, arena Arena, grow GrowFactory) *TLSF {
 	return a
 }
 
+type SystemAllocator struct {
+}
+
+//// Alloc allocates a block of memory that fits the size provided.
+//// The allocation IS cleared / zeroed out.
+//func (SystemAllocator) AllocString(size Pointer) Pointer {
+//	a.Lock()
+//	defer a.Unlock()
+//	return a.a.Alloc(size)
+//}
+//
+//// AllocZeroed allocates a block of memory that fits the size provided.
+//// The allocation is NOT cleared / zeroed out.
+//func (SystemAllocator) AllocZeroed(size Pointer) Pointer {
+//	a.Lock()
+//	defer a.Unlock()
+//	return a.a.AllocZeroed(size)
+//}
+
 type TLSFSync struct {
 	a     *TLSF
 	stats TLSFStats
+	slot  uint8
 	sync.Mutex
 }
 
@@ -52,12 +72,12 @@ func (a *TLSFSync) Alloc(size Pointer) Pointer {
 	return a.a.Alloc(size)
 }
 
-// AllocNotCleared allocates a block of memory that fits the size provided.
+// AllocZeroed allocates a block of memory that fits the size provided.
 // The allocation is NOT cleared / zeroed out.
-func (a *TLSFSync) AllocNotCleared(size Pointer) Pointer {
+func (a *TLSFSync) AllocZeroed(size Pointer) Pointer {
 	a.Lock()
 	defer a.Unlock()
-	return a.a.AllocNotCleared(size)
+	return a.a.AllocZeroed(size)
 }
 
 // Realloc determines the best way to resize an allocation.

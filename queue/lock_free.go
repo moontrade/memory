@@ -25,8 +25,8 @@ type lockFreeNode struct {
 
 //goland:noinspection GoVetUnsafePointer
 func AllocLockFreeQueue(a mem.Allocator) *LockFree {
-	q := (*LockFree)(unsafe.Pointer(a.AllocNotCleared(mem.Pointer(unsafe.Sizeof(LockFree{})))))
-	n := a.AllocNotCleared(mem.Pointer(unsafe.Sizeof(lockFreeNode{})))
+	q := (*LockFree)(unsafe.Pointer(a.AllocZeroed(mem.Pointer(unsafe.Sizeof(LockFree{})))))
+	n := a.AllocZeroed(mem.Pointer(unsafe.Sizeof(lockFreeNode{})))
 	q.head = uintptr(n)
 	q.tail = uintptr(n)
 	q.alloc = a
@@ -37,7 +37,7 @@ func AllocLockFreeQueue(a mem.Allocator) *LockFree {
 // Enqueue puts the given value v at the tail of the queue.
 //goland:noinspection GoVetUnsafePointer
 func (q *LockFree) Enqueue(task mem.Bytes) {
-	n := uintptr(task.Allocator().AllocNotCleared(mem.Pointer(unsafe.Sizeof(lockFreeNode{}))))
+	n := uintptr(task.Allocator().AllocZeroed(mem.Pointer(unsafe.Sizeof(lockFreeNode{}))))
 	node := (*lockFreeNode)(unsafe.Pointer(n))
 	node.value = task
 	node.alloc = task.Allocator()

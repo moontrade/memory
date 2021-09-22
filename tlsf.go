@@ -151,19 +151,19 @@ func (a *TLSF) Alloc(size Pointer) Pointer {
 	if p == 0 {
 		return 0
 	}
-	memzero(unsafe.Pointer(p), uintptr(size))
-	return p + _TLSFBlockOverhead
+	p = p + _TLSFBlockOverhead
+	return p
 }
 
-// AllocNotCleared allocates a block of memory that fits the size provided
+// AllocZeroed allocates a block of memory that fits the size provided
 //goland:noinspection GoVetUnsafePointer
-func (a *TLSF) AllocNotCleared(size Pointer) Pointer {
+func (a *TLSF) AllocZeroed(size Pointer) Pointer {
 	p := Pointer(unsafe.Pointer(a.allocateBlock(size)))
 	if p == 0 {
 		return 0
 	}
 	p = p + _TLSFBlockOverhead
-
+	memzero(unsafe.Pointer(p), uintptr(size))
 	return p
 }
 
@@ -683,7 +683,7 @@ func (a *TLSF) addMemory(start, end Pointer) bool {
 }
 
 // Computes the size (excl. header) of a block.
-func computeSize(size Pointer) Pointer {
+func tlsfComputeSize(size Pointer) Pointer {
 	// Size must be large enough and aligned minus preceeding overhead
 	if size <= _TLSFBlockMinSize {
 		return _TLSFBlockMinSize
@@ -697,7 +697,7 @@ func prepareSize(size Pointer) Pointer {
 	if size > _TLSFBlockMaxSize {
 		panic("allocation too large")
 	}
-	return computeSize(size)
+	return tlsfComputeSize(size)
 }
 
 // Allocates a block of the specified size.

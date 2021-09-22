@@ -1,4 +1,4 @@
-package mem
+package rhmap
 
 import "unsafe"
 

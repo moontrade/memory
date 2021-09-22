@@ -38,7 +38,11 @@ type Kind int
 // Key Type.
 // Key can be a set of any characters include unicode chars with null bytes.
 type Key struct {
-	mem.Bytes
+	mem.Str
+}
+
+func (k Key) Clone() Key {
+	return Key{k.Str.Clone()}
 }
 
 // Value type.

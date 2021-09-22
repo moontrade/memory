@@ -117,7 +117,7 @@ func (t *tree) recursiveInsert(curNode **artNode, key Key, value Value, depth ui
 		leafsLCP := t.longestCommonPrefix(leaf, leaf2, depth)
 
 		newNode := factory.newNode4()
-		newNode.setPrefix(key.Bytes.Bytes()[depth:], leafsLCP)
+		newNode.setPrefix(key.Bytes()[depth:], leafsLCP)
 		depth += leafsLCP
 
 		newNode.addChild(leaf.key.charAt(int(depth)), leaf.key.valid(int(depth)), current)
