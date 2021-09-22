@@ -27,20 +27,20 @@ const (
 	_SDS64HeaderTotalSize = Str(10 + int(_TLSFBlockOverhead))
 )
 
-func AllocString(size int) Str {
+func AllocString(size uintptr) Str {
 	return newString(NextAllocator(), size)
 }
 
-func newString(a Allocator, size int) Str {
+func newString(a Allocator, size uintptr) Str {
 	switch {
 	case size <= math.MaxUint8:
-		return Str(a.Alloc(Pointer(size+_SDS8HeaderSize))+Pointer(_SDS8HeaderSize)).init(a.Slot(), _SDSType8)
+		return Str(a.Alloc(size+_SDS8HeaderSize)+Pointer(_SDS8HeaderSize)).init(a.Slot(), _SDSType8)
 	case size <= math.MaxUint16:
-		return Str(a.Alloc(Pointer(size+_SDS16HeaderSize))+Pointer(_SDS16HeaderSize)).init(a.Slot(), _SDSType16)
+		return Str(a.Alloc(size+_SDS16HeaderSize)+Pointer(_SDS16HeaderSize)).init(a.Slot(), _SDSType16)
 	case size <= math.MaxUint32:
-		return Str(a.Alloc(Pointer(size+_SDS32HeaderSize))+Pointer(_SDS32HeaderSize)).init(a.Slot(), _SDSType32)
+		return Str(a.Alloc(size+_SDS32HeaderSize)+Pointer(_SDS32HeaderSize)).init(a.Slot(), _SDSType32)
 	default:
-		return Str(a.Alloc(Pointer(size+_SDS64HeaderSize))+Pointer(_SDS64HeaderSize)).init(a.Slot(), _SDSType64)
+		return Str(a.Alloc(size+_SDS64HeaderSize)+Pointer(_SDS64HeaderSize)).init(a.Slot(), _SDSType64)
 	}
 }
 

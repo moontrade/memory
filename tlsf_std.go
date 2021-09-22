@@ -66,7 +66,7 @@ func (a *TLSFSync) AsAllocator() Allocator {
 
 // Alloc allocates a block of memory that fits the size provided.
 // The allocation IS cleared / zeroed out.
-func (a *TLSFSync) Alloc(size Pointer) Pointer {
+func (a *TLSFSync) Alloc(size uintptr) Pointer {
 	a.Lock()
 	defer a.Unlock()
 	return a.a.Alloc(size)
@@ -74,7 +74,7 @@ func (a *TLSFSync) Alloc(size Pointer) Pointer {
 
 // AllocZeroed allocates a block of memory that fits the size provided.
 // The allocation is NOT cleared / zeroed out.
-func (a *TLSFSync) AllocZeroed(size Pointer) Pointer {
+func (a *TLSFSync) AllocZeroed(size uintptr) Pointer {
 	a.Lock()
 	defer a.Unlock()
 	return a.a.AllocZeroed(size)
@@ -82,10 +82,10 @@ func (a *TLSFSync) AllocZeroed(size Pointer) Pointer {
 
 // Realloc determines the best way to resize an allocation.
 // Any extra size added is NOT cleared / zeroed out.
-func (a *TLSFSync) Realloc(ptr Pointer, size Pointer) Pointer {
+func (a *TLSFSync) Realloc(ptr Pointer, size uintptr) Pointer {
 	a.Lock()
 	defer a.Unlock()
-	return Pointer(unsafe.Pointer(a.a.moveBlock(tlsfCheckUsedBlock(ptr), size))) + _TLSFBlockOverhead
+	return Pointer(unsafe.Pointer(a.a.moveBlock(tlsfCheckUsedBlock(ptr), Pointer(size)))) + _TLSFBlockOverhead
 }
 
 // Free release the allocation back into the free list.
@@ -95,22 +95,8 @@ func (a *TLSFSync) Free(ptr Pointer) {
 	a.a.freeBlock(tlsfCheckUsedBlock(ptr))
 }
 
-//goland:noinspection GoVetUnsafePointer
-func (a *TLSFSync) Bytes(length Pointer) Bytes {
-	a.Lock()
-	defer a.Unlock()
-	return a.a.BytesCap(length, length)
-}
-
-//goland:noinspection GoVetUnsafePointer
-func (a *TLSFSync) BytesCap(length, capacity Pointer) Bytes {
-	a.Lock()
-	defer a.Unlock()
-	return a.a.BytesCap(length, capacity)
-}
-
-func (a *TLSFSync) BytesCapNotCleared(length, capacity Pointer) Bytes {
-	a.Lock()
-	defer a.Unlock()
-	return a.a.BytesCapNotCleared(length, capacity)
+// Alloc allocates a block of memory that fits the size provided.
+// The allocation IS cleared / zeroed out.
+func (a *TLSFSync) AllocString(size uintptr) Str {
+	return newString(a.AsAllocator(), size)
 }

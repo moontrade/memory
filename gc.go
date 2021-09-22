@@ -62,7 +62,7 @@ func (o GCObject) Ptr() Pointer {
 type GC struct {
 	allocs      PointerSet
 	first, last Pointer
-	allocator   *TLSF
+	allocator   Allocator
 	markGlobals MarkFn
 	markStack   MarkFn
 	GCStats
@@ -138,11 +138,11 @@ func GCPrintDebug() {
 
 //goland:noinspection ALL
 func NewGC(
-	allocator *TLSF,
-	initialCapacity Pointer,
+	allocator Allocator,
+	initialCapacity uintptr,
 	markGlobals, markStack MarkFn,
 ) *GC {
-	gc := (*GC)(allocator.Alloc(Pointer(unsafe.Sizeof(GC{}))).Unsafe())
+	gc := (*GC)(allocator.Alloc(unsafe.Sizeof(GC{})).Unsafe())
 	gc.allocator = allocator
 	gc.allocs = NewPointerSet(allocator, initialCapacity)
 	gc.first = ^Pointer(0)
@@ -165,7 +165,7 @@ func (o *gcObject) size() Pointer {
 	return _TLSFBlockOverhead + (o.mmInfo & ^Pointer(3))
 }
 
-func (gc *GC) Allocator() *TLSF {
+func (gc *GC) Allocator() Allocator {
 	return gc.allocator
 }
 
@@ -283,14 +283,14 @@ func (gc *GC) markGraph(root Pointer) {
 
 // New allocates a new GC Object
 //goland:noinspection ALL
-func (gc *GC) New(size Pointer) Pointer {
+func (gc *GC) New(size uintptr) Pointer {
 	// Is the size too large?
-	if size > gc_OBJECT_MAXSIZE {
+	if size > uintptr(gc_OBJECT_MAXSIZE) {
 		panic("allocation too large")
 	}
 
 	// Allocate memory
-	obj := (*gcObject)(unsafe.Pointer(Pointer(gc.allocator.AllocZeroed(gc_OBJECT_OVERHEAD+size)) - _TLSFBlockOverhead))
+	obj := (*gcObject)(unsafe.Pointer(Pointer(gc.allocator.AllocZeroed(uintptr(gc_OBJECT_OVERHEAD)+size)) - _TLSFBlockOverhead))
 	if obj == nil {
 		return Pointer(0)
 	}

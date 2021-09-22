@@ -1218,7 +1218,7 @@ func (b *Bytes) EnsureCap(neededCap int) bool {
 		return true
 	}
 	newCap := neededCap - b.cap
-	addr := b.alloc.Realloc(b.Pointer, Pointer(newCap))
+	addr := b.alloc.Realloc(b.Pointer, uintptr(newCap))
 	//addr := ((*Allocator)(unsafe.Pointer(p.alloc))).Realloc(p.Pointer, Pointer(newCap))
 	if addr == 0 {
 		return false
@@ -1228,12 +1228,12 @@ func (b *Bytes) EnsureCap(neededCap int) bool {
 	return true
 }
 
-// Clone creates a copy of this instance of Bytes
-func (b *Bytes) Clone() Bytes {
-	c := b.alloc.Bytes(Pointer(b.len))
-	memcpy(c.Unsafe(), b.Unsafe(), uintptr(b.len))
-	return c
-}
+//// Clone creates a copy of this instance of Bytes
+//func (b *Bytes) Clone() Bytes {
+//	c := b.alloc.Bytes(Pointer(b.len))
+//	memcpy(c.Unsafe(), b.Unsafe(), uintptr(b.len))
+//	return c
+//}
 
 func (b *Bytes) Append(value Bytes) int {
 	b.EnsureCap(b.len + value.len)

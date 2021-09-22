@@ -146,8 +146,8 @@ const (
 
 // Alloc allocates a block of memory that fits the size provided
 //goland:noinspection GoVetUnsafePointer
-func (a *TLSF) Alloc(size Pointer) Pointer {
-	p := Pointer(unsafe.Pointer(a.allocateBlock(size)))
+func (a *TLSF) Alloc(size uintptr) Pointer {
+	p := Pointer(unsafe.Pointer(a.allocateBlock(Pointer(size))))
 	if p == 0 {
 		return 0
 	}
@@ -157,19 +157,19 @@ func (a *TLSF) Alloc(size Pointer) Pointer {
 
 // AllocZeroed allocates a block of memory that fits the size provided
 //goland:noinspection GoVetUnsafePointer
-func (a *TLSF) AllocZeroed(size Pointer) Pointer {
-	p := Pointer(unsafe.Pointer(a.allocateBlock(size)))
+func (a *TLSF) AllocZeroed(size uintptr) Pointer {
+	p := Pointer(unsafe.Pointer(a.allocateBlock(Pointer(size))))
 	if p == 0 {
 		return 0
 	}
 	p = p + _TLSFBlockOverhead
-	memzero(unsafe.Pointer(p), uintptr(size))
+	memzero(unsafe.Pointer(p), size)
 	return p
 }
 
 // Realloc determines the best way to resize an allocation.
-func (a *TLSF) Realloc(ptr Pointer, size Pointer) Pointer {
-	p := Pointer(unsafe.Pointer(a.moveBlock(tlsfCheckUsedBlock(ptr), size)))
+func (a *TLSF) Realloc(ptr Pointer, size uintptr) Pointer {
+	p := Pointer(unsafe.Pointer(a.moveBlock(tlsfCheckUsedBlock(ptr), Pointer(size))))
 	if p == 0 {
 		return 0
 	}
@@ -184,36 +184,36 @@ func (a *TLSF) Free(ptr Pointer) {
 	a.freeBlock(tlsfCheckUsedBlock(ptr))
 }
 
-//goland:noinspection GoVetUnsafePointer
-func (a *TLSF) Bytes(length Pointer) Bytes {
-	b := a.BytesCapNotCleared(length, length)
-	memzero(b.Unsafe(), uintptr(b.Cap()))
-	return b
-}
-
-//goland:noinspection GoVetUnsafePointer
-func (a *TLSF) BytesCap(length, capacity Pointer) Bytes {
-	b := a.BytesCapNotCleared(length, capacity)
-	memzero(b.Unsafe(), uintptr(b.Cap()))
-	return b
-}
-
-func (a *TLSF) BytesCapNotCleared(length, capacity Pointer) Bytes {
-	if capacity < length {
-		capacity = length
-	}
-	size := capacity + Pointer(unsafe.Sizeof(bytesLayout{}))
-	p := Pointer(unsafe.Pointer(a.allocateBlock(size)))
-	if p == 0 {
-		return Bytes{}
-	}
-	return Bytes{
-		Pointer: p + _TLSFBlockOverhead,
-		len:     int(length),
-		cap:     int(*(*Pointer)(unsafe.Pointer(p)) & ^_TLSFTagsMask) - int(unsafe.Sizeof(bytesLayout{})),
-		alloc:   a.AsAllocator(),
-	}
-}
+////goland:noinspection GoVetUnsafePointer
+//func (a *TLSF) Bytes(length Pointer) Bytes {
+//	b := a.BytesCapNotCleared(length, length)
+//	memzero(b.Unsafe(), uintptr(b.Cap()))
+//	return b
+//}
+//
+////goland:noinspection GoVetUnsafePointer
+//func (a *TLSF) BytesCap(length, capacity Pointer) Bytes {
+//	b := a.BytesCapNotCleared(length, capacity)
+//	memzero(b.Unsafe(), uintptr(b.Cap()))
+//	return b
+//}
+//
+//func (a *TLSF) BytesCapNotCleared(length, capacity Pointer) Bytes {
+//	if capacity < length {
+//		capacity = length
+//	}
+//	size := capacity + Pointer(unsafe.Sizeof(bytesLayout{}))
+//	p := Pointer(unsafe.Pointer(a.allocateBlock(size)))
+//	if p == 0 {
+//		return Bytes{}
+//	}
+//	return Bytes{
+//		Pointer: p + _TLSFBlockOverhead,
+//		len:     int(length),
+//		cap:     int(*(*Pointer)(unsafe.Pointer(p)) & ^_TLSFTagsMask) - int(unsafe.Sizeof(bytesLayout{})),
+//		alloc:   a.AsAllocator(),
+//	}
+//}
 
 // bootstrap bootstraps the Allocator with the initial block of contiguous memory
 // that at least fits the minimum required to fit the bitmap.

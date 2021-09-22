@@ -27,19 +27,19 @@ func NextAllocator() Allocator {
 ////////////////////////////////////////////////////////////////////////////////////
 
 // Alloc calls Alloc on the system allocator
-func Alloc(size Pointer) Pointer {
+func Alloc(size uintptr) Pointer {
 	return allocator.Alloc(size)
 }
 
 // Alloc calls Alloc on the system allocator
 //export alloc
-func AllocZeroed(size Pointer) Pointer {
+func AllocZeroed(size uintptr) Pointer {
 	return allocator.AllocZeroed(size)
 }
 
 // Realloc calls Realloc on the system allocator
 //export realloc
-func Realloc(p Pointer, size Pointer) Pointer {
+func Realloc(p Pointer, size uintptr) Pointer {
 	return allocator.Realloc(p, size)
 }
 
@@ -49,20 +49,20 @@ func Free(p Pointer) {
 	allocator.Free(p)
 }
 
-// Alloc calls Alloc on the system allocator
-func AllocBytes(length Pointer) Bytes {
-	return allocator.Bytes(length)
-}
-
-// Alloc calls Alloc on the system allocator
-func AllocBytesCap(length, capacity Pointer) Bytes {
-	return allocator.BytesCapNotCleared(length, capacity)
-}
-
-// Alloc calls Alloc on the system allocator
-func AllocBytesCapNotCleared(length, capacity Pointer) Bytes {
-	return allocator.BytesCapNotCleared(length, capacity)
-}
+//// Alloc calls Alloc on the system allocator
+//func AllocBytes(length uintptr) Bytes {
+//	return allocator.Bytes(length)
+//}
+//
+//// Alloc calls Alloc on the system allocator
+//func AllocBytesCap(length, capacity uintptr) Bytes {
+//	return allocator.BytesCapNotCleared(length, capacity)
+//}
+//
+//// Alloc calls Alloc on the system allocator
+//func AllocBytesCapNotCleared(length, capacity uintptr) Bytes {
+//	return allocator.BytesCapNotCleared(length, capacity)
+//}
 
 func Scope(fn func(a Auto)) {
 	a := NewAuto(allocator.AsAllocator(), 32)
@@ -79,7 +79,7 @@ func (a *TLSF) Scope(fn func(a Auto)) {
 }
 
 func extalloc(size uintptr) unsafe.Pointer {
-	ptr := unsafe.Pointer(allocator.Alloc(Pointer(size)))
+	ptr := unsafe.Pointer(allocator.Alloc(size))
 	//println("extalloc", uint(uintptr(ptr)))
 	return ptr
 }
@@ -97,15 +97,15 @@ func (a *TLSF) AsAllocator() Allocator {
 	return Allocator(unsafe.Pointer(a))
 }
 
-func (a Allocator) Alloc(size Pointer) Pointer {
+func (a Allocator) Alloc(size uintptr) Pointer {
 	return (*TLSF)(unsafe.Pointer(a)).Alloc(size)
 }
 
-func (a Allocator) AllocNotCleared(size Pointer) Pointer {
+func (a Allocator) AllocZeroed(size uintptr) Pointer {
 	return (*TLSF)(unsafe.Pointer(a)).AllocZeroed(size)
 }
 
-func (a Allocator) Realloc(ptr, size Pointer) Pointer {
+func (a Allocator) Realloc(ptr Pointer, size uintptr) Pointer {
 	return (*TLSF)(unsafe.Pointer(a)).Realloc(ptr, size)
 }
 
@@ -113,16 +113,8 @@ func (a Allocator) Free(ptr Pointer) {
 	(*TLSF)(unsafe.Pointer(a)).Free(ptr)
 }
 
-func (a Allocator) Bytes(length Pointer) Bytes {
-	return (*TLSF)(unsafe.Pointer(a)).Bytes(length)
-}
-
-func (a Allocator) BytesCap(length, capacity Pointer) Bytes {
-	return (*TLSF)(unsafe.Pointer(a)).BytesCap(length, capacity)
-}
-
-func (a Allocator) BytesCapNotCleared(length, capacity Pointer) Bytes {
-	return (*TLSF)(unsafe.Pointer(a)).BytesCapNotCleared(length, capacity)
+func (a Allocator) Str(size uintptr) Str {
+	return AllocString(size)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -215,11 +207,6 @@ func memequal(x, y unsafe.Pointer, size uintptr) bool
 //	//	len: int(n),
 //	//}))
 //}
-
-func heapAlloc(size uintptr) unsafe.Pointer {
-	//println("heapAlloc")
-	return unsafe.Pointer(allocator.Alloc(Pointer(size)))
-}
 
 //go:linkname initAllocator runtime.initAllocator
 func initAllocator(heapStart, heapEnd uintptr) {

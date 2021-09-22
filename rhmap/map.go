@@ -1,6 +1,9 @@
 package rhmap
 
-import "unsafe"
+import (
+	mem "github.com/moontrade/memory"
+	"unsafe"
+)
 
 const (
 	map_TRACE = false
@@ -16,7 +19,7 @@ type Map struct {
 
 	// Number of keys in the Map.
 	count     uintptr
-	allocator *TLSF
+	allocator mem.Allocator
 
 	// When any item's distance gets too large, Grow the Map.
 	// Defaults to 10.
@@ -30,15 +33,15 @@ type Map struct {
 
 // Item represents an entry in the Map.
 type mapItem struct {
-	key      Bytes
-	value    Bytes
+	key      mem.Str
+	value    mem.Str
 	distance int32 // How far item is from its best position.
 }
 
 // NewMap returns a new robinhood hashmap.
 //goland:noinspection ALL
-func NewMap(allocator *TLSF, size uintptr) Map {
-	items := allocator.Alloc(Pointer(unsafe.Sizeof(mapItem{}) * size))
+func NewMap(allocator mem.Allocator, size uintptr) Map {
+	items := allocator.Alloc(mem.Pointer(unsafe.Sizeof(mapItem{}) * size))
 	memzero(items.Unsafe(), unsafe.Sizeof(mapItem{})*size)
 	return Map{
 		items:        uintptr(items),

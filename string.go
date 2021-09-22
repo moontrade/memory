@@ -219,7 +219,7 @@ func (s *Str) EnsureCap(neededCap int) bool {
 		return true
 	}
 	newCap := neededCap - cp
-	addr := s.Allocator().Realloc(s.allocationPointer(), Pointer(newCap))
+	addr := s.Allocator().Realloc(s.allocationPointer(), uintptr(newCap))
 	//addr := ((*Allocator)(unsafe.Pointer(p.alloc))).Realloc(p.Pointer, Pointer(newCap))
 	if addr == 0 {
 		return false
@@ -231,7 +231,7 @@ func (s *Str) EnsureCap(neededCap int) bool {
 // Clone creates a copy of this instance of Bytes
 func (s *Str) Clone() Str {
 	l := s.Len()
-	c := AllocString(l)
+	c := AllocString(uintptr(l))
 	memcpy(c.Unsafe(), s.Pointer().Unsafe(), uintptr(l))
 	c.setLen(l)
 	return c

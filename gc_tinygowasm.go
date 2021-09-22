@@ -19,7 +19,7 @@ func gcInitHeap(heapStart, heapEnd uintptr) {
 	if allocator == nil {
 		initAllocator(heapStart, heapEnd)
 	}
-	collector = NewGC(allocator, 64, doMarkGlobals, doMarkStack)
+	collector = NewGC(allocator.AsAllocator(), 64, doMarkGlobals, doMarkStack)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -32,7 +32,7 @@ func gcAlloc(size uintptr) unsafe.Pointer {
 		println("gcAlloc", uint(size))
 	}
 
-	ptr := collector.New(Pointer(size))
+	ptr := collector.New(size)
 	//println("alloc ptr", uint(ptr))
 	return unsafe.Pointer(ptr)
 }
