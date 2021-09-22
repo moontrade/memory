@@ -13,7 +13,7 @@ const (
 // implementation is not concurrent safe.
 type Map struct {
 	// items are the slots of the hashmap for items.
-	items uintptr
+	items mem.Pointer
 	end   uintptr
 	size  uintptr
 
@@ -41,10 +41,9 @@ type mapItem struct {
 // NewMap returns a new robinhood hashmap.
 //goland:noinspection ALL
 func NewMap(allocator mem.Allocator, size uintptr) Map {
-	items := allocator.Alloc(mem.Pointer(unsafe.Sizeof(mapItem{}) * size))
-	memzero(items.Unsafe(), unsafe.Sizeof(mapItem{})*size)
+	items := allocator.AllocZeroed(unsafe.Sizeof(mapItem{}) * size)
 	return Map{
-		items:        uintptr(items),
+		items:        items,
 		size:         size,
 		end:          uintptr(items) + (size * unsafe.Sizeof(mapItem{})),
 		allocator:    allocator,
@@ -67,19 +66,19 @@ func (ps *Map) Close() error {
 		ps.freeAll()
 	}
 
-	ps.allocator.Free(Pointer(ps.items))
+	ps.allocator.Free(ps.items)
 	ps.items = 0
 	return nil
 }
 
 func (ps *Map) freeAll() {
-	for i := ps.items; i < ps.end; i += unsafe.Sizeof(mapItem{}) {
+	for i := uintptr(ps.items); i < ps.end; i += unsafe.Sizeof(mapItem{}) {
 		item := (*mapItem)(unsafe.Pointer(i))
-		if item.key.Pointer == 0 {
+		if item.key == 0 {
 			continue
 		}
 		item.key.Free()
-		if item.value.Pointer != 0 {
+		if item.value != 0 {
 			item.value.Free()
 		}
 	}
@@ -91,21 +90,21 @@ func (ps *Map) Reset() {
 	if ps.freeOnClose {
 		ps.freeAll()
 	}
-	memzero(unsafe.Pointer(ps.items), unsafe.Sizeof(mapItem{})*ps.size)
+	ps.items.Zero(unsafe.Sizeof(mapItem{}) * ps.size)
 	ps.count = 0
 }
 
 //goland:noinspection GoVetUnsafePointer
-func (ps *Map) isCollision(key Bytes) bool {
+func (ps *Map) isCollision(key mem.Str) bool {
 	return *(*uintptr)(unsafe.Pointer(
-		ps.items + (uintptr(key.Hash32()%uint32(ps.size)) * unsafe.Sizeof(pointerSetItem{})))) != 0
+		uintptr(ps.items) + (uintptr(key.Hash32()%uint32(ps.size)) * unsafe.Sizeof(mapItem{})))) != 0
 }
 
 // Has returns whether the key exists in the Add.
 //goland:noinspection ALL
-func (ps *Map) Has(key Bytes) bool {
+func (ps *Map) Has(key mem.Str) bool {
 	var (
-		idx      = ps.items + (uintptr(key.Hash32()%uint32(ps.size)) * unsafe.Sizeof(pointerSetItem{}))
+		idx      = uintptr(ps.items) + (uintptr(key.Hash32()%uint32(ps.size)) * unsafe.Sizeof(mapItem{}))
 		idxStart = idx
 	)
 	for {
@@ -113,12 +112,12 @@ func (ps *Map) Has(key Bytes) bool {
 		if entry == nil {
 			return false
 		}
-		if entry.key.Equals(&key) {
+		if entry.key.Equals(key) {
 			return true
 		}
 		idx += unsafe.Sizeof(mapItem{})
 		if idx >= ps.end {
-			idx = ps.items
+			idx = uintptr(ps.items)
 		}
 		// Went all the way around?
 		if idx == idxStart {
@@ -129,31 +128,31 @@ func (ps *Map) Has(key Bytes) bool {
 
 // Get returns whether the key exists in the Add.
 //goland:noinspection ALL
-func (ps *Map) Get(key Bytes) (Bytes, bool) {
+func (ps *Map) Get(key mem.Str) (mem.Str, bool) {
 	var (
-		idx      = ps.items + (uintptr(key.Hash32()%uint32(ps.size)) * unsafe.Sizeof(pointerSetItem{}))
+		idx      = uintptr(ps.items) + (uintptr(key.Hash32()%uint32(ps.size)) * unsafe.Sizeof(mapItem{}))
 		idxStart = idx
 	)
 	for {
 		entry := (*mapItem)(unsafe.Pointer(idx))
-		if entry.key.Pointer == 0 {
-			return Bytes{}, false
+		if entry.key == 0 {
+			return 0, false
 		}
-		if entry.key.Equals(&key) {
+		if entry.key.Equals(key) {
 			return entry.value, true
 		}
 		idx += unsafe.Sizeof(mapItem{})
 		if idx >= ps.end {
-			idx = ps.items
+			idx = uintptr(ps.items)
 		}
 		// Went all the way around?
 		if idx == idxStart {
-			return Bytes{}, false
+			return 0, false
 		}
 	}
 }
 
-func (ps *Map) Set(key Bytes, value Bytes) (Bytes, bool, bool) {
+func (ps *Map) Set(key mem.Str, value mem.Str) (mem.Str, bool, bool) {
 	return ps.set(key, value, 0)
 }
 
@@ -162,21 +161,21 @@ func (ps *Map) Set(key Bytes, value Bytes) (Bytes, bool, bool) {
 // key, and wasNew will be false if the mutation was an update to an
 // existing key.
 //goland:noinspection GoVetUnsafePointer
-func (ps *Map) set(key Bytes, value Bytes, depth int) (Bytes, bool, bool) {
+func (ps *Map) set(key mem.Str, value mem.Str, depth int) (mem.Str, bool, bool) {
 	var (
-		idx      = ps.items + (uintptr(key.Hash32()%uint32(ps.size)) * unsafe.Sizeof(pointerSetItem{}))
+		idx      = uintptr(ps.items) + (uintptr(key.Hash32()%uint32(ps.size)) * unsafe.Sizeof(mapItem{}))
 		idxStart = idx
 		incoming = mapItem{key, value, 0}
 	)
 	for {
 		entry := (*mapItem)(unsafe.Pointer(idx))
-		if entry.key.Pointer == 0 {
+		if entry.key == 0 {
 			*(*mapItem)(unsafe.Pointer(idx)) = incoming
 			ps.count++
-			return Bytes{}, true, true
+			return 0, true, true
 		}
 
-		if entry.key.Equals(&incoming.key) {
+		if entry.key.Equals(incoming.key) {
 			old := entry.value
 			entry.value = incoming.value
 			entry.distance = incoming.distance
@@ -193,16 +192,16 @@ func (ps *Map) set(key Bytes, value Bytes, depth int) (Bytes, bool, bool) {
 
 		idx += unsafe.Sizeof(mapItem{})
 		if idx >= ps.end {
-			idx = ps.items
+			idx = uintptr(ps.items)
 		}
 
 		// Grow if distances become big or we went all the way around.
 		if incoming.distance > ps.maxDistance || idx == idxStart {
 			if depth > 5 {
-				return Bytes{}, false, false
+				return 0, false, false
 			}
 			if !ps.Grow() {
-				return Bytes{}, false, false
+				return 0, false, false
 			}
 			return ps.set(incoming.key, incoming.value, depth+1)
 		}
@@ -211,47 +210,47 @@ func (ps *Map) set(key Bytes, value Bytes, depth int) (Bytes, bool, bool) {
 
 // Delete removes a key from the Map.
 //goland:noinspection GoVetUnsafePointer
-func (ps *Map) Delete(key Bytes) (Bytes, bool) {
-	if key.Pointer == 0 {
-		return Bytes{}, false
+func (ps *Map) Delete(key mem.Str) (mem.Str, bool) {
+	if key == 0 {
+		return 0, false
 	}
 
 	var (
-		idx      = ps.items + (uintptr(key.Hash32()%uint32(ps.size)) * unsafe.Sizeof(pointerSetItem{}))
+		idx      = uintptr(ps.items) + (uintptr(key.Hash32()%uint32(ps.size)) * unsafe.Sizeof(mapItem{}))
 		idxStart = idx
-		prev     Bytes
+		prev     mem.Str
 	)
 	for {
 		entry := (*mapItem)(unsafe.Pointer(idx))
-		if entry.key.Pointer == 0 {
-			return Bytes{}, false
+		if entry.key == 0 {
+			return 0, false
 		}
 
-		if entry.key.Equals(&key) {
+		if entry.key.Equals(key) {
 			// Found the item.
 			prev = entry.value
 			break
 		}
 		idx += unsafe.Sizeof(mapItem{})
 		if idx >= ps.end {
-			idx = ps.items
+			idx = uintptr(ps.items)
 		}
 		if idx == idxStart {
-			return Bytes{}, false
+			return 0, false
 		}
 	}
 	// Left-shift succeeding items in the linear chain.
 	for {
 		next := idx + unsafe.Sizeof(mapItem{})
 		if next >= ps.end {
-			next = ps.items
+			next = uintptr(ps.items)
 		}
 		// Went all the way around?
 		if next == idx {
 			break
 		}
 		f := (*mapItem)(unsafe.Pointer(next))
-		if f.key.Pointer == 0 || f.distance <= 0 {
+		if f.key == 0 || f.distance <= 0 {
 			break
 		}
 		f.distance--
@@ -278,11 +277,9 @@ func (ps *Map) Grow() bool {
 	}
 
 	// Allocate new items table
-	items := uintptr(ps.allocator.Alloc(Pointer(newSize * unsafe.Sizeof(mapItem{}))))
+	items := ps.allocator.AllocZeroed(newSize * unsafe.Sizeof(mapItem{}))
 	// Calculate end
-	itemsEnd := items + (newSize * unsafe.Sizeof(mapItem{}))
-	// Zero the allocation out
-	memzero(unsafe.Pointer(items), newSize*unsafe.Sizeof(mapItem{}))
+	itemsEnd := uintptr(items) + (newSize * unsafe.Sizeof(mapItem{}))
 	// Init next structure
 	next := Map{
 		items:        items,
@@ -299,7 +296,7 @@ func (ps *Map) Grow() bool {
 		success bool
 		item    *mapItem
 	)
-	for i := ps.items; i < ps.end; i += unsafe.Sizeof(mapItem{}) {
+	for i := uintptr(ps.items); i < ps.end; i += unsafe.Sizeof(mapItem{}) {
 		item = (*mapItem)(unsafe.Pointer(i))
 		if _, _, success = next.set(item.key, item.value, 0); !success {
 			return false
@@ -307,7 +304,7 @@ func (ps *Map) Grow() bool {
 	}
 
 	// Free old items
-	ps.allocator.Free(Pointer(ps.items))
+	ps.allocator.Free(ps.items)
 	ps.items = 0
 
 	// Update to next

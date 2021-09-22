@@ -12,13 +12,13 @@ import (
 var alloc = mem.NewTLSF(1)
 
 func keyOf(v string) Key {
-	s := mem.AllocString(len(v))
+	s := mem.AllocString(uintptr(len(v)))
 	s.AppendString(v)
 	return Key{s}
 }
 
 func keyOfBytes(v []byte) Key {
-	s := mem.AllocString(len(v))
+	s := mem.AllocString(uintptr(len(v)))
 	s.AppendBytes(v)
 	return Key{s}
 }

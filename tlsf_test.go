@@ -114,7 +114,7 @@ func thrashAllocator(
 
 		for _, size := range sz {
 			allocs = append(allocs, allocation{
-				ptr:  allocator.Alloc(Pointer(size)), //tlsfalloc(uintptr(size)),
+				ptr:  allocator.Alloc(uintptr(size)), //tlsfalloc(uintptr(size)),
 				size: size,
 			})
 			allocSize += size
@@ -220,7 +220,7 @@ func BenchmarkMemzero(b *testing.B) {
 
 func BenchmarkAllocator_Alloc(b *testing.B) {
 	var (
-		min, max    = 24, 1024
+		min, max    = 24, 2048
 		showGCStats = false
 	)
 	after := func() {
@@ -251,7 +251,18 @@ func BenchmarkAllocator_Alloc(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			size := randomRangeSizes[i%len(randomRangeSizes)]
 			b.SetBytes(int64(size))
-			a.Free(a.Alloc(Pointer(size)))
+			a.Free(a.Alloc(uintptr(size)))
+		}
+		after()
+	})
+	b.Run("TLSF allocZeroed", func(b *testing.B) {
+		a := NewTLSFArena(1, NewSliceArena(), GrowMin)
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			size := randomRangeSizes[i%len(randomRangeSizes)]
+			b.SetBytes(int64(size))
+			a.Free(a.AllocZeroed(uintptr(size)))
 		}
 		after()
 	})
@@ -263,7 +274,19 @@ func BenchmarkAllocator_Alloc(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			size := randomRangeSizes[i%len(randomRangeSizes)]
 			b.SetBytes(int64(size))
-			a.Free(a.Alloc(size))
+			a.Free(a.Alloc(uintptr(size)))
+		}
+		after()
+	})
+	b.Run("Allocator allocZeroed", func(b *testing.B) {
+		al := NewTLSFArena(1, NewSliceArena(), GrowMin)
+		a := toTLSFAllocator(al)
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			size := randomRangeSizes[i%len(randomRangeSizes)]
+			b.SetBytes(int64(size))
+			a.Free(a.AllocZeroed(uintptr(size)))
 		}
 		after()
 	})
@@ -274,7 +297,18 @@ func BenchmarkAllocator_Alloc(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			size := randomRangeSizes[i%len(randomRangeSizes)]
 			b.SetBytes(int64(size))
-			a.Free(a.Alloc(Pointer(size)))
+			a.Free(a.Alloc(uintptr(size)))
+		}
+		after()
+	})
+	b.Run("Sync TLSF allocZeroed", func(b *testing.B) {
+		a := NewTLSFArena(1, NewSliceArena(), GrowMin).ToSync()
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			size := randomRangeSizes[i%len(randomRangeSizes)]
+			b.SetBytes(int64(size))
+			a.Free(a.AllocZeroed(uintptr(size)))
 		}
 		after()
 	})
@@ -286,7 +320,19 @@ func BenchmarkAllocator_Alloc(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			size := randomRangeSizes[i%len(randomRangeSizes)]
 			b.SetBytes(int64(size))
-			a.Free(a.Alloc(Pointer(size)))
+			a.Free(a.Alloc(uintptr(size)))
+		}
+		after()
+	})
+	b.Run("Sync Allocator allocZeroed", func(b *testing.B) {
+		al := NewTLSFArena(1, NewSliceArena(), GrowMin).ToSync()
+		a := toTLSFSyncAllocator(al)
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			size := randomRangeSizes[i%len(randomRangeSizes)]
+			b.SetBytes(int64(size))
+			a.Free(a.AllocZeroed(uintptr(size)))
 		}
 		after()
 	})
@@ -297,7 +343,7 @@ func BenchmarkAllocator_Alloc(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			size := randomRangeSizes[i%len(randomRangeSizes)]
 			b.SetBytes(int64(size))
-			_ = make([]byte, size)
+			_ = make([]byte, 0, size)
 		}
 		after()
 	})
@@ -420,28 +466,28 @@ func GetBytes(n int) []byte {
 	case 32:
 		return pool32.Get().([]byte)[:n]
 	case 64:
-		//switch {
-		//case n < 41:
-		//	return pool40.Get().([]byte)[:n]
-		//case n < 49:
-		//	return pool48.Get().([]byte)[:n]
-		//case n < 57:
-		//	return pool56.Get().([]byte)[:n]
-		//}
+		switch {
+		case n < 41:
+			return pool40.Get().([]byte)[:n]
+		case n < 49:
+			return pool48.Get().([]byte)[:n]
+		case n < 57:
+			return pool56.Get().([]byte)[:n]
+		}
 		return pool64.Get().([]byte)[:n]
 	case 128:
-		//switch {
-		//case n < 73:
-		//	return pool72.Get().([]byte)[:n]
-		//case n < 97:
-		//	return pool96.Get().([]byte)[:n]
-		//}
+		switch {
+		case n < 73:
+			return pool72.Get().([]byte)[:n]
+		case n < 97:
+			return pool96.Get().([]byte)[:n]
+		}
 		return pool128.Get().([]byte)[:n]
 	case 256:
-		//switch {
-		//case n < 193:
-		//	return pool192.Get().([]byte)[:n]
-		//}
+		switch {
+		case n < 193:
+			return pool192.Get().([]byte)[:n]
+		}
 		return pool256.Get().([]byte)[:n]
 	case 512:
 		if n <= 384 {

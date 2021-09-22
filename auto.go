@@ -96,11 +96,11 @@ func (au Auto) Alloc(size uintptr) Pointer {
 //goland:noinspection GoVetUnsafePointer
 func (au Auto) Str(size uintptr) Str {
 	if au == 0 {
-		return 0
+		return Str{}
 	}
 	h := (*autoHead)(unsafe.Pointer(au))
 	p := h.alloc.Str(size)
-	au.add(p.Pointer())
+	au.add(p.Pointer)
 	return p
 }
 

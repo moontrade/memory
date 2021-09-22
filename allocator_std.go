@@ -11,7 +11,7 @@ import (
 
 var (
 	allocator      *TLSFSync
-	allocatorSlots = runtime.NumCPU()
+	allocatorSlots = runtime.NumCPU() * 2
 )
 
 func init() {
@@ -40,13 +40,12 @@ func AllocatorBySlot(slot uint8) Allocator {
 	return _Allocators[slot]
 }
 func NextAllocator() Allocator {
-	_AllocatorCount++ // no atomics since it doesn't really matter if it's a perfect round-robin
+	_AllocatorCount++
 	return _Allocators[_AllocatorCount%255]
 }
-
-//func nextAllocatorAtomic() Allocator {
-//	return _Allocators[atomic.AddUint64(&_AllocatorCount, 1)%255]
-//}
+func NextAllocatorRandom() Allocator {
+	return _Allocators[fastrand()%255]
+}
 
 func Scope(fn func(a Auto)) {
 	a := NewAuto(allocator.AsAllocator(), 32)
@@ -335,3 +334,6 @@ func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
 
 //go:linkname memequal runtime.memequal
 func memequal(a, b unsafe.Pointer, size uintptr) bool
+
+//go:linkname fastrand runtime.fastrand
+func fastrand() uint32

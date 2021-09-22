@@ -18,34 +18,6 @@ func TestSDS(t *testing.T) {
 	println("size 41", "cap", str.Cap())
 }
 
-func BenchmarkNextAllocator(b *testing.B) {
-	b.Run("fast", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			_ = NextAllocator()
-		}
-	})
-	b.Run("slow", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			_ = nextAllocatorSlow()
-		}
-	})
-	b.Run("atomic", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			_ = nextAllocatorAtomic()
-		}
-	})
-
-	b.RunParallel(func(pb *testing.PB) {
-		for pb.Next() {
-			b.Run("atomic parallel", func(b *testing.B) {
-				for i := 0; i < b.N; i++ {
-					_ = nextAllocatorAtomic()
-				}
-			})
-		}
-	})
-}
-
 func BenchmarkSDS(b *testing.B) {
 	buf := make([]byte, 128, 256)
 	b.Run("len", func(b *testing.B) {

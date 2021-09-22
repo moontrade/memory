@@ -71,7 +71,7 @@ func (k Key) charAt(pos int) byte {
 	if pos < 0 || pos >= k.Len() {
 		return 0
 	}
-	return k.Byte(pos)
+	return k.Pointer.Byte(pos)
 }
 
 func (k Key) valid(pos int) bool {
@@ -125,7 +125,7 @@ func (an *artNode) matchDeep(key Key, depth uint32) uint32 /* mismatch index*/ {
 	leaf := an.minimum()
 	limit := min(uint32(leaf.key.Len()), uint32(key.Len())) - depth
 	for ; mismatchIdx < limit; mismatchIdx++ {
-		if leaf.key.Byte(int(mismatchIdx+depth)) != key.Byte(int(mismatchIdx+depth)) {
+		if leaf.key.Pointer.Byte(int(mismatchIdx+depth)) != key.Pointer.Byte(int(mismatchIdx+depth)) {
 			break
 		}
 	}
@@ -744,7 +744,7 @@ func (an *artNode) shrink() *artNode {
 
 // Leaf methods
 func (l *leaf) match(key Key) bool {
-	if key.Str == 0 || l.key.Len() != key.Len() {
+	if key.Str.Pointer == 0 || l.key.Len() != key.Len() {
 		return false
 	}
 
@@ -753,7 +753,7 @@ func (l *leaf) match(key Key) bool {
 }
 
 func (l *leaf) prefixMatch(key Key) bool {
-	if key.Str == 0 || l.key.Len() < key.Len() {
+	if key.Str.Pointer == 0 || l.key.Len() < key.Len() {
 		return false
 	}
 
@@ -772,7 +772,7 @@ func (an *artNode) match(key Key, depth uint32) uint32 /* 1st mismatch index*/ {
 
 	limit := min(min(node.prefixLen, MaxPrefixLen), uint32(key.Len())-depth)
 	for ; idx < limit; idx++ {
-		if node.prefix[idx] != key.Byte(int(idx+depth)) {
+		if node.prefix[idx] != key.Pointer.Byte(int(idx+depth)) {
 			return idx
 		}
 	}

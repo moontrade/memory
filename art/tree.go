@@ -156,7 +156,7 @@ func (t *tree) recursiveInsert(curNode **artNode, key Key, value Value, depth ui
 			newNode.addChild(leaf.key.charAt(int(depth+prefixMismatchIdx)), leaf.key.valid(int(depth+prefixMismatchIdx)), current)
 
 			for i, limit := uint32(0), min(node.prefixLen, MaxPrefixLen); i < limit; i++ {
-				node.prefix[i] = leaf.key.Byte(int(depth + prefixMismatchIdx + i + 1))
+				node.prefix[i] = leaf.key.Pointer.Byte(int(depth + prefixMismatchIdx + i + 1))
 			}
 		}
 
@@ -229,7 +229,7 @@ func (t *tree) longestCommonPrefix(l1 *leaf, l2 *leaf, depth uint32) uint32 {
 	l1key, l2key := l1.key, l2.key
 	idx, limit := depth, min(uint32(l1key.Len()), uint32(l2key.Len()))
 	for ; idx < limit; idx++ {
-		if l1key.Byte(int(idx)) != l2key.Byte(int(idx)) {
+		if l1key.Pointer.Byte(int(idx)) != l2key.PointerAt().Byte(int(idx)) {
 			break
 		}
 	}

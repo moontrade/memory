@@ -20,16 +20,16 @@ func TestGC(t *testing.T) {
 		}
 	}
 	// Create GC
-	gc = NewGC(a, 16, markGlobals, nil)
+	gc = NewGC(a.AsAllocator(), 16, markGlobals, nil)
 
 	// Allocate root
-	root := func(size Pointer) Pointer {
+	root := func(size uintptr) Pointer {
 		p := gc.New(size)
 		roots[p] = struct{}{}
 		return p
 	}
 	// Allocate and leak
-	leak := func(size Pointer) Pointer {
+	leak := func(size uintptr) Pointer {
 		return gc.New(size)
 	}
 
@@ -55,7 +55,7 @@ func BenchmarkHashSet(b *testing.B) {
 	m := make(map[uintptr]struct{}, 16)
 	m[1000] = struct{}{}
 	a := NewTLSFArena(1, NewSliceArena(), GrowMin)
-	set := NewPointerSet(a, 16)
+	set := NewPointerSet(a.AsAllocator(), 16)
 	set.Set(1000)
 	s := &set
 
@@ -106,7 +106,7 @@ func BenchmarkHashSet(b *testing.B) {
 
 func BenchmarkHashSetHashAlgos(b *testing.B) {
 	a := NewTLSFArena(1, NewSliceArena(), GrowMin)
-	set := NewPointerSet(a, 16)
+	set := NewPointerSet(a.AsAllocator(), 16)
 	set.Set(1000)
 	s := &set
 
@@ -177,7 +177,7 @@ func Test_ThrashPointerSet(t *testing.T) {
 	)
 
 	run := func(name string, fn func(uint32) uint32) {
-		_set := NewPointerSet(allocator, Pointer(maxAllocs*128))
+		_set := NewPointerSet(allocator.AsAllocator(), uintptr(maxAllocs*128))
 		set := &_set
 		defer set.Close()
 		pointerSetHash = fn

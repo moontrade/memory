@@ -521,9 +521,11 @@ func (a *TLSF) searchBlock(size Pointer) *tlsfBlock {
 		fl = 0
 		sl = uint32(size >> _TLSFALBits)
 	} else {
-		const halfMaxSize = _TLSFBlockMaxSize >> 1 // don't round last fl
-		const inv = _TLSFSizeofPointer*8 - 1
-		const invRound = inv - Pointer(_TLSFSLBits)
+		const (
+			halfMaxSize = _TLSFBlockMaxSize >> 1 // don't round last fl
+			inv         = _TLSFSizeofPointer*8 - 1
+			invRound    = inv - Pointer(_TLSFSLBits)
+		)
 
 		var requestSize Pointer
 		if size < halfMaxSize {
@@ -662,8 +664,10 @@ func (a *TLSF) addMemory(start, end Pointer) bool {
 	}
 
 	// left size is total minus its own and the zero-length tail's header
-	var leftSize = size - 2*_TLSFBlockOverhead
-	var left = (*tlsfBlock)(unsafe.Pointer(start))
+	var (
+		leftSize = size - 2*_TLSFBlockOverhead
+		left     = (*tlsfBlock)(unsafe.Pointer(start))
+	)
 	left.mmInfo = leftSize | _TLSFFREE | (tailInfo & _TLSFLEFTFREE)
 	left.prev = 0
 	left.next = 0
@@ -822,11 +826,6 @@ func tlsfCheckUsedBlock(ptr Pointer) *tlsfBlock {
 		panic("used block is not valid to be freed or reallocated")
 	}
 	return block
-}
-
-//goland:noinspection GoVetUnsafePointer
-func allocationSize0(ptr Pointer) Pointer {
-	return ((*tlsfBlock)(unsafe.Pointer(ptr - _TLSFBlockOverhead))).mmInfo & ^_TLSFTagsMask
 }
 
 //goland:noinspection GoVetUnsafePointer

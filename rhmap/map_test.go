@@ -6,21 +6,20 @@ import (
 )
 
 func TestMap(t *testing.T) {
-	a := mem.NewTLSF(1)
-	m := NewMap(a, 16)
+	m := NewMap(mem.NextAllocator(), 16)
 
-	key := a.BytesCap(0, 16)
-	value := a.BytesCap(0, 16)
+	key := mem.AllocString(16)
+	value := mem.AllocString(16)
 
-	key.SetString(0, "MYID")
-	value.SetString(0, "MYVALUE")
+	key.AppendString("MYID")
+	value.AppendString("MYVALUE")
 
 	m.Set(key, value)
 
-	//v, ok := m.Get(key)
-	//if !ok {
-	//
-	//}
+	v, ok := m.Get(key)
+	if !ok {
 
-	//println(key.String(), v.String())
+	}
+
+	println(key.String(), v.String())
 }
