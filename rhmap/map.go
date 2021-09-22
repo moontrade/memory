@@ -74,11 +74,11 @@ func (ps *Map) Close() error {
 func (ps *Map) freeAll() {
 	for i := uintptr(ps.items); i < ps.end; i += unsafe.Sizeof(mapItem{}) {
 		item := (*mapItem)(unsafe.Pointer(i))
-		if item.key == 0 {
+		if item.key.IsNil() {
 			continue
 		}
 		item.key.Free()
-		if item.value != 0 {
+		if !item.value.IsNil() {
 			item.value.Free()
 		}
 	}
@@ -135,8 +135,8 @@ func (ps *Map) Get(key mem.Str) (mem.Str, bool) {
 	)
 	for {
 		entry := (*mapItem)(unsafe.Pointer(idx))
-		if entry.key == 0 {
-			return 0, false
+		if entry.key.Pointer == 0 {
+			return mem.Str{}, false
 		}
 		if entry.key.Equals(key) {
 			return entry.value, true
@@ -147,7 +147,7 @@ func (ps *Map) Get(key mem.Str) (mem.Str, bool) {
 		}
 		// Went all the way around?
 		if idx == idxStart {
-			return 0, false
+			return mem.Str{}, false
 		}
 	}
 }
@@ -169,10 +169,10 @@ func (ps *Map) set(key mem.Str, value mem.Str, depth int) (mem.Str, bool, bool) 
 	)
 	for {
 		entry := (*mapItem)(unsafe.Pointer(idx))
-		if entry.key == 0 {
+		if entry.key.Pointer == 0 {
 			*(*mapItem)(unsafe.Pointer(idx)) = incoming
 			ps.count++
-			return 0, true, true
+			return mem.Str{}, true, true
 		}
 
 		if entry.key.Equals(incoming.key) {
@@ -198,10 +198,10 @@ func (ps *Map) set(key mem.Str, value mem.Str, depth int) (mem.Str, bool, bool) 
 		// Grow if distances become big or we went all the way around.
 		if incoming.distance > ps.maxDistance || idx == idxStart {
 			if depth > 5 {
-				return 0, false, false
+				return mem.Str{}, false, false
 			}
 			if !ps.Grow() {
-				return 0, false, false
+				return mem.Str{}, false, false
 			}
 			return ps.set(incoming.key, incoming.value, depth+1)
 		}
@@ -211,8 +211,8 @@ func (ps *Map) set(key mem.Str, value mem.Str, depth int) (mem.Str, bool, bool) 
 // Delete removes a key from the Map.
 //goland:noinspection GoVetUnsafePointer
 func (ps *Map) Delete(key mem.Str) (mem.Str, bool) {
-	if key == 0 {
-		return 0, false
+	if key.Pointer == 0 {
+		return mem.Str{}, false
 	}
 
 	var (
@@ -222,8 +222,8 @@ func (ps *Map) Delete(key mem.Str) (mem.Str, bool) {
 	)
 	for {
 		entry := (*mapItem)(unsafe.Pointer(idx))
-		if entry.key == 0 {
-			return 0, false
+		if entry.key.Pointer == 0 {
+			return mem.Str{}, false
 		}
 
 		if entry.key.Equals(key) {
@@ -236,7 +236,7 @@ func (ps *Map) Delete(key mem.Str) (mem.Str, bool) {
 			idx = uintptr(ps.items)
 		}
 		if idx == idxStart {
-			return 0, false
+			return mem.Str{}, false
 		}
 	}
 	// Left-shift succeeding items in the linear chain.
@@ -250,7 +250,7 @@ func (ps *Map) Delete(key mem.Str) (mem.Str, bool) {
 			break
 		}
 		f := (*mapItem)(unsafe.Pointer(next))
-		if f.key == 0 || f.distance <= 0 {
+		if f.key.Pointer == 0 || f.distance <= 0 {
 			break
 		}
 		f.distance--

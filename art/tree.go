@@ -229,7 +229,7 @@ func (t *tree) longestCommonPrefix(l1 *leaf, l2 *leaf, depth uint32) uint32 {
 	l1key, l2key := l1.key, l2.key
 	idx, limit := depth, min(uint32(l1key.Len()), uint32(l2key.Len()))
 	for ; idx < limit; idx++ {
-		if l1key.Pointer.Byte(int(idx)) != l2key.PointerAt().Byte(int(idx)) {
+		if l1key.Pointer.Byte(int(idx)) != l2key.Pointer.Byte(int(idx)) {
 			break
 		}
 	}
