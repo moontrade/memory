@@ -725,7 +725,7 @@ func TestTreeTraversalForEachPrefixConditionalCallback(t *testing.T) {
 		if node.Kind() == Leaf {
 			totalCalls++
 			k := node.Key()
-			if k.Str.String() == "America#California#Irvine" {
+			if k.Bytes.String() == "America#California#Irvine" {
 				return false
 			}
 		}

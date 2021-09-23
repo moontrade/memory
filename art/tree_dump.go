@@ -108,7 +108,7 @@ func (ts *treeStringer) append(v interface{}, opts ...int) *treeStringer {
 
 	case Key:
 		k, _ := v.(Key)
-		ts.append(k.Str.Bytes())
+		ts.append(k.Bytes.Bytes())
 
 	default:
 		ts.append("[")

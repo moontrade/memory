@@ -2,7 +2,7 @@ package art
 
 import (
 	"errors"
-	mem "github.com/moontrade/memory"
+	"github.com/moontrade/memory/alloc"
 )
 
 // A constant exposing all node types.
@@ -38,11 +38,11 @@ type Kind int
 // Key Type.
 // Key can be a set of any characters include unicode chars with null bytes.
 type Key struct {
-	mem.Str
+	alloc.Bytes
 }
 
 func (k Key) Clone() Key {
-	return Key{k.Str.Clone()}
+	return Key{k.Bytes.Clone()}
 }
 
 // Value type.

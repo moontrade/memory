@@ -1,25 +1,25 @@
 package rhmap
 
 import (
-	mem "github.com/moontrade/memory"
+	. "github.com/moontrade/memory/alloc"
 	"unsafe"
 )
 
 const (
-	map_TRACE = false
+	_TRACE = false
 )
 
 // Map is a hashset that uses the robinhood algorithm. This
 // implementation is not concurrent safe.
 type Map struct {
 	// items are the slots of the hashmap for items.
-	items mem.Pointer
+	items Pointer
 	end   uintptr
 	size  uintptr
 
 	// Number of keys in the Map.
 	count     uintptr
-	allocator mem.Allocator
+	allocator Allocator
 
 	// When any item's distance gets too large, Grow the Map.
 	// Defaults to 10.
@@ -33,14 +33,14 @@ type Map struct {
 
 // Item represents an entry in the Map.
 type mapItem struct {
-	key      mem.Str
-	value    mem.Str
+	key      Bytes
+	value    Bytes
 	distance int32 // How far item is from its best position.
 }
 
 // NewMap returns a new robinhood hashmap.
 //goland:noinspection ALL
-func NewMap(allocator mem.Allocator, size uintptr) Map {
+func NewMap(allocator Allocator, size uintptr) Map {
 	items := allocator.AllocZeroed(unsafe.Sizeof(mapItem{}) * size)
 	return Map{
 		items:        items,
@@ -95,14 +95,14 @@ func (ps *Map) Reset() {
 }
 
 //goland:noinspection GoVetUnsafePointer
-func (ps *Map) isCollision(key mem.Str) bool {
+func (ps *Map) isCollision(key Bytes) bool {
 	return *(*uintptr)(unsafe.Pointer(
 		uintptr(ps.items) + (uintptr(key.Hash32()%uint32(ps.size)) * unsafe.Sizeof(mapItem{})))) != 0
 }
 
 // Has returns whether the key exists in the Add.
 //goland:noinspection ALL
-func (ps *Map) Has(key mem.Str) bool {
+func (ps *Map) Has(key Bytes) bool {
 	var (
 		idx      = uintptr(ps.items) + (uintptr(key.Hash32()%uint32(ps.size)) * unsafe.Sizeof(mapItem{}))
 		idxStart = idx
@@ -128,7 +128,7 @@ func (ps *Map) Has(key mem.Str) bool {
 
 // Get returns whether the key exists in the Add.
 //goland:noinspection ALL
-func (ps *Map) Get(key mem.Str) (mem.Str, bool) {
+func (ps *Map) Get(key Bytes) (Bytes, bool) {
 	var (
 		idx      = uintptr(ps.items) + (uintptr(key.Hash32()%uint32(ps.size)) * unsafe.Sizeof(mapItem{}))
 		idxStart = idx
@@ -136,7 +136,7 @@ func (ps *Map) Get(key mem.Str) (mem.Str, bool) {
 	for {
 		entry := (*mapItem)(unsafe.Pointer(idx))
 		if entry.key.Pointer == 0 {
-			return mem.Str{}, false
+			return Bytes{}, false
 		}
 		if entry.key.Equals(key) {
 			return entry.value, true
@@ -147,12 +147,12 @@ func (ps *Map) Get(key mem.Str) (mem.Str, bool) {
 		}
 		// Went all the way around?
 		if idx == idxStart {
-			return mem.Str{}, false
+			return Bytes{}, false
 		}
 	}
 }
 
-func (ps *Map) Set(key mem.Str, value mem.Str) (mem.Str, bool, bool) {
+func (ps *Map) Set(key Bytes, value Bytes) (Bytes, bool, bool) {
 	return ps.set(key, value, 0)
 }
 
@@ -161,7 +161,7 @@ func (ps *Map) Set(key mem.Str, value mem.Str) (mem.Str, bool, bool) {
 // key, and wasNew will be false if the mutation was an update to an
 // existing key.
 //goland:noinspection GoVetUnsafePointer
-func (ps *Map) set(key mem.Str, value mem.Str, depth int) (mem.Str, bool, bool) {
+func (ps *Map) set(key Bytes, value Bytes, depth int) (Bytes, bool, bool) {
 	var (
 		idx      = uintptr(ps.items) + (uintptr(key.Hash32()%uint32(ps.size)) * unsafe.Sizeof(mapItem{}))
 		idxStart = idx
@@ -172,7 +172,7 @@ func (ps *Map) set(key mem.Str, value mem.Str, depth int) (mem.Str, bool, bool) 
 		if entry.key.Pointer == 0 {
 			*(*mapItem)(unsafe.Pointer(idx)) = incoming
 			ps.count++
-			return mem.Str{}, true, true
+			return Bytes{}, true, true
 		}
 
 		if entry.key.Equals(incoming.key) {
@@ -198,10 +198,10 @@ func (ps *Map) set(key mem.Str, value mem.Str, depth int) (mem.Str, bool, bool) 
 		// Grow if distances become big or we went all the way around.
 		if incoming.distance > ps.maxDistance || idx == idxStart {
 			if depth > 5 {
-				return mem.Str{}, false, false
+				return Bytes{}, false, false
 			}
 			if !ps.Grow() {
-				return mem.Str{}, false, false
+				return Bytes{}, false, false
 			}
 			return ps.set(incoming.key, incoming.value, depth+1)
 		}
@@ -210,20 +210,20 @@ func (ps *Map) set(key mem.Str, value mem.Str, depth int) (mem.Str, bool, bool) 
 
 // Delete removes a key from the Map.
 //goland:noinspection GoVetUnsafePointer
-func (ps *Map) Delete(key mem.Str) (mem.Str, bool) {
+func (ps *Map) Delete(key Bytes) (Bytes, bool) {
 	if key.Pointer == 0 {
-		return mem.Str{}, false
+		return Bytes{}, false
 	}
 
 	var (
 		idx      = uintptr(ps.items) + (uintptr(key.Hash32()%uint32(ps.size)) * unsafe.Sizeof(mapItem{}))
 		idxStart = idx
-		prev     mem.Str
+		prev     Bytes
 	)
 	for {
 		entry := (*mapItem)(unsafe.Pointer(idx))
 		if entry.key.Pointer == 0 {
-			return mem.Str{}, false
+			return Bytes{}, false
 		}
 
 		if entry.key.Equals(key) {
@@ -236,7 +236,7 @@ func (ps *Map) Delete(key mem.Str) (mem.Str, bool) {
 			idx = uintptr(ps.items)
 		}
 		if idx == idxStart {
-			return mem.Str{}, false
+			return Bytes{}, false
 		}
 	}
 	// Left-shift succeeding items in the linear chain.
@@ -272,7 +272,7 @@ func (ps *Map) Grow() bool {
 	}
 	newSize := uintptr(float32(ps.size) * ps.growthFactor)
 
-	if map_TRACE {
+	if _TRACE {
 		println("Map.Grow", "newSize", uint(newSize), "oldSize", uint(ps.size))
 	}
 

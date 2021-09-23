@@ -744,21 +744,21 @@ func (an *artNode) shrink() *artNode {
 
 // Leaf methods
 func (l *leaf) match(key Key) bool {
-	if key.Str.Pointer == 0 || l.key.Len() != key.Len() {
+	if key.Bytes.Pointer == 0 || l.key.Len() != key.Len() {
 		return false
 	}
 
 	//return bytes.Compare(l.key[:len(key)], key) == 0
-	return l.key.Equals(key.Str)
+	return l.key.Equals(key.Bytes)
 }
 
 func (l *leaf) prefixMatch(key Key) bool {
-	if key.Str.Pointer == 0 || l.key.Len() < key.Len() {
+	if key.Bytes.Pointer == 0 || l.key.Len() < key.Len() {
 		return false
 	}
 
 	//return bytes.Compare(l.key[:len(key)], key) == 0
-	return l.key.Equals(key.Str)
+	return l.key.Equals(key.Bytes)
 }
 
 // Base node methods

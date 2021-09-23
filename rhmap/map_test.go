@@ -1,18 +1,15 @@
 package rhmap
 
 import (
-	mem "github.com/moontrade/memory"
+	. "github.com/moontrade/memory/alloc"
 	"testing"
 )
 
 func TestMap(t *testing.T) {
-	m := NewMap(mem.NextAllocator(), 16)
+	m := NewMap(NextAllocator(), 16)
 
-	key := mem.AllocString(16)
-	value := mem.AllocString(16)
-
-	key.AppendString("MYID")
-	value.AppendString("MYVALUE")
+	key := WrapString("MYID")
+	value := WrapString("MYVALUE")
 
 	m.Set(key, value)
 

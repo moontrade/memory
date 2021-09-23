@@ -1,7 +1,7 @@
 package art
 
 import (
-	mem "github.com/moontrade/memory"
+	"github.com/moontrade/memory/alloc"
 	"unsafe"
 )
 
@@ -16,7 +16,7 @@ type nodeFactory interface {
 // make sure that objFactory implements all methods of nodeFactory interface
 var _ nodeFactory = &objFactory{}
 
-var allocator = mem.NextAllocator()
+var allocator = alloc.NextAllocator()
 var factory = newObjFactory(allocator)
 
 func newTree() *tree {
@@ -57,10 +57,10 @@ func newTree() *tree {
 //}
 
 type objFactory struct {
-	a mem.Allocator
+	a alloc.Allocator
 }
 
-func newObjFactory(a mem.Allocator) nodeFactory {
+func newObjFactory(a alloc.Allocator) nodeFactory {
 	f := (*objFactory)(unsafe.Pointer(a.AllocZeroed(unsafe.Sizeof(objFactory{}))))
 	f.a = a
 	return f

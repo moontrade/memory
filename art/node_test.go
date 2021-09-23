@@ -1,7 +1,7 @@
 package art
 
 import (
-	mem "github.com/moontrade/memory"
+	"github.com/moontrade/memory/alloc"
 	"testing"
 
 	//"fmt"
@@ -9,18 +9,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var alloc = mem.NewTLSF(1)
-
 func keyOf(v string) Key {
-	s := mem.AllocString(uintptr(len(v)))
-	s.AppendString(v)
-	return Key{s}
+	return Key{alloc.WrapString(v)}
 }
 
 func keyOfBytes(v []byte) Key {
-	s := mem.AllocString(uintptr(len(v)))
-	s.AppendBytes(v)
-	return Key{s}
+	return Key{alloc.WrapBytes(v)}
 }
 
 func TestNodeKind(t *testing.T) {
