@@ -1,7 +1,7 @@
 //go:build !cgo_safe && !libfuzzer
 // +build !cgo_safe,!libfuzzer
 
-package rp
+package rpmalloc
 
 /*
 #include "rpmalloc.h"

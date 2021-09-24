@@ -1,4 +1,4 @@
-package rp
+package rpmalloc
 
 import (
 	"fmt"
@@ -137,7 +137,7 @@ func BenchmarkCAlloc(b *testing.B) {
 		//InitThread()
 		wg.Wait()
 	})
-	b.Run("rp", func(b *testing.B) {
+	b.Run("rpmalloc", func(b *testing.B) {
 		//InitThread()
 		b.ResetTimer()
 		b.ReportAllocs()

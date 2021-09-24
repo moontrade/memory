@@ -1,7 +1,7 @@
 //go:build libfuzzer
 // +build libfuzzer
 
-package rp
+package rpmalloc
 
 /*
 #include "rpmalloc.h"
