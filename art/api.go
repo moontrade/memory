@@ -41,6 +41,14 @@ type Key struct {
 	alloc.Bytes
 }
 
+func StringKey(v string) Key {
+	return Key{alloc.WrapString(v)}
+}
+
+func BytesKey(v []byte) Key {
+	return Key{alloc.WrapBytes(v)}
+}
+
 func (k Key) Clone() Key {
 	return Key{k.Bytes.Clone()}
 }

@@ -2,6 +2,7 @@ package tlsf
 
 import (
 	"fmt"
+	"github.com/moontrade/memory/mem"
 	"math/rand"
 	"runtime"
 	"sync"
@@ -282,9 +283,11 @@ func BenchmarkAllocator_Alloc(b *testing.B) {
 	//})
 	b.Run("Sync Heap alloc", func(b *testing.B) {
 		a := NewHeapWithConfig(1, NewSysArena(), GrowMin).ToSync()
-		var before runtime.MemStats
+		runtime.GC()
+		runtime.GC()
 		b.ReportAllocs()
 		b.ResetTimer()
+		var before runtime.MemStats
 		runtime.ReadMemStats(&before)
 		for i := 0; i < b.N; i++ {
 			size := randomRangeSizes[i%len(randomRangeSizes)]
@@ -337,9 +340,11 @@ func BenchmarkAllocator_Alloc(b *testing.B) {
 	//})
 
 	b.Run("Go GC pool", func(b *testing.B) {
-		var before runtime.MemStats
+		runtime.GC()
+		runtime.GC()
 		b.ReportAllocs()
 		b.ResetTimer()
+		var before runtime.MemStats
 		runtime.ReadMemStats(&before)
 		for i := 0; i < b.N; i++ {
 			size := randomRangeSizes[i%len(randomRangeSizes)]
@@ -353,9 +358,11 @@ func BenchmarkAllocator_Alloc(b *testing.B) {
 	})
 
 	b.Run("Go GC alloc", func(b *testing.B) {
-		var before runtime.MemStats
+		runtime.GC()
+		runtime.GC()
 		b.ReportAllocs()
 		b.ResetTimer()
+		var before runtime.MemStats
 		runtime.ReadMemStats(&before)
 		for i := 0; i < b.N; i++ {
 			size := randomRangeSizes[i%len(randomRangeSizes)]
@@ -370,7 +377,8 @@ func BenchmarkAllocator_Alloc(b *testing.B) {
 }
 
 func randomRange(min, max int) int {
-	return rand.Intn(max-min) + min
+	return int(mem.Fastrand()%uint32(max-min)) + min
+	//return rand.Intn(max-min) + min
 }
 
 var (

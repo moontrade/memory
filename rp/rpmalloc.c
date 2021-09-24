@@ -70,7 +70,7 @@
 #endif
 #ifndef ENABLE_ADAPTIVE_THREAD_CACHE
 //! Enable adaptive thread cache size based on use heuristics
-#define ENABLE_ADAPTIVE_THREAD_CACHE 0
+#define ENABLE_ADAPTIVE_THREAD_CACHE 1
 #endif
 #ifndef DEFAULT_SPAN_MAP_COUNT
 //! Default number of spans to map in call to map more virtual memory (default values yield 4MiB here)

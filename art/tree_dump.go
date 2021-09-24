@@ -232,7 +232,7 @@ func (ts *treeStringer) baseNode(an *artNode, depth int, childNum int, childrenT
 
 	case Leaf:
 		n := an.leaf()
-		ts.append(pad).append(fmt.Sprintf("key(%d): %v ", n.key.Len(), n.key)).append(n.key.Bytes()[:]).append("\n")
+		ts.append(pad).append(fmt.Sprintf("key(%d): %v ", n.key.Len(), n.key)).append(n.key.Bytes.Bytes()[:]).append("\n")
 
 		if s, ok := n.value.(string); ok {
 			ts.append(pad).append(fmt.Sprintf("val: %v\n", s))

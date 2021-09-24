@@ -2,29 +2,14 @@ package main
 
 import (
 	"fmt"
-	mem "github.com/moontrade/memory"
 	"github.com/moontrade/memory/art"
 )
-
-var alloc = mem.NextAllocator()
-
-func keyOf(v string) art.Key {
-	b := mem.AllocString(uintptr(len(v)))
-	b.AppendString(v)
-	return art.Key{b}
-}
-
-func keyOfBytes(v []byte) art.Key {
-	b := mem.AllocString(uintptr(len(v)))
-	b.AppendBytes(v)
-	return art.Key{b}
-}
 
 func DumpTree() {
 	tree := art.New()
 	terms := []string{"A", "a", "aa"}
 	for _, term := range terms {
-		tree.Insert(keyOf(term), term)
+		tree.Insert(art.StringKey(term), term)
 	}
 	fmt.Println(tree)
 }
@@ -32,8 +17,8 @@ func DumpTree() {
 func SimpleTree() {
 	tree := art.New()
 
-	tree.Insert(keyOf("Hi, I'm Key"), "Nice to meet you, I'm Value")
-	value, found := tree.Search(keyOf("Hi, I'm Key"))
+	tree.Insert(art.StringKey("Hi, I'm Key"), "Nice to meet you, I'm Value")
+	value, found := tree.Search(art.StringKey("Hi, I'm Key"))
 	if found {
 		fmt.Printf("Search value=%v\n", value)
 	}

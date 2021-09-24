@@ -117,12 +117,12 @@ func SizeOf(p Pointer) uintptr {
 	return uintptr(tlsf.AllocationSize(p))
 }
 
-func ReadStats() Stats {
-	return *(*Stats)(unsafe.Pointer(&allocator.Stats))
+func ReadStats() HeapStats {
+	return *(*HeapStats)(unsafe.Pointer(&allocator.Stats))
 }
 
-func (a Allocator) Stats() Stats {
-	return *(*Stats)(unsafe.Pointer(&allocator.Stats))
+func (a Allocator) Stats() HeapStats {
+	return *(*HeapStats)(unsafe.Pointer(&allocator.Stats))
 }
 
 ////////////////////////////////////////////////////////////////////////////////////

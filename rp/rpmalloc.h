@@ -61,7 +61,7 @@ extern "C" {
 //! Flag to rpaligned_realloc to not preserve content in reallocation
 #define RPMALLOC_NO_PRESERVE    1
 //! Flag to rpaligned_realloc to fail and return null pointer if grow cannot be done in-place,
-//  in which case the original pointer is still valid (just like a call to realloc which failes to allocate
+//  in which case the original pointer is still valid (just like a call to realloc which fails to allocate
 //  a new block).
 #define RPMALLOC_GROW_OR_FAIL   2
 

@@ -2,8 +2,8 @@ package alloc
 
 import "math"
 
-// Stats provides the metrics of an Allocator
-type Stats struct {
+// HeapStats provides the metrics of an Allocator
+type HeapStats struct {
 	HeapSize        int64
 	AllocSize       int64
 	PeakAllocSize   int64
@@ -17,7 +17,10 @@ type Stats struct {
 	fragmentation   float32
 }
 
-func (s *Stats) Fragmentation() float32 {
+func (s *HeapStats) Fragmentation() float32 {
+	if s.fragmentation != 0 {
+		return s.fragmentation
+	}
 	if s.HeapSize == 0 || s.PeakAllocSize == 0 {
 		return 0
 	}

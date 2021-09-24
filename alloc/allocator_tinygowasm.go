@@ -107,8 +107,8 @@ func (a Allocator) SizeOf(ptr Pointer) uintptr {
 	return tlsf.SizeOf(uintptr(ptr))
 }
 
-func (a Allocator) Stats() Stats {
-	return *(*Stats)(unsafe.Pointer(&(*tlsf.Heap)(unsafe.Pointer(a)).Stats))
+func (a Allocator) Stats() HeapStats {
+	return *(*HeapStats)(unsafe.Pointer(&(*tlsf.Heap)(unsafe.Pointer(a)).Stats))
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
