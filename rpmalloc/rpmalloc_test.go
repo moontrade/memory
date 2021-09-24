@@ -167,7 +167,7 @@ func Test_AllocatorThrash(t *testing.T) {
 	statsBefore := runtime.MemStats{}
 	runtime.ReadMemStats(&statsBefore)
 	thrashAllocator(false,
-		100000, 100, 15000, 21000,
+		1000000, 100, 15000, 21000,
 		randomSize(0.95, 16, 48),
 		randomSize(0.95, 48, 192),
 		randomSize(0.55, 64, 512),
@@ -308,8 +308,8 @@ func randomRange(min, max int) int {
 
 func BenchmarkAllocator_Alloc(b *testing.B) {
 	var (
-		min, max    = 24, 256
-		runTLSF     = false
+		min, max    = 24, 1024
+		runTLSF     = true
 		showGCStats = false
 	)
 	doAfter := func(before, after runtime.MemStats) {

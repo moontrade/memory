@@ -6,6 +6,7 @@ package rpmalloc
 #include <string.h>
 #include <pthread.h>
 #include <stdio.h>
+#include <inttypes.h>
 
 //void pthread_cleanup_push(void (*routine)(void *), void *arg);
 //void pthread_cleanup_pop(int execute);
