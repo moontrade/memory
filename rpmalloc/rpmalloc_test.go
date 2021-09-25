@@ -2,14 +2,12 @@ package rpmalloc
 
 import (
 	"fmt"
-	"github.com/moontrade/memory/mem"
 	"github.com/moontrade/memory/tlsf"
 	"math/rand"
 	"runtime"
 	"sync"
 	"testing"
 	"time"
-	"unsafe"
 )
 
 func TestAlloc(t *testing.T) {
@@ -246,8 +244,7 @@ func thrashAllocator(
 }
 
 func randomRange(min, max int) int {
-	return int(mem.Fastrand()%uint32(max-min)) + min
-	//return rand.Intn(max-min) + min
+	return rand.Intn(max-min) + min
 }
 
 func BenchmarkAllocator_Alloc(b *testing.B) {
@@ -500,7 +497,7 @@ var (
 
 func GetBytesZeroed(n int) []byte {
 	b := GetBytes(n)
-	mem.Zero(unsafe.Pointer(&b[0]), uintptr(cap(b)))
+	//mem.Zero(unsafe.Pointer(&b[0]), uintptr(cap(b)))
 	return b
 }
 
