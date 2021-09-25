@@ -10,6 +10,7 @@
  */
 
 #include "rpmalloc.h"
+#include <stdio.h>
 
 ////////////
 ///
@@ -54,11 +55,11 @@
 #endif
 #ifndef ENABLE_OVERRIDE
 //! Override standard library malloc/free and new/delete entry points
-#define ENABLE_OVERRIDE           0
+#define ENABLE_OVERRIDE           1
 #endif
 #ifndef ENABLE_PRELOAD
 //! Support preloading
-#define ENABLE_PRELOAD            0
+#define ENABLE_PRELOAD            1
 #endif
 #ifndef DISABLE_UNMAP
 //! Disable unmapping memory pages (also enables unlimited cache)
@@ -2192,6 +2193,7 @@ _rpmalloc_allocate_huge(heap_t* heap, size_t size) {
 //! Allocate a block of the given size
 static void*
 _rpmalloc_allocate(heap_t* heap, size_t size) {
+	printf("rpmalloc_allocate\n");
 	_rpmalloc_stat_add64(&_allocation_counter, 1);
 	if (EXPECTED(size <= SMALL_SIZE_LIMIT))
 		return _rpmalloc_allocate_small(heap, size);

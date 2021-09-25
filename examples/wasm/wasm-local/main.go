@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/moontrade/memory/alloc"
+	"github.com/moontrade/memory"
 	//_ "github.com/moontrade/memory/alloc"
 	//"github.com/moontrade/memory/alloc"
 	"runtime"
@@ -26,7 +26,7 @@ func main() {
 
 	go func() {
 		for {
-			alloc.Scope(func(a alloc.Auto) {
+			memory.Scope(func(a memory.Auto) {
 				a.Alloc(512)
 			})
 			if b == nil {

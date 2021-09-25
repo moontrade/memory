@@ -11,22 +11,40 @@ import (
 )
 
 func TestAlloc(t *testing.T) {
+
+	var wg = &sync.WaitGroup{}
+
+	wg.Add(100)
+	for i := 0; i < 100; i++ {
+		go func() {
+			runtime.LockOSThread()
+			defer wg.Done()
+			a := StdMalloc(24)
+			StdFree(a)
+		}()
+	}
+
+	wg.Wait()
+	a := StdMalloc(24)
+	StdFree(a)
+
+	time.Sleep(time.Hour)
 	//directPtr := AllocDirect(32)
 	//FreeDirect(directPtr)
 	//HookDirect()
 	//Hook()
 	//InitThread()
-	a := Malloc(24)
-	println("usable size for", 24, uint(UsableSize(a)))
-	Free(a)
-
-	a, c := MallocCap(24)
-	println("size", 24, "cap", c)
-	Free(a)
-
-	a = Malloc(32)
-	println("usable size for", 32, uint(UsableSize(a)))
-	Free(a)
+	//a = Malloc(24)
+	//println("usable size for", 24, uint(UsableSize(a)))
+	//Free(a)
+	//
+	//a, c := MallocCap(24)
+	//println("size", 24, "cap", c)
+	//Free(a)
+	//
+	//a = Malloc(32)
+	//println("usable size for", 32, uint(UsableSize(a)))
+	//Free(a)
 
 	//for i := 0; i < 100; i++ {
 	//	go func() {

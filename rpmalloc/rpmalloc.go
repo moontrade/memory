@@ -1,7 +1,9 @@
 package rpmalloc
 
 /*
+#cgo LDFLAGS: -lc++
 #include "rpmalloc.h"
+#include "malloc.h"
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
@@ -48,10 +50,6 @@ void alloc_32() {
 	//args->retval = (uintptr_t)rpmalloc((size_t)*args->args);
 }
 
-void do_free(void* ptr) {
-	rpfree(ptr);
-}
-
 void run_rpallocs(size_t size, int n) {
 	for (int i = 0; i < n; i++) {
 		rpfree(rpmalloc(size));
@@ -81,6 +79,8 @@ import "C"
 
 func init() {
 	C.rpmalloc_initialize()
+	C.malloc(12)
+	//C.do_hook_malloc_a()
 }
 
 type Heap C.rpmalloc_heap_t

@@ -5,6 +5,21 @@ package rpmalloc
 
 /*
 #include "rpmalloc.h"
+#include <stdlib.h>
+#include <stdio.h>
+
+typedef struct {
+	size_t size;
+	size_t ptr;
+} malloc_t;
+
+void do_malloc(malloc_t* args) {
+	args->ptr = (size_t)malloc((size_t)args->size);
+}
+
+void do_free(void* ptr) {
+	free(ptr);
+}
 
 void do_rpmalloc_thread_statistics(rpmalloc_thread_statistics_t* stats) {
 	rpmalloc_thread_statistics(stats);
@@ -13,11 +28,6 @@ void do_rpmalloc_thread_statistics(rpmalloc_thread_statistics_t* stats) {
 void do_rpmalloc_global_statistics(rpmalloc_global_statistics_t* stats) {
 	rpmalloc_global_statistics(stats);
 }
-
-typedef struct {
-	size_t size;
-	size_t ptr;
-} malloc_t;
 
 void do_rpmalloc(malloc_t* args) {
 	args->ptr = (size_t)rpmalloc((size_t)args->size);
@@ -210,6 +220,19 @@ func ReadThreadStats(stats *ThreadStats) {
 // ReadGlobalStats get global statistics
 func ReadGlobalStats(stats *GlobalStats) {
 	asmcgocall(unsafe.Pointer(C.do_rpmalloc_global_statistics), unsafe.Pointer(stats))
+}
+
+// Malloc allocate a memory block of at least the given size
+func StdMalloc(size uintptr) uintptr {
+	args := malloc_t{size: size}
+	ptr := uintptr(unsafe.Pointer(&args))
+	asmcgocall(unsafe.Pointer(C.do_malloc), unsafe.Pointer(ptr))
+	return args.retval
+}
+
+// Free the given memory block
+func StdFree(ptr uintptr) {
+	asmcgocall(unsafe.Pointer(C.do_free), unsafe.Pointer(ptr))
 }
 
 type malloc_t struct {
