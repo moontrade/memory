@@ -1,37 +1,33 @@
 package queue
 
 import (
-	mem "github.com/moontrade/memory"
+	"github.com/moontrade/memory"
 	"sync"
 	"sync/atomic"
 	"testing"
-	"unsafe"
 )
 
 func TestLockFreeQueue(t *testing.T) {
 	const taskNum = 10000
-	a := mem.NewTLSF(1000).ToSync()
-	a2 := mem.NewTLSF(1000).ToSync()
-	_ = a2
-	a.AllocZeroed(24)
-	q := AllocLockFreeQueue(mem.Allocator(unsafe.Pointer(a)))
+	memory.AllocZeroed(24)
+	q := AllocLockFreeQueue()
 
-	b := a.Bytes(24)
+	b := memory.AllocBytes(24)
 	b.Free()
 
 	var wg sync.WaitGroup
 	wg.Add(4)
 	go func() {
 		for i := 0; i < taskNum; i++ {
-			task := a.Bytes(24)
-			q.Enqueue(a, task)
+			task := memory.AllocBytes(24)
+			q.Enqueue(task)
 		}
 		wg.Done()
 	}()
 	go func() {
 		for i := 0; i < taskNum; i++ {
-			task := a.Bytes(32)
-			q.Enqueue(a, task)
+			task := memory.AllocBytes(32)
+			q.Enqueue(task)
 		}
 		wg.Done()
 	}()

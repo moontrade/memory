@@ -1,7 +1,7 @@
 //go:build tinygo && tinygo.wasm
 // +build tinygo,tinygo.wasm
 
-package alloc
+package memory
 
 import (
 	"github.com/moontrade/memory/tlsf"
@@ -19,10 +19,6 @@ func HeapInstance() *tlsf.Heap {
 	return allocator
 }
 
-func NextAllocator() Allocator {
-	return allocator_
-}
-
 ////////////////////////////////////////////////////////////////////////////////////
 // Global allocator convenience
 ////////////////////////////////////////////////////////////////////////////////////
@@ -31,17 +27,36 @@ func NextAllocator() Allocator {
 func Alloc(size uintptr) Pointer {
 	return Pointer(allocator.Alloc(size))
 }
+func AllocCap(size uintptr) (Pointer, uintptr) {
+	ptr := Pointer(allocator.Alloc(size))
+	return ptr, tlsf.SizeOf(ptr)
+}
+func AllocZeroed(size uintptr) Pointer {
+	return Pointer(allocator.AllocZeroed(size))
+}
+func AllocZeroedCap(size uintptr) (Pointer, uintptr) {
+	ptr := Pointer(allocator.AllocZeroed(size))
+	return ptr, tlsf.SizeOf(ptr)
+}
 
 // Alloc calls Alloc on the system allocator
 //export alloc
-func AllocZeroed(size uintptr) Pointer {
-	return Pointer(allocator.AllocZeroed(size))
+func Calloc(num, size uintptr) Pointer {
+	return Pointer(allocator.AllocZeroed(num * size))
+}
+func CallocCap(num, size uintptr) (Pointer, uintptr) {
+	ptr := Pointer(allocator.AllocZeroed(num * size))
+	return ptr, tlsf.SizeOf(ptr)
 }
 
 // Realloc calls Realloc on the system allocator
 //export realloc
 func Realloc(p Pointer, size uintptr) Pointer {
 	return Pointer(allocator.Realloc(uintptr(p), size))
+}
+func ReallocCap(p Pointer, size uintptr) (Pointer, uintptr) {
+	newPtr := Pointer(allocator.Realloc(uintptr(p), size))
+	return newPtr, tlsf.SizeOf(newPtr)
 }
 
 // Free calls Free on the system allocator
@@ -55,7 +70,7 @@ func SizeOf(p Pointer) uintptr {
 }
 
 func Scope(fn func(a Auto)) {
-	a := NewAuto(allocator_, 32)
+	a := NewAuto(32)
 	fn(a)
 	a.Free()
 }
@@ -100,7 +115,7 @@ func (a Allocator) Free(ptr Pointer) {
 }
 
 func (a Allocator) Str(size uintptr) Bytes {
-	return NewString(size)
+	return AllocBytes(size)
 }
 
 func (a Allocator) SizeOf(ptr Pointer) uintptr {

@@ -78,81 +78,9 @@ void run_mallocs(size_t size, int n) {
 }
 */
 import "C"
-import (
-	"github.com/moontrade/memory/alloc"
-	"unsafe"
-)
 
 func init() {
 	C.rpmalloc_initialize()
 }
 
-//func Hook() {
-//	C.hook()
-//}
-//
-//func HookDirect() {
-//	asmcgocall(unsafe.Pointer(C.hook), nil)
-//}
-//
-//func Stub() {
-//	C.stub()
-//}
-//
-//func StubDirect() {
-//	asmcgocall(unsafe.Pointer(C.stub), nil)
-//}
-//
-//func AllocDirect(size int) uintptr {
-//	a := &args[0]
-//	a.size = uintptr(size)
-//	a.retval = 0
-//	asmcgocall(unsafe.Pointer(C.alloc), unsafe.Pointer(a))
-//	return a.retval
-//}
-//
-//var (
-//	args [255]malloc_t
-//)
-//
-//func AllocDirect32() uintptr {
-//	sz := C.size_t(32)
-//	as := argset{args: unsafe.Pointer(&sz)}
-//	asmcgocall(unsafe.Pointer(C.alloc_32), nil)
-//	_ = as
-//	return 0
-//	//return as.retval
-//}
-//
-//func FreeDirect(ptr uintptr) {
-//	asmcgocall(unsafe.Pointer(C.do_free), unsafe.Pointer(ptr))
-//}
-
-func InitThread() {
-	C.rpmalloc_thread_initialize()
-}
-
-func runAllocs(size uintptr, n int32) {
-	C.run_rpallocs((C.size_t)(size), (C.int)(n))
-}
-
-func runAllocZeroed(size uintptr, n int32) {
-	C.run_rpalloczero((C.size_t)(size), (C.int)(n))
-}
-
-func runMallocs(size uintptr, n int32) {
-	C.run_mallocs((C.size_t)(size), (C.int)(n))
-}
-
-func Alloc(size uintptr) alloc.Pointer {
-	return alloc.Pointer(unsafe.Pointer(C.rpmalloc((C.size_t)(size))))
-}
-
-// argset matches runtime/cgo/linux_syscall.c:argset_t
-type argset struct {
-	args   unsafe.Pointer
-	retval uintptr
-}
-
-////go:linkname asmcgocall runtime.asmcgocall
-//func asmcgocall(fn, arg unsafe.Pointer) int32
+type Heap C.rpmalloc_heap_t

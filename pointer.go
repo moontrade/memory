@@ -1,8 +1,7 @@
-package alloc
+package memory
 
 import (
 	"github.com/moontrade/memory/hash"
-	"github.com/moontrade/memory/mem"
 	"unsafe"
 )
 
@@ -22,7 +21,7 @@ func (p Pointer) Add(offset int) Pointer {
 
 // Zero zeroes out the entire allocation.
 func (p Pointer) Zero(size uintptr) {
-	mem.Zero(p.Unsafe(), size)
+	Zero(p.Unsafe(), size)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////

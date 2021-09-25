@@ -1,7 +1,7 @@
 //go:build !tinygo && !wasm && !wasi && !tinygo.wasm
 // +build !tinygo,!wasm,!wasi,!tinygo.wasm
 
-package mem
+package memory
 
 import (
 	"reflect"

@@ -107,62 +107,6 @@ func BenchmarkCGO(b *testing.B) {
 	//})
 }
 
-func BenchmarkCAlloc(b *testing.B) {
-	var (
-		goroutines = runtime.NumCPU()
-	)
-
-	b.Run("rpParallel", func(b *testing.B) {
-		init := sync.RWMutex{}
-		init.Lock()
-		start := &sync.WaitGroup{}
-		start.Add(1)
-		wg := &sync.WaitGroup{}
-		wg.Add(goroutines)
-
-		for g := 0; g < goroutines; g++ {
-			go func() {
-				defer wg.Done()
-				init.RLock()
-				start.Wait()
-				runAllocs(32, int32(b.N))
-				init.RUnlock()
-			}()
-		}
-
-		init.Unlock()
-		b.ResetTimer()
-		b.ReportAllocs()
-		start.Done()
-		//InitThread()
-		wg.Wait()
-	})
-	b.Run("rpmalloc", func(b *testing.B) {
-		//InitThread()
-		b.ResetTimer()
-		b.ReportAllocs()
-		runAllocs(32, int32(b.N/4))
-		runAllocs(128, int32(b.N/4))
-		runAllocs(64, int32(b.N/4))
-		runAllocs(256, int32(b.N/4))
-	})
-	b.Run("rpZeroed", func(b *testing.B) {
-		//InitThread()
-		b.ResetTimer()
-		b.ReportAllocs()
-		runAllocZeroed(32, int32(b.N))
-	})
-	b.Run("rpDirect", func(b *testing.B) {
-		InitThread()
-		b.ResetTimer()
-		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
-			Malloc(32)
-			//FreeDirect(unsafe.Pointer(AllocDirect(32)))
-		}
-	})
-}
-
 func Test_AllocatorThrash(t *testing.T) {
 	statsBefore := runtime.MemStats{}
 	runtime.ReadMemStats(&statsBefore)

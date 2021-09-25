@@ -98,7 +98,7 @@ func TestTreeInit(t *testing.T) {
 }
 
 func TestObjFactory(t *testing.T) {
-	factory := newObjFactory(allocator)
+	factory := newObjFactory()
 	n4 := factory.newNode48()
 	assert.NotNil(t, n4)
 	n4v2 := factory.newNode48()
@@ -677,7 +677,7 @@ func TestTreeTraversalPrefix(t *testing.T) {
 				return true
 			}
 			k := node.Key()
-			actual = append(actual, string(k.Bytes()))
+			actual = append(actual, string(k.Bytes.Bytes()))
 			return true
 		})
 

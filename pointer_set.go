@@ -1,9 +1,7 @@
-package alloc
+package memory
 
 import (
 	"github.com/moontrade/memory/hash"
-	. "github.com/moontrade/memory/mem"
-	"github.com/moontrade/memory/tlsf"
 	"unsafe"
 )
 
@@ -16,8 +14,7 @@ type PointerSet struct {
 	size  uintptr
 
 	// Number of keys in the PointerSet.
-	count     uintptr
-	allocator *tlsf.Heap
+	count uintptr
 	// When any item's distance gets too large, Grow the PointerSet.
 	// Defaults to 10.
 	maxDistance int32
@@ -45,14 +42,13 @@ var pointerSetHash = hash.FNV32a
 
 // NewPointerSet returns a new robinhood hashmap.
 //goland:noinspection ALL
-func NewPointerSet(allocator *tlsf.Heap, size uintptr) PointerSet {
-	items := allocator.Alloc(unsafe.Sizeof(pointerSetItem{}) * size)
+func NewPointerSet(size uintptr) PointerSet {
+	items := AllocZeroed(unsafe.Sizeof(pointerSetItem{}) * size)
 	Zero(unsafe.Pointer(items), unsafe.Sizeof(pointerSetItem{})*uintptr(size))
 	return PointerSet{
 		items:        uintptr(items),
 		size:         uintptr(size),
 		end:          uintptr(items) + (uintptr(size) * unsafe.Sizeof(pointerSetItem{})),
-		allocator:    allocator,
 		maxDistance:  10,
 		growBy:       64,
 		growthFactor: 2.0,
@@ -67,7 +63,7 @@ func (ps *PointerSet) Close() error {
 	if ps.items == 0 {
 		return nil
 	}
-	ps.allocator.Free(ps.items)
+	Free(Pointer(ps.items))
 	ps.items = 0
 	return nil
 }
@@ -231,7 +227,7 @@ func (ps *PointerSet) Grow() bool {
 	//}
 
 	// Allocate new items table
-	items := uintptr(ps.allocator.AllocZeroed(newSize * unsafe.Sizeof(pointerSetItem{})))
+	items := uintptr(AllocZeroed(newSize * unsafe.Sizeof(pointerSetItem{})))
 	// Calculate end
 	itemsEnd := items + (newSize * unsafe.Sizeof(pointerSetItem{}))
 	// Init next structure
@@ -239,7 +235,6 @@ func (ps *PointerSet) Grow() bool {
 		items:        items,
 		size:         newSize,
 		end:          itemsEnd,
-		allocator:    ps.allocator,
 		count:        0,
 		growthFactor: ps.growthFactor,
 		maxDistance:  ps.maxDistance,
@@ -254,7 +249,7 @@ func (ps *PointerSet) Grow() bool {
 	}
 
 	// Free old items
-	ps.allocator.Free(ps.items)
+	Free(Pointer(ps.items))
 	ps.items = 0
 
 	// Update to next

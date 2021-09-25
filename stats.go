@@ -1,4 +1,4 @@
-package alloc
+package memory
 
 import "math"
 

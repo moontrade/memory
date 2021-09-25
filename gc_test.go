@@ -1,14 +1,10 @@
-package alloc
+package memory
 
 import (
-	"github.com/moontrade/memory/tlsf"
 	"testing"
 )
 
 func TestGC(t *testing.T) {
-	// Backing Allocator for GC
-	a := tlsf.NewHeap(1)
-
 	// Create a simple roots marking system
 	// This will provided by the runtime / compiler in TinyGo.
 	roots := make(map[uintptr]struct{})
@@ -19,7 +15,7 @@ func TestGC(t *testing.T) {
 		}
 	}
 	// Create GC
-	gc = newGC(a, 16, markGlobals, nil)
+	gc = newGC(16, markGlobals, nil)
 
 	// Allocate root
 	root := func(size uintptr) uintptr {

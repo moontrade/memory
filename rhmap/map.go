@@ -1,7 +1,7 @@
 package rhmap
 
 import (
-	. "github.com/moontrade/memory/alloc"
+	. "github.com/moontrade/memory"
 	"unsafe"
 )
 
@@ -18,8 +18,7 @@ type Map struct {
 	size  uintptr
 
 	// Number of keys in the Map.
-	count     uintptr
-	allocator Allocator
+	count uintptr
 
 	// When any item's distance gets too large, Grow the Map.
 	// Defaults to 10.
@@ -40,13 +39,12 @@ type mapItem struct {
 
 // NewMap returns a new robinhood hashmap.
 //goland:noinspection ALL
-func NewMap(allocator Allocator, size uintptr) Map {
-	items := allocator.AllocZeroed(unsafe.Sizeof(mapItem{}) * size)
+func NewMap(size uintptr) Map {
+	items := AllocZeroed(unsafe.Sizeof(mapItem{}) * size)
 	return Map{
 		items:        items,
 		size:         size,
 		end:          uintptr(items) + (size * unsafe.Sizeof(mapItem{})),
-		allocator:    allocator,
 		maxDistance:  10,
 		growBy:       64,
 		growthFactor: 2.0,
@@ -66,7 +64,7 @@ func (ps *Map) Close() error {
 		ps.freeAll()
 	}
 
-	ps.allocator.Free(ps.items)
+	Free(ps.items)
 	ps.items = 0
 	return nil
 }
@@ -277,7 +275,7 @@ func (ps *Map) Grow() bool {
 	}
 
 	// Allocate new items table
-	items := ps.allocator.AllocZeroed(newSize * unsafe.Sizeof(mapItem{}))
+	items := AllocZeroed(newSize * unsafe.Sizeof(mapItem{}))
 	// Calculate end
 	itemsEnd := uintptr(items) + (newSize * unsafe.Sizeof(mapItem{}))
 	// Init next structure
@@ -285,7 +283,6 @@ func (ps *Map) Grow() bool {
 		items:        items,
 		size:         newSize,
 		end:          itemsEnd,
-		allocator:    ps.allocator,
 		count:        0,
 		growthFactor: ps.growthFactor,
 		maxDistance:  ps.maxDistance,
@@ -304,7 +301,7 @@ func (ps *Map) Grow() bool {
 	}
 
 	// Free old items
-	ps.allocator.Free(ps.items)
+	Free(ps.items)
 	ps.items = 0
 
 	// Update to next

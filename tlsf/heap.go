@@ -1,7 +1,6 @@
 package tlsf
 
 import (
-	"github.com/moontrade/memory/mem"
 	"math"
 	"math/bits"
 	"unsafe"
@@ -168,7 +167,7 @@ func (a *Heap) AllocZeroed(size uintptr) uintptr {
 		return 0
 	}
 	p = p + BlockOverhead
-	mem.Zero(unsafe.Pointer(p), size)
+	Zero(unsafe.Pointer(p), size)
 	return p
 }
 
@@ -754,7 +753,7 @@ func (a *Heap) moveBlock(block *tlsfBlock, newSize uintptr) *tlsfBlock {
 		return nil
 	}
 
-	mem.Copy(unsafe.Pointer(uintptr(unsafe.Pointer(newBlock))+BlockOverhead),
+	Copy(unsafe.Pointer(uintptr(unsafe.Pointer(newBlock))+BlockOverhead),
 		unsafe.Pointer(uintptr(unsafe.Pointer(block))+BlockOverhead),
 		uintptr(block.MMInfo & ^TagsMask))
 

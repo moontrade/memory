@@ -1,11 +1,9 @@
 package queue
 
-import (
-	mem "github.com/moontrade/memory"
-)
+import "github.com/moontrade/memory"
 
 type Task struct {
-	Data mem.Bytes
+	Data memory.Bytes
 	next uintptr
 }
 

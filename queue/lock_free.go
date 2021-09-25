@@ -4,7 +4,7 @@
 package queue
 
 import (
-	mem "github.com/moontrade/memory"
+	"github.com/moontrade/memory"
 	"sync/atomic"
 	"unsafe"
 )
@@ -13,34 +13,29 @@ import (
 type LockFree struct {
 	head   uintptr
 	tail   uintptr
-	alloc  mem.Allocator
 	length int32
 }
 
 type lockFreeNode struct {
-	value mem.Bytes
+	value memory.Bytes
 	next  uintptr
-	alloc mem.Allocator
 }
 
 //goland:noinspection GoVetUnsafePointer
-func AllocLockFreeQueue(a mem.Allocator) *LockFree {
-	q := (*LockFree)(unsafe.Pointer(a.AllocZeroed(mem.Pointer(unsafe.Sizeof(LockFree{})))))
-	n := a.AllocZeroed(mem.Pointer(unsafe.Sizeof(lockFreeNode{})))
+func AllocLockFreeQueue() *LockFree {
+	q := (*LockFree)(unsafe.Pointer(memory.AllocZeroed(unsafe.Sizeof(LockFree{}))))
+	n := memory.AllocZeroed(unsafe.Sizeof(lockFreeNode{}))
 	q.head = uintptr(n)
 	q.tail = uintptr(n)
-	q.alloc = a
-	(*lockFreeNode)(unsafe.Pointer(n)).alloc = a
 	return q
 }
 
 // Enqueue puts the given value v at the tail of the queue.
 //goland:noinspection GoVetUnsafePointer
-func (q *LockFree) Enqueue(task mem.Bytes) {
-	n := uintptr(task.Allocator().AllocZeroed(mem.Pointer(unsafe.Sizeof(lockFreeNode{}))))
+func (q *LockFree) Enqueue(task memory.Bytes) {
+	n := uintptr(memory.AllocZeroed(unsafe.Sizeof(lockFreeNode{})))
 	node := (*lockFreeNode)(unsafe.Pointer(n))
 	node.value = task
-	node.alloc = task.Allocator()
 retry:
 	last := atomic.LoadUintptr(&q.tail)
 	lastV := (*lockFreeNode)(unsafe.Pointer(last))
@@ -66,7 +61,7 @@ retry:
 // Dequeue removes and returns the value at the head of the queue.
 // It returns nil if the queue is empty.
 //goland:noinspection GoVetUnsafePointer
-func (q *LockFree) Dequeue() mem.Bytes {
+func (q *LockFree) Dequeue() memory.Bytes {
 retry:
 	first := atomic.LoadUintptr(&q.head)
 	firstV := (*lockFreeNode)(unsafe.Pointer(first))
@@ -79,7 +74,7 @@ retry:
 			// Is queue empty?
 			if next == 0 {
 				//println("empty")
-				return mem.Bytes{}
+				return memory.Bytes{}
 			}
 			//println("first == tail")
 			atomic.CompareAndSwapUintptr(&q.tail, last, next) // tail is falling behind, try to advance it.
@@ -88,7 +83,7 @@ retry:
 			task := (*lockFreeNode)(unsafe.Pointer(next)).value
 			if atomic.CompareAndSwapUintptr(&q.head, first, next) { // dequeue is done, return value.
 				atomic.AddInt32(&q.length, -1)
-				firstV.alloc.Free(mem.Pointer(first))
+				memory.Free(memory.Pointer(first))
 				return task
 			}
 		}

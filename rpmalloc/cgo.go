@@ -61,3 +61,7 @@ func UsableSize(ptr uintptr) uintptr {
 func Free(ptr uintptr) {
 	C.rpfree(unsafe.Pointer(ptr))
 }
+
+func InitThread() {
+	C.rpmalloc_thread_initialize()
+}

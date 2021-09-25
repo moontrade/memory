@@ -3,7 +3,7 @@
 // +build !tinygo.wasm
 // +build darwin linux windows
 
-package mem
+package memory
 
 import "unsafe"
 

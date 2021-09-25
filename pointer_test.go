@@ -1,4 +1,4 @@
-package alloc
+package memory
 
 //func TestPointerBE(t *testing.T) {
 //	a := NewTLSF(1)

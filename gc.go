@@ -1,11 +1,9 @@
 //go:build !gc.conservative && !gc.extalloc
 // +build !gc.conservative,!gc.extalloc
 
-package alloc
+package memory
 
 import (
-	"github.com/moontrade/memory/mem"
-	"github.com/moontrade/memory/tlsf"
 	"time"
 	"unsafe"
 )
@@ -20,14 +18,14 @@ const (
 	gc_TRACE        = false
 
 	// Overhead of a garbage collector object. Excludes memory manager block overhead.
-	gc_ObjectOverhead = ((unsafe.Sizeof(gcObject{})) - tlsf.BlockOverhead + tlsf.ALMask) & ^tlsf.ALMask
+	gc_ObjectOverhead = unsafe.Sizeof(gcObject{})
 	//gc_ObjectOverhead = unsafe.Sizeof(gcObject{}) - _TLSFBlockOverhead + unsafe.Sizeof(uintptr(0))
 
 	// Maximum size of a garbage collector object's payload.
-	gc_ObjectMaxSize = tlsf.BlockMaxSize - gc_ObjectOverhead
+	gc_ObjectMaxSize = (1 << 30) - gc_ObjectOverhead
 
 	// Overhead of a garbage collector object. Excludes memory manager block overhead.
-	gc_TotalOverhead = tlsf.BlockOverhead + gc_ObjectOverhead
+	gc_TotalOverhead = gc_ObjectOverhead
 )
 
 type GCObject uintptr
@@ -64,7 +62,6 @@ func (o GCObject) Ptr() Pointer {
 type gc struct {
 	allocs      PointerSet
 	first, last uintptr
-	allocator   *tlsf.Heap
 	markGlobals markFn
 	markStack   markFn
 	GCStats
@@ -135,18 +132,15 @@ func PrintDebugInfo() {
 	println("gc_ObjectOverhead	", uint(gc_ObjectOverhead))
 	println("gc_ObjectMaxSize		", uint(gc_ObjectMaxSize))
 	println("gc_TotalOverhead		", uint(gc_TotalOverhead))
-	tlsf.PrintDebugInfo()
 }
 
 //goland:noinspection ALL
 func newGC(
-	allocator *tlsf.Heap,
 	initialCapacity uintptr,
 	markGlobals, markStack markFn,
 ) *gc {
-	gc := (*gc)(unsafe.Pointer(allocator.Alloc(unsafe.Sizeof(gc{}))))
-	gc.allocator = allocator
-	gc.allocs = NewPointerSet(allocator, initialCapacity)
+	gc := (*gc)(unsafe.Pointer(AllocZeroed(unsafe.Sizeof(gc{}))))
+	gc.allocs = NewPointerSet(initialCapacity)
 	gc.first = ^uintptr(0)
 	gc.last = 0
 	gc.markGlobals = markGlobals
@@ -157,18 +151,15 @@ func newGC(
 
 // GCObject Represents a managed object in memory, consisting of a header followed by the object's data.
 type gcObject struct {
-	tlsf.BLOCK
+	cap    uintptr
 	color  uint32 // alloc.Pointer to the next object with color flags stored in the alignment bits.
 	rtSize uint32 // Runtime size.
 }
 
 // Gets the size of this object in memory.
 func (o *gcObject) size() uintptr {
-	return tlsf.BlockOverhead + (o.MMInfo & ^uintptr(3))
-}
-
-func (gc *gc) Allocator() *tlsf.Heap {
-	return gc.allocator
+	return o.cap
+	//return tlsf.BlockOverhead + (o.MMInfo & ^uintptr(3))
 }
 
 // MarkRoot marks a single pointer as a root
@@ -292,12 +283,14 @@ func (gc *gc) New(size uintptr) uintptr {
 	}
 
 	// Allocate memory
-	obj := (*gcObject)(unsafe.Pointer((gc.allocator.AllocZeroed(uintptr(gc_ObjectOverhead) + size)) - tlsf.BlockOverhead))
+	p, c := AllocZeroedCap(gc_ObjectOverhead + size)
+	obj := (*gcObject)(unsafe.Pointer(p))
 	if obj == nil {
 		return 0
 	}
 
 	// Add the runtime size and Add to gc_WHITE
+	obj.cap = c
 	obj.rtSize = uint32(size)
 	obj.color = gc_WHITE
 	gc.LiveBytes += obj.size()
@@ -307,9 +300,6 @@ func (gc *gc) New(size uintptr) uintptr {
 
 	// Convert to uint pointer
 	ptr := uintptr(unsafe.Pointer(obj))
-
-	// Zero out the allocation
-	mem.Zero(unsafe.Pointer(ptr+gc_TotalOverhead), uintptr(size))
 
 	// Add to allocations map
 	gc.allocs.Add(ptr, 0)
@@ -352,7 +342,7 @@ func (gc *gc) Free(ptr uintptr) bool {
 	//gc.allocs.Delete(p)
 
 	//println("GC free", uint(uintptr(ptr)), "size", uint(size), "rtSize", obj.rtSize)
-	gc.allocator.Free(p + tlsf.BlockOverhead)
+	Free(Pointer(p))
 
 	return true
 }
@@ -440,7 +430,7 @@ func (gc *gc) Collect() {
 			println("GC sweep", uint(uintptr(k)+gc_TotalOverhead), "size", uint(obj.size()), "rtSize", obj.rtSize)
 
 			// Free memory
-			gc.allocator.Free(k + tlsf.BlockOverhead)
+			Free(Pointer(k))
 
 			// Remove from alloc map
 			gc.allocs.Delete(k)

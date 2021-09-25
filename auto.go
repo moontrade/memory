@@ -1,4 +1,4 @@
-package alloc
+package memory
 
 import (
 	"unsafe"
@@ -10,12 +10,7 @@ import (
 type Auto uintptr
 
 //goland:noinspection GoVetUnsafePointer
-func (a Auto) Allocator() Allocator {
-	return ((*autoHead)(unsafe.Pointer(a))).alloc
-}
-
-//goland:noinspection GoVetUnsafePointer
-func (a Auto) Count() Pointer {
+func (a Auto) Count() uintptr {
 	return ((*autoHead)(unsafe.Pointer(a))).count
 }
 
@@ -25,36 +20,34 @@ func (a Auto) Size() uintptr {
 }
 
 //goland:noinspection GoVetUnsafePointer
-func (a Auto) Max() Pointer {
+func (a Auto) Max() uintptr {
 	return ((*autoHead)(unsafe.Pointer(a))).max
 }
 
 type autoHead struct {
-	head  Pointer   // pointer to the head node
-	alloc Allocator // allocator instance used
-	max   Pointer   // max number of entries per node
-	count Pointer
+	head  Pointer // pointer to the head node
+	max   uintptr // max number of entries per node
+	count uintptr
 	bytes uintptr
 }
 
 type autoNode struct {
-	len   Pointer
+	len   uintptr
 	next  Pointer
 	first struct{}
 }
 
 //goland:noinspection GoVetUnsafePointer
-func NewAuto(a Allocator, nodeSize Pointer) Auto {
+func NewAuto(nodeSize uintptr) Auto {
 	if nodeSize == 0 {
 		nodeSize = 32
 	}
-	p := a.Alloc(unsafe.Sizeof(autoHead{}) + unsafe.Sizeof(autoNode{}) + (uintptr(nodeSize) * unsafe.Sizeof(Pointer(0))))
+	p, s := AllocCap(unsafe.Sizeof(autoHead{}) + unsafe.Sizeof(autoNode{}) + (nodeSize * unsafe.Sizeof(Pointer(0))))
 	h := (*autoHead)(p.Unsafe())
 	h.head = Pointer(uintptr(p) + unsafe.Sizeof(autoHead{}))
-	h.alloc = a
 	h.max = nodeSize
 	h.count = 0
-	h.bytes = a.SizeOf(p)
+	h.bytes = s
 	n := (*autoNode)(unsafe.Pointer(h.head))
 	n.len = 0
 	n.next = 0
@@ -87,8 +80,7 @@ func (au Auto) Alloc(size uintptr) Pointer {
 	if au == 0 {
 		return Pointer(0)
 	}
-	h := (*autoHead)(unsafe.Pointer(au))
-	p := h.alloc.Alloc(size)
+	p := Alloc(size)
 	au.add(p)
 	return p
 }
@@ -98,10 +90,10 @@ func (au Auto) Str(size uintptr) Bytes {
 	if au == 0 {
 		return Bytes{}
 	}
-	h := (*autoHead)(unsafe.Pointer(au))
-	p := h.alloc.Str(size)
-	au.add(p.allocationPointer())
-	return p
+	//p := h.alloc.Str(size)
+	//au.add(p.allocationPointer())
+	//return p
+	return Bytes{}
 }
 
 //goland:noinspection GoVetUnsafePointer
@@ -115,8 +107,8 @@ func (au *Auto) add(ptr Pointer) {
 		return
 	}
 	if n.len == h.max {
-		nextPtr := h.alloc.Alloc(unsafe.Sizeof(autoNode{}) + (uintptr(h.max) * unsafe.Sizeof(Pointer(0))))
-		h.bytes += h.alloc.SizeOf(nextPtr) + h.alloc.SizeOf(ptr)
+		nextPtr, sz := AllocCap(unsafe.Sizeof(autoNode{}) + (h.max * unsafe.Sizeof(Pointer(0))))
+		h.bytes += sz + SizeOf(ptr)
 		next := (*autoNode)(nextPtr.Unsafe())
 		// Add length to 1
 		next.len = 1
@@ -127,9 +119,9 @@ func (au *Auto) add(ptr Pointer) {
 		// Add first item
 		*(*uintptr)(unsafe.Pointer(&next.first)) = uintptr(ptr)
 	} else {
-		h.bytes += h.alloc.SizeOf(ptr)
+		h.bytes += SizeOf(ptr)
 		// Add item
-		*(*Pointer)(unsafe.Pointer(uintptr(unsafe.Pointer(&n.first)) + (uintptr(n.len) * unsafe.Sizeof(uintptr(0))))) = ptr
+		*(*Pointer)(unsafe.Pointer(uintptr(unsafe.Pointer(&n.first)) + (n.len * unsafe.Sizeof(uintptr(0))))) = ptr
 		// Increment length
 		n.len++
 	}
@@ -156,28 +148,27 @@ func (au *Auto) Free() {
 	if n == nil {
 		return
 	}
-	a := head.alloc
 	for n != nil {
 		var (
-			start = Pointer(unsafe.Pointer(&n.first))
-			end   = start + (n.len * Pointer(unsafe.Sizeof(Pointer(0))))
+			start = uintptr(unsafe.Pointer(&n.first))
+			end   = start + (n.len * unsafe.Sizeof(Pointer(0)))
 			item  Pointer
 		)
-		for i := start; i < end; i += Pointer(unsafe.Sizeof(Pointer(0))) {
+		for i := start; i < end; i += unsafe.Sizeof(Pointer(0)) {
 			item = *(*Pointer)(unsafe.Pointer(i))
 			if item == 0 {
 				break
 			}
-			a.Free(item)
+			Free(item)
 		}
 
 		if n.next == 0 {
 			// Free header node
-			a.Free(Pointer(uintptr(unsafe.Pointer(n)) - unsafe.Sizeof(autoHead{})))
+			Free(Pointer(uintptr(unsafe.Pointer(n)) - unsafe.Sizeof(autoHead{})))
 			break
 		}
 
-		a.Free(Pointer(unsafe.Pointer(n)))
+		Free(Pointer(unsafe.Pointer(n)))
 		n = (*autoNode)(unsafe.Pointer(n.next))
 	}
 	*au = 0
@@ -196,18 +187,18 @@ func (au *Auto) Print() {
 	for n != nil {
 		count++
 		var (
-			start = Pointer(unsafe.Pointer(&n.first))
-			end   = start + (n.len * Pointer(unsafe.Sizeof(Pointer(0))))
+			start = uintptr(unsafe.Pointer(&n.first))
+			end   = start + (n.len * unsafe.Sizeof(Pointer(0)))
 			item  Pointer
-			index Pointer
+			index uintptr
 		)
 		println("\t[", count, "] ->", n.len, "items")
-		for i := start; i < end; i += Pointer(unsafe.Sizeof(Pointer(0))) {
+		for i := start; i < end; i += unsafe.Sizeof(Pointer(0)) {
 			item = *(*Pointer)(unsafe.Pointer(i))
 			if item == 0 {
 				break
 			}
-			index = (i - start) / Pointer(unsafe.Sizeof(Pointer(0)))
+			index = (i - start) / unsafe.Sizeof(Pointer(0))
 			space := ""
 			if index < 10 {
 				space = "   "

@@ -3,7 +3,7 @@
 // +build !tinygo.wasm
 // +build darwin linux windows
 
-package alloc
+package memory
 
 import (
 	"unsafe"
@@ -14,7 +14,6 @@ import (
 ////////////////////////////////////////////////////////////////////////////////////
 
 var allocator *TLSF
-var allocator_ Allocator
 
 func TLSFInstance() *TLSF {
 	return allocator
@@ -25,52 +24,55 @@ func TLSFInstance() *TLSF {
 ////////////////////////////////////////////////////////////////////////////////////
 
 // Alloc calls Alloc on the system allocator
-func Alloc(size Pointer) Pointer {
-	return allocator.Alloc(size)
+func Alloc(size uintptr) Pointer {
+	return Pointer(allocator.Alloc(size))
+}
+func AllocCap(size uintptr) (Pointer, uintptr) {
+	ptr := Pointer(allocator.Alloc(size))
+	return ptr, tlsf.SizeOf(ptr)
+}
+func AllocZeroed(size uintptr) Pointer {
+	return Pointer(allocator.AllocZeroed(size))
+}
+func AllocZeroedCap(size uintptr) (Pointer, uintptr) {
+	ptr := Pointer(allocator.AllocZeroed(size))
+	return ptr, tlsf.SizeOf(ptr)
 }
 
 // Alloc calls Alloc on the system allocator
-func AllocNotCleared(size Pointer) Pointer {
-	return allocator.AllocZeroed(size)
+//export alloc
+func Calloc(num, size uintptr) Pointer {
+	return Pointer(allocator.AllocZeroed(num * size))
+}
+func CallocCap(num, size uintptr) (Pointer, uintptr) {
+	ptr := Pointer(allocator.AllocZeroed(num * size))
+	return ptr, tlsf.SizeOf(ptr)
 }
 
 // Realloc calls Realloc on the system allocator
-func Realloc(p Pointer, size Pointer) Pointer {
-	return allocator.Realloc(p, size)
+//export realloc
+func Realloc(p Pointer, size uintptr) Pointer {
+	return Pointer(allocator.Realloc(uintptr(p), size))
+}
+func ReallocCap(p Pointer, size uintptr) (Pointer, uintptr) {
+	newPtr := Pointer(allocator.Realloc(uintptr(p), size))
+	return newPtr, tlsf.SizeOf(newPtr)
 }
 
 // Free calls Free on the system allocator
+//export free
 func Free(p Pointer) {
-	allocator.Free(p)
+	allocator.Free(uintptr(p))
 }
 
-// Alloc calls Alloc on the system allocator
-func AllocBytes(length Pointer) Bytes {
-	return allocator.Bytes(length)
-}
-
-// Alloc calls Alloc on the system allocator
-func AllocBytesCap(length, capacity Pointer) Bytes {
-	return allocator.BytesCapNotCleared(length, capacity)
-}
-
-// Alloc calls Alloc on the system allocator
-func AllocBytesCapNotCleared(length, capacity Pointer) Bytes {
-	return allocator.BytesCapNotCleared(length, capacity)
+func SizeOf(p Pointer) uintptr {
+	return uintptr(tlsf.SizeOf(uintptr(p)))
 }
 
 func Scope(fn func(a Auto)) {
-	a := NewAuto(allocator.AsAllocator(), 32)
+	a := NewAuto(32)
 	fn(a)
 	a.Free()
-}
-
-// Scope creates an Auto free list that automatically reclaims memory
-// after callback finishes.
-func (a *TLSF) Scope(fn func(a Auto)) {
-	auto := NewAuto(a.AsAllocator(), 32)
-	fn(auto)
-	auto.Free()
 }
 
 //go:export extalloc
@@ -87,49 +89,19 @@ func extfree(ptr unsafe.Pointer) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
-// Allocator facade
-////////////////////////////////////////////////////////////////////////////////////
-
-// Alloc calls Alloc on the system allocator
-func Alloc(size uintptr) Pointer {
-	return allocator.Alloc(size)
-}
-
-// Alloc calls Alloc on the system allocator
-//export alloc
-func AllocZeroed(size uintptr) Pointer {
-	return allocator.AllocZeroed(size)
-}
-
-// Realloc calls Realloc on the system allocator
-//export realloc
-func Realloc(p Pointer, size uintptr) Pointer {
-	return allocator.Realloc(p, size)
-}
-
-// Free calls Free on the system allocator
-//export free
-func Free(p Pointer) {
-	allocator.Free(p)
-}
-
-func SizeOf(p Pointer) uintptr {
-	return uintptr(tlsf.AllocationSize(p))
-}
-
-func ReadStats() HeapStats {
-	return *(*HeapStats)(unsafe.Pointer(&allocator.Stats))
-}
-
-func (a Allocator) Stats() HeapStats {
-	return *(*HeapStats)(unsafe.Pointer(&allocator.Stats))
-}
-
-////////////////////////////////////////////////////////////////////////////////////
 // tinygo hooks
 ////////////////////////////////////////////////////////////////////////////////////
 
 const wasmPageSize = 64 * 1024
+
+func newTLSF(pages int32, grow Grow) *Heap {
+	if pages <= 0 {
+		pages = 1
+	}
+	size := uintptr(pages * wasmPageSize)
+	segment := uintptr(malloc(uintptr(size)))
+	return Bootstrap(segment, segment+size, pages, grow)
+}
 
 //go:linkname initAllocator runtime.initAllocator
 func initAllocator(heapStart, heapEnd uintptr) {
@@ -139,41 +111,6 @@ func initAllocator(heapStart, heapEnd uintptr) {
 	allocator = newTLSF(1, GrowMin)
 	allocator_ = Allocator(unsafe.Pointer(allocator))
 }
-
-//func NewTLSF(pages int32) *TLSF {
-//	if pages <= 0 {
-//		pages = 1
-//	}
-//
-//	size := uintptr(pages * wasmPageSize)
-//	start := uintptr(wasm_memory_size(0) * wasmPageSize)
-//	wasm_memory_grow(0, pages)
-//	end := uintptr(wasm_memory_size(0) * wasmPageSize)
-//	if start == end {
-//		panic("out of memory")
-//	}
-//	return initTLSF(start, start+size, pages)
-//}
-//
-//func (a *TLSF) Grow(pages int32) (uintptr, uintptr) {
-//	if pages <= 0 {
-//		pages = 1
-//	}
-//
-//	// wasm memory grow
-//	before := wasm_memory_size(0)
-//	wasm_memory_grow(0, pages)
-//	after := wasm_memory_size(0)
-//	if before == after {
-//		return 0, 0
-//	}
-//
-//	a.Pages += int32(pages)
-//	start := uintptr(before * wasmPageSize)
-//	end := uintptr(after * wasmPageSize)
-//	a.HeapEnd = end
-//	return start, end
-//}
 
 func SetGrow(grow Grow) {
 	if allocator == nil {
@@ -232,13 +169,4 @@ func GrowMin(pagesBefore, pagesNeeded int32, minSize uintptr) (int32, uintptr, u
 		return 0, 0, 0
 	}
 	return pagesNeeded, ptr, uintptr(ptr) + (uintptr(pagesNeeded) * PageSize)
-}
-
-func newTLSF(pages int32, grow Grow) *Heap {
-	if pages <= 0 {
-		pages = 1
-	}
-	size := uintptr(pages * wasmPageSize)
-	segment := uintptr(malloc(uintptr(size)))
-	return Bootstrap(segment, segment+size, pages, grow)
 }

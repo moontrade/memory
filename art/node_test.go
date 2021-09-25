@@ -1,7 +1,7 @@
 package art
 
 import (
-	"github.com/moontrade/memory/alloc"
+	"github.com/moontrade/memory"
 	"testing"
 
 	//"fmt"
@@ -10,11 +10,11 @@ import (
 )
 
 func keyOf(v string) Key {
-	return Key{alloc.WrapString(v)}
+	return Key{memory.WrapString(v)}
 }
 
 func keyOfBytes(v []byte) Key {
-	return Key{alloc.WrapBytes(v)}
+	return Key{memory.WrapBytes(v)}
 }
 
 func TestNodeKind(t *testing.T) {

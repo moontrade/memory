@@ -1,12 +1,12 @@
 package rhmap
 
 import (
-	. "github.com/moontrade/memory/alloc"
+	. "github.com/moontrade/memory"
 	"testing"
 )
 
 func TestMap(t *testing.T) {
-	m := NewMap(NextAllocator(), 16)
+	m := NewMap(16)
 
 	key := WrapString("MYID")
 	value := WrapString("MYVALUE")

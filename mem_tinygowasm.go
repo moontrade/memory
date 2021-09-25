@@ -1,7 +1,7 @@
 //go:build tinygo && tinygo.wasm
 // +build tinygo,tinygo.wasm
 
-package mem
+package memory
 
 import (
 	"unsafe"
