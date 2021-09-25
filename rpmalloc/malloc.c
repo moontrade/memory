@@ -16,6 +16,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include "rpnew.h"
 
 #ifndef ARCH_64BIT
 #  if defined(__LLP64__) || defined(__LP64__) || defined(_WIN64)
@@ -33,9 +34,9 @@ _Static_assert(sizeof(void*) == 4, "Data type size mismatch");
 #pragma GCC visibility push(default)
 #endif
 
-#define USE_IMPLEMENT 1
+#define USE_IMPLEMENT 0
 #define USE_INTERPOSE 0
-#define USE_ALIAS 0
+#define USE_ALIAS 1
 
 #if defined(__APPLE__) && ENABLE_PRELOAD
 #undef USE_INTERPOSE
@@ -360,7 +361,7 @@ typedef struct {
 
 static void*
 thread_starter(void* argptr) {
-	printf("thread_starter\n");
+//	printf("thread_starter\n");
 	thread_starter_arg* arg = argptr;
 	void* (*real_start)(void*) = arg->real_start;
 	void* real_arg = arg->real_arg;
@@ -383,7 +384,7 @@ pthread_create_proxy(pthread_t* thread,
                      const pthread_attr_t* attr,
                      void* (*start_routine)(void*),
                      void* arg) {
-                     printf("pthread_create\n");
+//                     printf("pthread_create\n");
 	rpmalloc_initialize();
 	thread_starter_arg* starter_arg = rpmalloc(sizeof(thread_starter_arg));
 	starter_arg->real_start = start_routine;
@@ -408,6 +409,7 @@ pthread_create(pthread_t* thread,
 #else
 	char fname[] = "_pthread_create";
 #endif
+
 	void* real_pthread_create = dlsym(RTLD_NEXT, fname);
 	rpmalloc_thread_initialize();
 	thread_starter_arg* starter_arg = rpmalloc(sizeof(thread_starter_arg));

@@ -8,6 +8,19 @@ package rpmalloc
 #include <stdlib.h>
 #include <memory.h>
 
+typedef struct {
+	size_t size;
+	size_t ptr;
+} malloc_t;
+
+void do_malloc(size_t arg0, size_t arg1) {
+	malloc_t* args = (malloc_t*)arg0;
+	args->ptr = (size_t)malloc((size_t)args->size);
+}
+void do_free(size_t ptr, size_t arg1) {
+	free((void*)ptr);
+}
+
 void do_rpmalloc_thread_statistics(size_t arg0, size_t arg1) {
 	rpmalloc_thread_statistics((rpmalloc_thread_statistics_t*)(void*)arg0);
 }
@@ -15,11 +28,6 @@ void do_rpmalloc_thread_statistics(size_t arg0, size_t arg1) {
 void do_rpmalloc_global_statistics(size_t arg0, size_t arg1) {
 	rpmalloc_global_statistics((rpmalloc_global_statistics_t*)(void*)arg0);
 }
-
-typedef struct {
-	size_t size;
-	size_t ptr;
-} malloc_t;
 
 void do_rpmalloc(size_t arg0, size_t arg1) {
 	malloc_t* args = (malloc_t*)arg0;
@@ -229,6 +237,19 @@ func ReadThreadStats(stats *ThreadStats) {
 // ReadGlobalStats get global statistics
 func ReadGlobalStats(stats *GlobalStats) {
 	libfuzzerCall((*byte)(C.do_rpmalloc_global_statistics), uintptr(unsafe.Pointer(stats)), 0)
+}
+
+// Malloc allocate a memory block of at least the given size
+func StdMalloc(size uintptr) uintptr {
+	args := malloc_t{size: size}
+	ptr := uintptr(unsafe.Pointer(&args))
+	libfuzzerCall((*byte)(C.do_malloc), ptr, 0)
+	return args.ptr
+}
+
+// Free the given memory block
+func StdFree(ptr uintptr) {
+	libfuzzerCall((*byte)(C.do_free), ptr, 0)
 }
 
 type malloc_t struct {

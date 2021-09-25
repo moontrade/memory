@@ -17,7 +17,7 @@ func TestAlloc(t *testing.T) {
 	wg.Add(100)
 	for i := 0; i < 100; i++ {
 		go func() {
-			runtime.LockOSThread()
+			//runtime.LockOSThread()
 			defer wg.Done()
 			a := StdMalloc(24)
 			StdFree(a)
@@ -28,7 +28,7 @@ func TestAlloc(t *testing.T) {
 	a := StdMalloc(24)
 	StdFree(a)
 
-	time.Sleep(time.Hour)
+	//time.Sleep(time.Hour)
 	//directPtr := AllocDirect(32)
 	//FreeDirect(directPtr)
 	//HookDirect()

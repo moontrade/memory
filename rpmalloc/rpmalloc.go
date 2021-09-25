@@ -1,7 +1,9 @@
 package rpmalloc
 
 /*
-#cgo LDFLAGS: -lc++
+//#cgo LDFLAGS: -lc++
+#cgo linux LDFLAGS: -ldl -lc -lm
+#cgo CFLAGS: -D_GNU_SOURCE
 #include "rpmalloc.h"
 #include "malloc.h"
 #include <stdlib.h>

@@ -3481,5 +3481,5 @@ rpmalloc_heap_thread_set_current(rpmalloc_heap_t* heap) {
 #if ENABLE_PRELOAD || ENABLE_OVERRIDE
 
 #include "malloc.c"
-
+//#include "intercept.c"
 #endif
