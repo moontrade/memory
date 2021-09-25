@@ -14,10 +14,8 @@
 // It also provides automatic initialization/finalization of process and threads
 //
 
-#include "rpmalloc.h"
 #include <stdlib.h>
 #include <stdio.h>
-#include "rpnew.h"
 
 #ifndef ARCH_64BIT
 #  if defined(__LLP64__) || defined(__LP64__) || defined(_WIN64)
