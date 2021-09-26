@@ -4,7 +4,7 @@
 package rpmalloc
 
 /*
-#include "rpmalloc.h"
+#include <rpmalloc.h>
 #include <stdlib.h>
 
 typedef struct {
