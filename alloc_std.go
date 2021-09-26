@@ -7,6 +7,8 @@ import (
 	"github.com/moontrade/memory/rpmalloc"
 )
 
+func Init() {}
+
 func Scope(fn func(a Auto)) {
 	scope(fn)
 }

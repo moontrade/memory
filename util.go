@@ -58,11 +58,6 @@ func IsPowerOfTwo(n int) bool {
 	return n&(n-1) == 0
 }
 
-// Identity is identity.
-func Identity(n int) int {
-	return n
-}
-
 // ceilToPowerOfTwo returns the least power of two integer value greater than
 // or equal to n.
 func ceilToPowerOfTwo(n int) int {
