@@ -2,7 +2,6 @@ package tlsf
 
 import (
 	"fmt"
-	"github.com/moontrade/memory/mem"
 	"math/rand"
 	"runtime"
 	"sync"
@@ -377,8 +376,7 @@ func BenchmarkAllocator_Alloc(b *testing.B) {
 }
 
 func randomRange(min, max int) int {
-	return int(mem.Fastrand()%uint32(max-min)) + min
-	//return rand.Intn(max-min) + min
+	return rand.Intn(max-min) + min
 }
 
 var (
