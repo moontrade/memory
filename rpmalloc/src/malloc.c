@@ -357,7 +357,6 @@ typedef struct {
 
 static void*
 thread_starter(void* argptr) {
-	fprintf(stderr, "thread_starter\n");
 	thread_starter_arg* arg = argptr;
 	void* (*real_start)(void*) = arg->real_start;
 	void* real_arg = arg->real_arg;
@@ -370,7 +369,6 @@ thread_starter(void* argptr) {
 static void
 thread_destructor(void* value) {
 	(void)sizeof(value);
-	fprintf(stderr, "thread_destructor\n");
 	rpmalloc_thread_finalize(1);
 }
 
@@ -381,7 +379,6 @@ pthread_create_proxy(pthread_t* thread,
                      const pthread_attr_t* attr,
                      void* (*start_routine)(void*),
                      void* arg) {
-	fprintf(stderr, "pthread_create_proxy\n");
 	rpmalloc_initialize();
 	thread_starter_arg* starter_arg = rpmalloc(sizeof(thread_starter_arg));
 	starter_arg->real_start = start_routine;
@@ -406,7 +403,6 @@ pthread_create(pthread_t* thread,
 #else
 	char fname[] = "_pthread_create";
 #endif
-
 	void* real_pthread_create = dlsym(RTLD_NEXT, fname);
 	rpmalloc_thread_initialize();
 	thread_starter_arg* starter_arg = rpmalloc(sizeof(thread_starter_arg));
