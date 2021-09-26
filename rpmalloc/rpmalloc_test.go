@@ -19,6 +19,8 @@ func TestAlloc(t *testing.T) {
 		go func() {
 			runtime.LockOSThread()
 			defer wg.Done()
+
+			Free(Malloc(128))
 			a := StdMalloc(24)
 			StdFree(a)
 		}()
@@ -267,8 +269,8 @@ func randomRange(min, max int) int {
 
 func BenchmarkAllocator_Alloc(b *testing.B) {
 	var (
-		min, max    = 24, 1024
-		runTLSF     = true
+		min, max    = 36, 1024
+		runTLSF     = false
 		showGCStats = false
 	)
 	doAfter := func(before, after runtime.MemStats) {
@@ -283,6 +285,13 @@ func BenchmarkAllocator_Alloc(b *testing.B) {
 	for i := 0; i < 1000; i++ {
 		randomRangeSizes = append(randomRangeSizes, uintptr(randomRange(min, max)))
 	}
+
+	for i := 0; i < b.N; i++ {
+		size := randomRangeSizes[i%len(randomRangeSizes)]
+		b.SetBytes(int64(size))
+		Free(Malloc(size))
+	}
+
 	if runTLSF {
 		b.Run("tlsf malloc", func(b *testing.B) {
 			a := tlsf.NewHeap(50)
@@ -349,7 +358,7 @@ func BenchmarkAllocator_Alloc(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			size := randomRangeSizes[i%len(randomRangeSizes)]
 			b.SetBytes(int64(size))
-			Free(Malloc(uintptr(size)))
+			Free(Malloc(size))
 		}
 		b.StopTimer()
 		var after runtime.MemStats

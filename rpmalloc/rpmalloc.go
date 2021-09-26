@@ -17,4 +17,4 @@ func init() {
 }
 func Init() {}
 
-type Heap C.rpmalloc_heap_t
+//type Heap C.rpmalloc_heap_t
