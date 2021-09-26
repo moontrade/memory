@@ -6,7 +6,6 @@ package rpmalloc
 /*
 #include "rpmalloc.h"
 #include <stdlib.h>
-#include <stdio.h>
 
 typedef struct {
 	size_t size;

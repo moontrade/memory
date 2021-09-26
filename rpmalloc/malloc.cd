@@ -34,9 +34,9 @@ _Static_assert(sizeof(void*) == 4, "Data type size mismatch");
 #pragma GCC visibility push(default)
 #endif
 
-#define USE_IMPLEMENT 0
+#define USE_IMPLEMENT 1
 #define USE_INTERPOSE 0
-#define USE_ALIAS 1
+#define USE_ALIAS 0
 
 #if defined(__APPLE__) && ENABLE_PRELOAD
 #undef USE_INTERPOSE

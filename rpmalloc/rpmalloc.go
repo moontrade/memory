@@ -1,88 +1,19 @@
 package rpmalloc
 
 /*
-//#cgo LDFLAGS: -lc++
-#cgo linux LDFLAGS: -ldl -lc -lm
-#cgo CFLAGS: -D_GNU_SOURCE
+#cgo darwin,amd64 CFLAGS: -I${SRCDIR}
+#cgo darwin,amd64 LDFLAGS: -Wl,-rpath,${SRCDIR}/lib/darwin_amd64 -L${SRCDIR}/lib/darwin_amd64
+#cgo darwin,amd64 LDFLAGS: -lrpmalloc -ldl -lc -lm
+#cgo linux,amd64 CFLAGS: -I${SRCDIR}
+#cgo linux,amd64 LDFLAGS: -Wl,-rpath,${SRCDIR}/lib/linux_amd64 -L${SRCDIR}/lib/linux_amd64
+#cgo linux,amd64 LDFLAGS: -lrpmallocwrap -ldl -lc -lm
+#cgo linux,amd64 CFLAGS: -D_GNU_SOURCE
 #include "rpmalloc.h"
-#include "malloc.h"
-#include <stdlib.h>
-#include <string.h>
-#include <pthread.h>
-#include <stdio.h>
-#include <inttypes.h>
-
-//void pthread_cleanup_push(void (*routine)(void *), void *arg);
-//void pthread_cleanup_pop(int execute);
-
-void on_thread_cleanup(void* data) {
-}
-
-void hook() {
-	//pthread_cleanup_push(on_thread_cleanup, NULL);
-	printf("Hi I'm C!\n");
-}
-
-void stub() {
-	//pthread_cleanup_push(on_thread_cleanup, NULL);
-	//printf("Hi I'm C!\n");
-}
-
-typedef struct {
-	uintptr_t* args;
-	uintptr_t retval;
-} argset_t;
-
-typedef struct {
-	uintptr_t size;
-	uintptr_t retval;
-} malloc_t;
-
-void alloc(malloc_t* args) {
-	//size_t sz = (size_t)*args->args;
-	//printf("sz: %i\n", (int)sz);
-	args->retval = (uintptr_t)rpmalloc((size_t)args->size);
-	//rpfree((void*)args->retval);
-}
-
-void alloc_32() {
-	//size_t sz = (size_t)*args->args;
-	//printf("sz: %i\n", (int)sz);
-	rpfree(rpmalloc(32));
-	//args->retval = (uintptr_t)rpmalloc((size_t)*args->args);
-}
-
-void run_rpallocs(size_t size, int n) {
-	for (int i = 0; i < n; i++) {
-		rpfree(rpmalloc(size));
-	}
-}
-
-void run_rpalloczero(size_t size, int n) {
-	for (int i = 0; i < n; i++) {
-		void* ptr = rpmalloc(size);
-		memset(ptr, 0, size);
-		rpfree(ptr);
-	}
-}
-
-void* ml(size_t size) {
-	return malloc(size);
-}
-
-void run_mallocs(size_t size, int n) {
-	for (int i = 0; i < n; i++) {
-		void* ptr = ml(size);
-		free(ptr);
-	}
-}
 */
 import "C"
 
 func init() {
 	C.rpmalloc_initialize()
-	C.malloc(12)
-	//C.do_hook_malloc_a()
 }
 
 type Heap C.rpmalloc_heap_t
