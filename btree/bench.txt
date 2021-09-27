@@ -1,0 +1,40 @@
+Running btree.c benchmarks...
+seed=1632756339, max_items=256, count=1000000, item_size=4
+load (seq)     1000000 ops in 0.010 secs, 9.9 ns/op, 100633994 op/sec, 6.92 bytes/op, 0.01 allocs/op
+load (rand)    1000000 ops in 0.178 secs, 178 ns/op, 5614792 op/sec, 5.89 bytes/op, 0.01 allocs/op
+set (seq)      1000000 ops in 0.055 secs, 55 ns/op, 18285881 op/sec, 8.29 bytes/op, 0.01 allocs/op
+set (seq-hint) 1000000 ops in 0.031 secs, 31 ns/op, 32689353 op/sec, 8.29 bytes/op, 0.01 allocs/op
+set (rand)     1000000 ops in 0.174 secs, 174 ns/op, 5737761 op/sec, 6.00 bytes/op, 0.01 allocs/op
+get (seq)      1000000 ops in 0.057 secs, 57 ns/op, 17491997 op/sec
+get (seq-hint) 1000000 ops in 0.047 secs, 47 ns/op, 21370718 op/sec
+get (rand)     1000000 ops in 0.154 secs, 154 ns/op, 6477061 op/sec
+delete (rand)  1000000 ops in 0.176 secs, 176 ns/op, 5669931 op/sec
+min            1000000 ops in 0.001 secs, 0.8 ns/op, 1194743130 op/sec
+max            1000000 ops in 0.001 secs, 1.0 ns/op, 982318271 op/sec
+ascend         1000000 ops in 0.001 secs, 1.2 ns/op, 845308538 op/sec
+descend        1000000 ops in 0.001 secs, 1.4 ns/op, 723065799 op/sec
+pop-min        1000000 ops in 0.031 secs, 31 ns/op, 32732153 op/sec
+pop-max        1000000 ops in 0.027 secs, 27 ns/op, 37482664 op/sec
+asc-del-odds   1000000 ops in 0.016 secs, 16 ns/op, 62593891 op/sec
+desc-del-odds  1000000 ops in 0.019 secs, 19 ns/op, 51690272 op/sec
+
+
+Running btree.c benchmarks...
+seed=1632756485, max_items=256, count=1000000, item_size=4
+load (seq)     1000000 ops in 0.010 secs, 9.8 ns/op, 102207686 op/sec, 6.92 bytes/op, 0.01 allocs/op
+load (rand)    1000000 ops in 0.175 secs, 175 ns/op, 5703140 op/sec, 5.97 bytes/op, 0.01 allocs/op
+set (seq)      1000000 ops in 0.055 secs, 55 ns/op, 18209298 op/sec, 8.29 bytes/op, 0.01 allocs/op
+set (seq-hint) 1000000 ops in 0.031 secs, 31 ns/op, 31995905 op/sec, 8.29 bytes/op, 0.01 allocs/op
+set (rand)     1000000 ops in 0.185 secs, 185 ns/op, 5406487 op/sec, 5.95 bytes/op, 0.01 allocs/op
+get (seq)      1000000 ops in 0.059 secs, 59 ns/op, 16905313 op/sec
+get (seq-hint) 1000000 ops in 0.047 secs, 47 ns/op, 21350642 op/sec
+get (rand)     1000000 ops in 0.160 secs, 160 ns/op, 6257744 op/sec
+delete (rand)  1000000 ops in 0.181 secs, 181 ns/op, 5537528 op/sec
+min            1000000 ops in 0.001 secs, 0.9 ns/op, 1144164760 op/sec
+max            1000000 ops in 0.001 secs, 1.0 ns/op, 980392157 op/sec
+ascend         1000000 ops in 0.001 secs, 1.2 ns/op, 842459983 op/sec
+descend        1000000 ops in 0.001 secs, 1.4 ns/op, 717360115 op/sec
+pop-min        1000000 ops in 0.030 secs, 30 ns/op, 33704078 op/sec
+pop-max        1000000 ops in 0.022 secs, 22 ns/op, 45452479 op/sec
+asc-del-odds   1000000 ops in 0.014 secs, 14 ns/op, 70239517 op/sec
+desc-del-odds  1000000 ops in 0.018 secs, 18 ns/op, 55413942 op/sec
