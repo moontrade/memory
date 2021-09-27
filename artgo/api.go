@@ -1,4 +1,4 @@
-package art
+package artgo
 
 import (
 	"errors"

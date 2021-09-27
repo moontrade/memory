@@ -2,7 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+//go:build !libfuzzer && (amd64 || arm64) && (linux || darwin)
+// +build !libfuzzer
+// +build amd64 arm64
+// +build linux darwin
+
 //#include "headers.h"
+#include "go_asm.h"
 #include "go_tls.h"
 #include "textflag.h"
 
@@ -16,9 +22,17 @@
 #define RARG1 SI
 #endif
 
+// WARNING!!! This is sketchy AF
+// Safer to add build tag "libfuzzer" to hook into the auto-generated "go_asm.h"
+
+#define g_m 48
+#define g_sched 56
+#define gobuf_sp 0
+#define m_g0 0
+
 // void runtime·libfuzzerCall(fn, arg0, arg1 uintptr)
 // Calls C function fn from libFuzzer and passes 2 arguments to it.
-TEXT ·InvokeC(SB), NOSPLIT, $0-24
+TEXT ·Call(SB), NOSPLIT, $0-24
 	MOVQ	fn+0(FP), AX
 	MOVQ	arg0+8(FP), RARG0
 	MOVQ	arg1+16(FP), RARG1

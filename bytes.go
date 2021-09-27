@@ -53,32 +53,40 @@ func WrapBytes(b []byte) Bytes {
 }
 
 func newString(size uintptr) Bytes {
-	switch {
-	case size <= _Max8Size:
-		p, c := AllocCap(size)
-		b := Bytes{p + _8HeaderSize}
-		b.setFlags(_Type8)
-		b.setCap(int(c))
-		return b
-	case size <= _Max16Size:
-		p, c := AllocCap(size)
-		b := Bytes{p + _16HeaderSize}
-		b.setFlags(_Type16)
-		b.setCap(int(c))
-		return b
-	default:
-		p, c := AllocCap(size)
-		b := Bytes{p + _32HeaderSize}
-		b.setFlags(_Type32)
-		b.setCap(int(c))
-		return b
+	p, c := AllocCap(size + 4)
+	if p == 0 {
+		return Bytes{0}
 	}
+	*(*uint32)(unsafe.Pointer(p)) = 0
+	*(*uint32)(unsafe.Pointer(p + 4)) = uint32(c)
+	return Bytes{p + 8}
 }
 
-func (b Bytes) setFlags(flags uint8) {
-	*(*uint8)(unsafe.Pointer(b.Pointer - 1)) = flags
-}
-
+//func newString(size uintptr) Bytes {
+//	switch {
+//	case size <= _Max8Size:
+//		p, c := AllocCap(size)
+//		b := Bytes{p + _8HeaderSize}
+//		b.setFlags(_Type8)
+//		b.setCap(int(c))
+//		return b
+//	case size <= _Max16Size:
+//		p, c := AllocCap(size)
+//		b := Bytes{p + _16HeaderSize}
+//		b.setFlags(_Type16)
+//		b.setCap(int(c))
+//		return b
+//	default:
+//		p, c := AllocCap(size)
+//		b := Bytes{p + _32HeaderSize}
+//		b.setFlags(_Type32)
+//		b.setCap(int(c))
+//		return b
+//	}
+//}
+//func (b Bytes) setFlags(flags uint8) {
+//	*(*uint8)(unsafe.Pointer(b.Pointer - 1)) = flags
+//}
 // Go doesn't support packed structs so below are templates of the packed memory layout.
 /*
 type sdsHeader5 struct {
@@ -116,68 +124,82 @@ type sdsHeader64 struct {
 	data struct{}
 }
 */
+//func (s Bytes) Len() int {
+//	flags := *(*uint8)(unsafe.Pointer(s.Pointer - 1))
+//	switch flags & _TypeMask {
+//	case _Type8:
+//		return int(*(*uint8)(unsafe.Pointer(s.Pointer - _8HeaderSize)))
+//	case _Type16:
+//		return int(*(*uint16)(unsafe.Pointer(s.Pointer - _16HeaderSize)))
+//	case _Type32:
+//		return int(*(*uint32)(unsafe.Pointer(s.Pointer - _32HeaderSize)))
+//	}
+//	return 0
+//}
+//func (s Bytes) setLen(l int) {
+//	flags := *(*uint8)(unsafe.Pointer(s.Pointer - 1))
+//	switch flags & _TypeMask {
+//	case _Type8:
+//		*(*uint8)(unsafe.Pointer(s.Pointer - _8HeaderSize)) = uint8(l)
+//	case _Type16:
+//		*(*uint16)(unsafe.Pointer(s.Pointer - _16HeaderSize)) = uint16(l)
+//	case _Type32:
+//		*(*uint32)(unsafe.Pointer(s.Pointer - _32HeaderSize)) = uint32(l)
+//	}
+//}
+//func (s Bytes) Cap() int {
+//	flags := *(*uint8)(unsafe.Pointer(s.Pointer - 1))
+//	switch flags & _TypeMask {
+//	case _Type8:
+//		return int(*(*uint8)(unsafe.Pointer(s.Pointer - _8HeaderSize + 1)))
+//	case _Type16:
+//		return int(*(*uint16)(unsafe.Pointer(s.Pointer - _16HeaderSize + 2)))
+//	case _Type32:
+//		return int(*(*uint32)(unsafe.Pointer(s.Pointer - _32HeaderSize + 4)))
+//	}
+//	return 0
+//}
+//func (s Bytes) setCap(l int) {
+//	flags := *(*uint8)(unsafe.Pointer(s.Pointer - 1))
+//	switch flags & _TypeMask {
+//	case _Type8:
+//		*(*uint8)(unsafe.Pointer(s.Pointer - _8HeaderSize + 1)) = uint8(l)
+//	case _Type16:
+//		*(*uint16)(unsafe.Pointer(s.Pointer - _16HeaderSize + 2)) = uint16(l)
+//	case _Type32:
+//		*(*uint32)(unsafe.Pointer(s.Pointer - _32HeaderSize + 4)) = uint32(l)
+//	}
+//}
+//func (s Bytes) allocationPointer() Pointer {
+//	flags := *(*uint8)(unsafe.Pointer(s.Pointer - 1))
+//	switch flags & _TypeMask {
+//	case _Type8:
+//		return s.Pointer - _8HeaderSize
+//	case _Type16:
+//		return s.Pointer - _16HeaderSize
+//	case _Type32:
+//		return s.Pointer - _32HeaderSize
+//	}
+//	return 0
+//}
 
-func (s Bytes) Len() int {
-	flags := *(*uint8)(unsafe.Pointer(s.Pointer - 1))
-	switch flags & _TypeMask {
-	case _Type8:
-		return int(*(*uint8)(unsafe.Pointer(s.Pointer - _8HeaderSize)))
-	case _Type16:
-		return int(*(*uint16)(unsafe.Pointer(s.Pointer - _16HeaderSize)))
-	case _Type32:
-		return int(*(*uint32)(unsafe.Pointer(s.Pointer - _32HeaderSize)))
+func (b Bytes) Len() int {
+	if b.Pointer == 0 {
+		return 0
 	}
-	return 0
+	return int(*(*uint32)(unsafe.Pointer(b.Pointer - 8)))
 }
-
-func (s Bytes) setLen(l int) {
-	flags := *(*uint8)(unsafe.Pointer(s.Pointer - 1))
-	switch flags & _TypeMask {
-	case _Type8:
-		*(*uint8)(unsafe.Pointer(s.Pointer - _8HeaderSize)) = uint8(l)
-	case _Type16:
-		*(*uint16)(unsafe.Pointer(s.Pointer - _16HeaderSize)) = uint16(l)
-	case _Type32:
-		*(*uint32)(unsafe.Pointer(s.Pointer - _32HeaderSize)) = uint32(l)
-	}
+func (b Bytes) setLen(l int) {
+	*(*uint32)(unsafe.Pointer(b.Pointer - 8)) = uint32(l)
 }
-
-func (s Bytes) Cap() int {
-	flags := *(*uint8)(unsafe.Pointer(s.Pointer - 1))
-	switch flags & _TypeMask {
-	case _Type8:
-		return int(*(*uint8)(unsafe.Pointer(s.Pointer - _8HeaderSize + 1)))
-	case _Type16:
-		return int(*(*uint16)(unsafe.Pointer(s.Pointer - _16HeaderSize + 2)))
-	case _Type32:
-		return int(*(*uint32)(unsafe.Pointer(s.Pointer - _32HeaderSize + 4)))
-	}
-	return 0
+func (b Bytes) Cap() int {
+	return int(*(*uint32)(unsafe.Pointer(b.Pointer - 4)))
 }
-
-func (s Bytes) setCap(l int) {
-	flags := *(*uint8)(unsafe.Pointer(s.Pointer - 1))
-	switch flags & _TypeMask {
-	case _Type8:
-		*(*uint8)(unsafe.Pointer(s.Pointer - _8HeaderSize + 1)) = uint8(l)
-	case _Type16:
-		*(*uint16)(unsafe.Pointer(s.Pointer - _16HeaderSize + 2)) = uint16(l)
-	case _Type32:
-		*(*uint32)(unsafe.Pointer(s.Pointer - _32HeaderSize + 4)) = uint32(l)
-	}
+func (b Bytes) setCap(l int) {
+	*(*uint32)(unsafe.Pointer(b.Pointer - 4)) = uint32(l)
 }
-
 func (s Bytes) allocationPointer() Pointer {
-	flags := *(*uint8)(unsafe.Pointer(s.Pointer - 1))
-	switch flags & _TypeMask {
-	case _Type8:
-		return s.Pointer - _8HeaderSize
-	case _Type16:
-		return s.Pointer - _16HeaderSize
-	case _Type32:
-		return s.Pointer - _32HeaderSize
-	}
-	return 0
+	return s.Pointer - 8
 }
 
 func (s *Bytes) Free() {

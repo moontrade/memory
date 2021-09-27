@@ -1,4 +1,4 @@
-package art
+package artgo
 
 import (
 	"bufio"
@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"github.com/moontrade/memory"
+	"github.com/moontrade/memory/art"
 	"github.com/moontrade/memory/rax"
 	"github.com/moontrade/memory/rhmap"
 	"os"
@@ -95,6 +96,18 @@ func BenchmarkTree_Insert(b *testing.B) {
 			tree.Insert(Key{key}, nil)
 		}
 	})
+	b.Run("art", func(b *testing.B) {
+		tree := art.New()
+		b.ResetTimer()
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			key := memory.AllocBytes(8)
+			key.AppendInt64BE(int64(i))
+			//key.SetInt64BE(0, int64(i))
+			tree.InsertBytes(key, 0)
+		}
+		println("art size", tree.Size())
+	})
 	b.Run("rax", func(b *testing.B) {
 		m := rax.New()
 		b.ResetTimer()
@@ -134,7 +147,7 @@ func BenchmarkTree_Insert(b *testing.B) {
 func BenchmarkTree_Get(b *testing.B) {
 	b.Run("art", func(b *testing.B) {
 		tree := newTree()
-		for i := 0; i < 1000; i++ {
+		for i := 0; i < 10000000; i++ {
 			key := memory.AllocBytes(8)
 			key.AppendInt64BE(int64(i))
 			//key.SetInt64BE(0, int64(i))
@@ -142,6 +155,7 @@ func BenchmarkTree_Get(b *testing.B) {
 		}
 		key := memory.AllocBytes(8)
 		key.AppendInt64BE(500)
+		//println(tree.String())
 		b.ResetTimer()
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
@@ -149,9 +163,43 @@ func BenchmarkTree_Get(b *testing.B) {
 			tree.Search(Key{key})
 		}
 	})
+	b.Run("art", func(b *testing.B) {
+		tree := art.New()
+		for i := 0; i < 10000000; i++ {
+			key := memory.AllocBytes(8)
+			key.AppendInt64BE(int64(i))
+			//key.SetInt64BE(0, int64(i))
+			tree.InsertBytes(key, 0)
+		}
+		key := memory.AllocBytes(8)
+		key.AppendInt64BE(500)
+		//println(tree.String())
+		b.ResetTimer()
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			//key.AppendInt32(int32(i))
+			tree.FindBytes(key)
+		}
+	})
+	b.Run("rax", func(b *testing.B) {
+		m := rax.New()
+		for i := 0; i < 10000000; i++ {
+			key := memory.AllocBytes(8)
+			key.AppendInt64BE(int64(i))
+			//key.AppendInt32(int32(i))
+			m.InsertBytes(key, 0)
+		}
+		key := memory.AllocBytes(8)
+		key.AppendInt64BE(500)
+		b.ResetTimer()
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			m.FindBytes(key)
+		}
+	})
 	b.Run("rhmap", func(b *testing.B) {
 		m := rhmap.NewMap(uintptr(b.N * 2))
-		for i := 0; i < 1000; i++ {
+		for i := 0; i < 100000; i++ {
 			key := memory.AllocBytes(8)
 			key.AppendInt64BE(int64(i))
 			//key.SetInt64BE(0, int64(i))
@@ -167,15 +215,20 @@ func BenchmarkTree_Get(b *testing.B) {
 		}
 	})
 	b.Run("go map", func(b *testing.B) {
-		m := make(map[int64]memory.Pointer, uintptr(b.N*2))
-		for i := 0; i < 1000; i++ {
-			m[int64(i)] = 0
+		m := make(map[string]memory.Pointer, uintptr(b.N*2))
+		for i := 0; i < 1000000; i++ {
+			buf := make([]byte, 8)
+			binary.LittleEndian.PutUint64(buf, uint64(i))
+			m[string(buf)] = 0
 		}
+		buf := make([]byte, 8)
+		binary.LittleEndian.PutUint64(buf, uint64(500))
+		key := string(buf)
 		b.ResetTimer()
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
 			//key.AppendInt32(int32(i))
-			_, _ = m[500]
+			_, _ = m[key]
 		}
 	})
 }

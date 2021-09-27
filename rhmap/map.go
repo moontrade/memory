@@ -40,7 +40,8 @@ type mapItem struct {
 // NewMap returns a new robinhood hashmap.
 //goland:noinspection ALL
 func NewMap(size uintptr) Map {
-	items := AllocZeroed(unsafe.Sizeof(mapItem{}) * size)
+	//items := AllocZeroed(unsafe.Sizeof(mapItem{}) * size)
+	items := Calloc(uintptr(size), unsafe.Sizeof(mapItem{}))
 	return Map{
 		items:        items,
 		size:         size,
@@ -268,14 +269,16 @@ func (ps *Map) Grow() bool {
 	if ps.growthFactor <= 1.0 {
 		ps.growthFactor = 2.0
 	}
-	newSize := uintptr(float32(ps.size) * ps.growthFactor)
+	//newSize := uintptr(float32(ps.size) * ps.growthFactor)
+	newSize := ps.size * 2
 
 	if _TRACE {
 		println("Map.Grow", "newSize", uint(newSize), "oldSize", uint(ps.size))
 	}
 
 	// Allocate new items table
-	items := AllocZeroed(newSize * unsafe.Sizeof(mapItem{}))
+	items := Calloc(newSize, unsafe.Sizeof(mapItem{}))
+	//items := AllocZeroed(newSize * unsafe.Sizeof(mapItem{}))
 	// Calculate end
 	itemsEnd := uintptr(items) + (newSize * unsafe.Sizeof(mapItem{}))
 	// Init next structure

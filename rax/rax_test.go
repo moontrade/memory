@@ -25,6 +25,8 @@ func TestRax_Insert(t *testing.T) {
 	if old != 0 {
 		memory.Free(old)
 	}
+	found := rax.FindBytes(memory.WrapString("hello"))
+	println("found", uint(found))
 	rax.Print()
 	rax.Free()
 }
@@ -35,12 +37,12 @@ func BenchmarkRax_Insert(b *testing.B) {
 		defer rax.Free()
 
 		value := memory.WrapString("world")
+		key := memory.AllocBytes(8)
 
 		b.ResetTimer()
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
-			key := memory.AllocBytes(8)
-			key.AppendInt64BE(int64(i))
+			key.SetInt64BE(0, int64(i))
 			code, old := rax.Insert(key.Pointer, key.Len(), value.Pointer)
 			_, _ = code, old
 		}

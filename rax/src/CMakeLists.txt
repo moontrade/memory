@@ -11,7 +11,7 @@ if(APPLE)
 	set(CMAKE_C_FLAGS "-Ofast -fPIC")
 endif()
 if(LINUX)
-    set(CMAKE_C_FLAGS "-Dfast -fPIC -D_GNU_SOURCE")
+    set(CMAKE_C_FLAGS "-Ofast -fPIC -D_GNU_SOURCE")
 endif()
 
 add_library(rax STATIC rax.c)

@@ -9,6 +9,10 @@ import (
 // so Go won't confuse it for a potential GC managed pointer.
 type Pointer uintptr
 
+func (p Pointer) ToFat(length int) FatPointer {
+	return FatPointer{Pointer: p, len: uint32(length)}
+}
+
 //goland:noinspection GoVetUnsafePointer
 func (p Pointer) Unsafe() unsafe.Pointer {
 	return unsafe.Pointer(p)

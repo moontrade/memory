@@ -1,6 +1,7 @@
-package art
+package artgo
 
 import (
+	"github.com/moontrade/memory"
 	"math/bits"
 	"unsafe"
 )
@@ -306,21 +307,21 @@ func (an *artNode) leaf() *leaf {
 	return (*leaf)(unsafe.Pointer(an.ref))
 }
 
-func (an *artNode) _addChild4(c byte, valid bool, child *artNode) bool {
+func (an *artNode) _addChild4(c byte, valid bool, child *artNode) *artNode {
 	node := an.node4()
 
 	// grow to node16
 	if node.numChildren >= node4Max {
 		newNode := an.grow()
 		newNode.addChild(c, valid, child)
-		replaceNode(an, newNode)
-		return true
+		//replaceNode(an, newNode)
+		return newNode
 	}
 
 	// zero byte in the key
 	if !valid {
 		node.zeroChild = child
-		return false
+		return nil
 	}
 
 	// just add a new child
@@ -341,22 +342,22 @@ func (an *artNode) _addChild4(c byte, valid bool, child *artNode) bool {
 	node.present[i] = 1
 	node.children[i] = child
 	node.numChildren++
-	return false
+	return nil
 }
 
-func (an *artNode) _addChild16(c byte, valid bool, child *artNode) bool {
+func (an *artNode) _addChild16(c byte, valid bool, child *artNode) *artNode {
 	node := an.node16()
 
 	if node.numChildren >= node16Max {
 		newNode := an.grow()
 		newNode.addChild(c, valid, child)
-		replaceNode(an, newNode)
-		return true
+		//replaceNode(an, newNode)
+		return newNode
 	}
 
 	if !valid {
 		node.zeroChild = child
-		return false
+		return nil
 	}
 
 	idx := node.numChildren
@@ -382,21 +383,20 @@ func (an *artNode) _addChild16(c byte, valid bool, child *artNode) bool {
 	node.present |= 1 << uint16(idx)
 	node.children[idx] = child
 	node.numChildren++
-	return false
+	return nil
 }
 
-func (an *artNode) _addChild48(c byte, valid bool, child *artNode) bool {
+func (an *artNode) _addChild48(c byte, valid bool, child *artNode) *artNode {
 	node := an.node48()
 	if node.numChildren >= node48Max {
 		newNode := an.grow()
 		newNode.addChild(c, valid, child)
-		replaceNode(an, newNode)
-		return true
+		return newNode
 	}
 
 	if !valid {
 		node.zeroChild = child
-		return false
+		return nil
 	}
 
 	index := byte(0)
@@ -408,7 +408,7 @@ func (an *artNode) _addChild48(c byte, valid bool, child *artNode) bool {
 	node.present[c>>n48s] |= 1 << (c % n48m)
 	node.children[index] = child
 	node.numChildren++
-	return false
+	return nil
 }
 
 func (an *artNode) _addChild256(c byte, valid bool, child *artNode) bool {
@@ -423,7 +423,7 @@ func (an *artNode) _addChild256(c byte, valid bool, child *artNode) bool {
 	return false
 }
 
-func (an *artNode) addChild(c byte, valid bool, child *artNode) bool {
+func (an *artNode) addChild(c byte, valid bool, child *artNode) *artNode {
 	switch an.kind {
 	case Node4:
 		return an._addChild4(c, valid, child)
@@ -435,10 +435,10 @@ func (an *artNode) addChild(c byte, valid bool, child *artNode) bool {
 		return an._addChild48(c, valid, child)
 
 	case Node256:
-		return an._addChild256(c, valid, child)
+		an._addChild256(c, valid, child)
 	}
 
-	return false
+	return nil
 }
 
 func (an *artNode) _deleteChild4(c byte, valid bool) uint16 {
@@ -560,6 +560,7 @@ func (an *artNode) deleteChild(c byte, valid bool) bool {
 	if deleted && numChildren < minChildren {
 		newNode := an.shrink()
 		replaceNode(an, newNode)
+		memory.Free(memory.Pointer(unsafe.Pointer(an)))
 		return true
 	}
 

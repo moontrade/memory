@@ -370,6 +370,23 @@ func BenchmarkAllocator_Alloc(b *testing.B) {
 		runtime.ReadMemStats(&after)
 		doAfter(before, after)
 	})
+	b.Run("rpmalloc zeroed", func(b *testing.B) {
+		runtime.GC()
+		runtime.GC()
+		var before runtime.MemStats
+		runtime.ReadMemStats(&before)
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			size := randomRangeSizes[i%len(randomRangeSizes)]
+			b.SetBytes(int64(size))
+			Free(MallocZeroed(size))
+		}
+		b.StopTimer()
+		var after runtime.MemStats
+		runtime.ReadMemStats(&after)
+		doAfter(before, after)
+	})
 	b.Run("rpmalloc calloc", func(b *testing.B) {
 		runtime.GC()
 		runtime.GC()

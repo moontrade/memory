@@ -1,4 +1,4 @@
-package art
+package artgo
 
 import (
 	"bytes"
@@ -261,10 +261,10 @@ DumpNode returns Tree in the human readable format:
  )
 
  func main() {
- 	tree := art.New()
+ 	tree := artgo.New()
 	terms := []string{"A", "a", "aa"}
 	for _, term := range terms {
-		tree.Insert(art.Key(term), term)
+		tree.Insert(artgo.Key(term), term)
 	}
 	fmt.Println(tree)
  }

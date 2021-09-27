@@ -1,4 +1,4 @@
-package art
+package artgo
 
 type tree struct {
 	// version field is updated by each tree modification

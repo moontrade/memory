@@ -1,5 +1,5 @@
-//go:build libfuzzer
-// +build libfuzzer
+//go:build !cgo_safe
+// +build !cgo_safe
 
 package rax
 
@@ -50,15 +50,25 @@ void do_rax_insert(size_t arg0, size_t arg1) {
 	args->old = (size_t)old;
 }
 
+typedef struct {
+	size_t rax;
+	size_t key;
+	size_t len;
+	size_t result;
+} rax_find_t;
+
+void do_rax_find(size_t arg0, size_t arg1) {
+	rax_find_t* args = (rax_find_t*)(void*)arg0;
+	args->result = (size_t)raxFind((rax*)(void*)args->rax, (unsigned char*)args->key, args->len);
+}
+
 */
 import "C"
 import (
 	"github.com/moontrade/memory"
+	"github.com/moontrade/memory/unsafecgo"
 	"unsafe"
 )
-
-//go:linkname libfuzzerCall runtime.libfuzzerCall
-func libfuzzerCall(fn *byte, arg0, arg1 uintptr)
 
 type rax_new_t struct {
 	ptr uintptr
@@ -67,13 +77,13 @@ type rax_new_t struct {
 func New() *Rax {
 	args := rax_new_t{}
 	ptr := uintptr(unsafe.Pointer(&args))
-	libfuzzerCall((*byte)(C.do_rax_new), ptr, 0)
+	unsafecgo.Call((*byte)(C.do_rax_new), ptr, 0)
 	return (*Rax)(unsafe.Pointer(args.ptr))
 }
 
 func (r *Rax) Free() {
 	ptr := uintptr(unsafe.Pointer(r))
-	libfuzzerCall((*byte)(C.do_rax_free), ptr, 0)
+	unsafecgo.Call((*byte)(C.do_rax_free), ptr, 0)
 }
 
 type rax_size_t struct {
@@ -84,12 +94,12 @@ type rax_size_t struct {
 func (r *Rax) Size() int {
 	args := rax_size_t{ptr: uintptr(unsafe.Pointer(r))}
 	ptr := uintptr(unsafe.Pointer(&args))
-	libfuzzerCall((*byte)(C.do_rax_size), ptr, 0)
+	unsafecgo.Call((*byte)(C.do_rax_size), ptr, 0)
 	return int(args.size)
 }
 
 func (r *Rax) Print() {
-	libfuzzerCall((*byte)(C.do_rax_show), uintptr(unsafe.Pointer(r)), 0)
+	unsafecgo.Call((*byte)(C.do_rax_show), uintptr(unsafe.Pointer(r)), 0)
 }
 
 type rax_insert_t struct {
@@ -109,7 +119,7 @@ func (r *Rax) Insert(key memory.Pointer, size int, data memory.Pointer) (int, me
 		data: uintptr(data),
 	}
 	ptr := uintptr(unsafe.Pointer(&args))
-	libfuzzerCall((*byte)(C.do_rax_insert), ptr, 0)
+	unsafecgo.Call((*byte)(C.do_rax_insert), ptr, 0)
 	return int(args.result), memory.Pointer(args.old)
 }
 
@@ -121,6 +131,35 @@ func (r *Rax) InsertBytes(key memory.Bytes, data memory.Pointer) (int, memory.Po
 		data: uintptr(data),
 	}
 	ptr := uintptr(unsafe.Pointer(&args))
-	libfuzzerCall((*byte)(C.do_rax_insert), ptr, 0)
+	unsafecgo.Call((*byte)(C.do_rax_insert), ptr, 0)
 	return int(args.result), memory.Pointer(args.old)
+}
+
+type rax_find_t struct {
+	rax    uintptr
+	s      uintptr
+	len    uintptr
+	result uintptr
+}
+
+func (r *Rax) Find(key memory.Pointer, size int) memory.Pointer {
+	args := rax_find_t{
+		rax: uintptr(unsafe.Pointer(r)),
+		s:   uintptr(key),
+		len: uintptr(size),
+	}
+	ptr := uintptr(unsafe.Pointer(&args))
+	unsafecgo.Call((*byte)(C.do_rax_find), ptr, 0)
+	return memory.Pointer(args.result)
+}
+
+func (r *Rax) FindBytes(key memory.Bytes) memory.Pointer {
+	args := rax_find_t{
+		rax: uintptr(unsafe.Pointer(r)),
+		s:   uintptr(key.Pointer),
+		len: uintptr(key.Len()),
+	}
+	ptr := uintptr(unsafe.Pointer(&args))
+	unsafecgo.Call((*byte)(C.do_rax_find), ptr, 0)
+	return memory.Pointer(args.result)
 }

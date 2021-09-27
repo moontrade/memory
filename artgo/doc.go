@@ -14,15 +14,15 @@
 //
 //  func main() {
 //
-//     tree := art.New()
+//     tree := artgo.New()
 //
-//     tree.Insert(art.Key("Hi, I'm Key"), "Nice to meet you, I'm Value")
-//     value, found := tree.Search(art.Key("Hi, I'm Key"))
+//     tree.Insert(artgo.Key("Hi, I'm Key"), "Nice to meet you, I'm Value")
+//     value, found := tree.Search(artgo.Key("Hi, I'm Key"))
 //     if found {
 //         fmt.Printf("Search value=%v\n", value)
 //     }
 //
-//     tree.ForEach(func(node art.Node) bool {
+//     tree.ForEach(func(node artgo.Node) bool {
 //         fmt.Printf("Callback value=%v\n", node.Value())
 //         return true
 //     }
@@ -46,4 +46,4 @@
 // [2] https://github.com/armon/libart (C99 implementation)
 //
 // [3] https://github.com/kellydunn/go-art (other Go implementation)
-package art
+package artgo

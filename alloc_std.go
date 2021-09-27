@@ -21,25 +21,35 @@ func scope(fn func(a Auto)) {
 }
 
 // Alloc calls Alloc on the system allocator
+//export alloc
 func Alloc(size uintptr) Pointer {
 	return Pointer(rpmalloc.Malloc(size))
 }
+
+//export allocCap
 func AllocCap(size uintptr) (Pointer, uintptr) {
 	p, c := rpmalloc.MallocCap(size)
 	return Pointer(p), c
 }
+
+//export allocZeroed
 func AllocZeroed(size uintptr) Pointer {
-	return Calloc(1, size)
+	return Pointer(rpmalloc.MallocZeroed(size))
 }
+
+//export allocZeroedCap
 func AllocZeroedCap(size uintptr) (Pointer, uintptr) {
-	return CallocCap(1, size)
+	p, c := rpmalloc.MallocZeroedCap(size)
+	return Pointer(p), c
 }
 
 // Alloc calls Alloc on the system allocator
-//export alloc
+//export calloc
 func Calloc(num, size uintptr) Pointer {
 	return Pointer(rpmalloc.Calloc(num, size))
 }
+
+//export callocCap
 func CallocCap(num, size uintptr) (Pointer, uintptr) {
 	p, c := rpmalloc.CallocCap(num, size)
 	return Pointer(p), c
@@ -50,6 +60,8 @@ func CallocCap(num, size uintptr) (Pointer, uintptr) {
 func Realloc(p Pointer, size uintptr) Pointer {
 	return Pointer(rpmalloc.Realloc(uintptr(p), size))
 }
+
+//export reallocCap
 func ReallocCap(p Pointer, size uintptr) (Pointer, uintptr) {
 	newPtr, c := rpmalloc.ReallocCap(uintptr(p), size)
 	return Pointer(newPtr), c
@@ -61,6 +73,7 @@ func Free(p Pointer) {
 	rpmalloc.Free(uintptr(p))
 }
 
+//export sizeof
 func SizeOf(ptr Pointer) uintptr {
 	return rpmalloc.UsableSize(uintptr(ptr))
 }

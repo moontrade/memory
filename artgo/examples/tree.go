@@ -2,28 +2,28 @@ package main
 
 import (
 	"fmt"
-	"github.com/moontrade/memory/art"
+	"github.com/moontrade/memory/artgo"
 )
 
 func DumpTree() {
-	tree := art.New()
+	tree := artgo.New()
 	terms := []string{"A", "a", "aa"}
 	for _, term := range terms {
-		tree.Insert(art.StringKey(term), term)
+		tree.Insert(artgo.StringKey(term), term)
 	}
 	fmt.Println(tree)
 }
 
 func SimpleTree() {
-	tree := art.New()
+	tree := artgo.New()
 
-	tree.Insert(art.StringKey("Hi, I'm Key"), "Nice to meet you, I'm Value")
-	value, found := tree.Search(art.StringKey("Hi, I'm Key"))
+	tree.Insert(artgo.StringKey("Hi, I'm Key"), "Nice to meet you, I'm Value")
+	value, found := tree.Search(artgo.StringKey("Hi, I'm Key"))
 	if found {
 		fmt.Printf("Search value=%v\n", value)
 	}
 
-	tree.ForEach(func(node art.Node) bool {
+	tree.ForEach(func(node artgo.Node) bool {
 		fmt.Printf("Callback value=%v\n", node.Value())
 		return true
 	})
