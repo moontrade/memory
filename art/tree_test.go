@@ -3,7 +3,11 @@ package art
 import (
 	"bufio"
 	"bytes"
+	"encoding/binary"
 	"fmt"
+	"github.com/moontrade/memory"
+	"github.com/moontrade/memory/rax"
+	"github.com/moontrade/memory/rhmap"
 	"os"
 	"sort"
 	"testing"
@@ -77,6 +81,103 @@ func loadTestFile(path string) [][]byte {
 		}
 	}
 	return words
+}
+
+func BenchmarkTree_Insert(b *testing.B) {
+	b.Run("art", func(b *testing.B) {
+		tree := newTree()
+		b.ResetTimer()
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			key := memory.AllocBytes(8)
+			key.AppendInt64BE(int64(i))
+			//key.SetInt64BE(0, int64(i))
+			tree.Insert(Key{key}, nil)
+		}
+	})
+	b.Run("rax", func(b *testing.B) {
+		m := rax.New()
+		b.ResetTimer()
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			key := memory.AllocBytes(8)
+			key.AppendInt64(int64(i))
+			//key.AppendInt32(int32(i))
+			m.InsertBytes(key, 0)
+		}
+	})
+	b.Run("rhmap", func(b *testing.B) {
+		m := rhmap.NewMap(uintptr(b.N * 2))
+		b.ResetTimer()
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			key := memory.AllocBytes(8)
+			key.AppendInt64(int64(i))
+			//key.AppendInt32(int32(i))
+			m.Set(key, memory.Bytes{})
+		}
+	})
+	b.Run("go map", func(b *testing.B) {
+		m := make(map[string]memory.Pointer, uintptr(b.N*2))
+		b.ResetTimer()
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			buf := make([]byte, 8)
+			binary.LittleEndian.PutUint64(buf, uint64(i))
+			//key := memory.WrapString("hello")
+			//key.AppendInt32(int32(i))
+			m[string(buf)] = 0
+		}
+	})
+}
+
+func BenchmarkTree_Get(b *testing.B) {
+	b.Run("art", func(b *testing.B) {
+		tree := newTree()
+		for i := 0; i < 1000; i++ {
+			key := memory.AllocBytes(8)
+			key.AppendInt64BE(int64(i))
+			//key.SetInt64BE(0, int64(i))
+			tree.Insert(Key{key}, nil)
+		}
+		key := memory.AllocBytes(8)
+		key.AppendInt64BE(500)
+		b.ResetTimer()
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			//key.AppendInt32(int32(i))
+			tree.Search(Key{key})
+		}
+	})
+	b.Run("rhmap", func(b *testing.B) {
+		m := rhmap.NewMap(uintptr(b.N * 2))
+		for i := 0; i < 1000; i++ {
+			key := memory.AllocBytes(8)
+			key.AppendInt64BE(int64(i))
+			//key.SetInt64BE(0, int64(i))
+			m.Set(key, memory.Bytes{})
+		}
+		key := memory.AllocBytes(8)
+		key.AppendInt64BE(500)
+		b.ResetTimer()
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			//key.AppendInt32(int32(i))
+			m.Get(key)
+		}
+	})
+	b.Run("go map", func(b *testing.B) {
+		m := make(map[int64]memory.Pointer, uintptr(b.N*2))
+		for i := 0; i < 1000; i++ {
+			m[int64(i)] = 0
+		}
+		b.ResetTimer()
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			//key.AppendInt32(int32(i))
+			_, _ = m[500]
+		}
+	})
 }
 
 func TestTreeLongestCommonPrefix(t *testing.T) {

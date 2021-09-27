@@ -9,7 +9,7 @@ type prefix [MaxPrefixLen]byte
 
 // ART node stores all available nodes, leaf and node type
 type artNode struct {
-	ref  unsafe.Pointer
+	ref  uintptr
 	kind Kind
 }
 
@@ -80,7 +80,7 @@ func (k Key) valid(pos int) bool {
 
 // Node interface implementation
 func (an *artNode) node() *node {
-	return (*node)(an.ref)
+	return (*node)(unsafe.Pointer(an.ref))
 }
 
 func (an *artNode) Kind() Kind {
@@ -287,23 +287,23 @@ func (an *artNode) findChild(c byte, valid bool) **artNode {
 }
 
 func (an *artNode) node4() *node4 {
-	return (*node4)(an.ref)
+	return (*node4)(unsafe.Pointer(an.ref))
 }
 
 func (an *artNode) node16() *node16 {
-	return (*node16)(an.ref)
+	return (*node16)(unsafe.Pointer(an.ref))
 }
 
 func (an *artNode) node48() *node48 {
-	return (*node48)(an.ref)
+	return (*node48)(unsafe.Pointer(an.ref))
 }
 
 func (an *artNode) node256() *node256 {
-	return (*node256)(an.ref)
+	return (*node256)(unsafe.Pointer(an.ref))
 }
 
 func (an *artNode) leaf() *leaf {
-	return (*leaf)(an.ref)
+	return (*leaf)(unsafe.Pointer(an.ref))
 }
 
 func (an *artNode) _addChild4(c byte, valid bool, child *artNode) bool {

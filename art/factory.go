@@ -64,49 +64,54 @@ func newObjFactory() nodeFactory {
 
 // Simple obj factory implementation
 func (f *objFactory) newNode4() *artNode {
-	n := (*artNode)(unsafe.Pointer(memory.AllocZeroed(unsafe.Sizeof(artNode{}))))
-	n4 := (*node48)(unsafe.Pointer(memory.AllocZeroed(unsafe.Sizeof(node4{}))))
+	n := (*artNode)(unsafe.Pointer(memory.AllocZeroed(unsafe.Sizeof(artNode{}) + unsafe.Sizeof(node4{}))))
+	n4 := (*node4)(unsafe.Pointer(uintptr(unsafe.Pointer(n)) + unsafe.Sizeof(artNode{})))
 	n.kind = Node4
-	n.ref = unsafe.Pointer(n4)
+	n.ref = uintptr(unsafe.Pointer(n4))
 	return n
 }
 
 func (f *objFactory) newNode16() *artNode {
-	n := (*artNode)(unsafe.Pointer(memory.AllocZeroed(unsafe.Sizeof(artNode{}))))
-	n16 := (*node48)(unsafe.Pointer(memory.AllocZeroed(unsafe.Sizeof(node16{}))))
+	n := (*artNode)(unsafe.Pointer(memory.AllocZeroed(unsafe.Sizeof(artNode{}) + unsafe.Sizeof(node16{}))))
+	n16 := (*node16)(unsafe.Pointer(uintptr(unsafe.Pointer(n)) + unsafe.Sizeof(artNode{})))
+	//n16 := (*node48)(unsafe.Pointer(memory.AllocZeroed(unsafe.Sizeof(node16{}))))
 	n.kind = Node16
-	n.ref = unsafe.Pointer(n16)
+	n.ref = uintptr(unsafe.Pointer(n16))
 	return n
 }
 
 func (f *objFactory) newNode48() *artNode {
-	n := (*artNode)(unsafe.Pointer(memory.AllocZeroed(unsafe.Sizeof(artNode{}))))
-	n48 := (*node48)(unsafe.Pointer(memory.AllocZeroed(unsafe.Sizeof(node48{}))))
+	n := (*artNode)(unsafe.Pointer(memory.AllocZeroed(unsafe.Sizeof(artNode{}) + unsafe.Sizeof(node48{}))))
+	n48 := (*node48)(unsafe.Pointer(uintptr(unsafe.Pointer(n)) + unsafe.Sizeof(artNode{})))
+	//n48 := (*node48)(unsafe.Pointer(memory.AllocZeroed(unsafe.Sizeof(node48{}))))
 	n.kind = Node48
-	n.ref = unsafe.Pointer(n48)
+	n.ref = uintptr(unsafe.Pointer(n48))
 	return n
 }
 
 func (f *objFactory) newNode256() *artNode {
-	n := (*artNode)(unsafe.Pointer(memory.AllocZeroed(unsafe.Sizeof(artNode{}))))
-	n256 := (*node256)(unsafe.Pointer(memory.AllocZeroed(unsafe.Sizeof(node256{}))))
+	n := (*artNode)(unsafe.Pointer(memory.AllocZeroed(unsafe.Sizeof(artNode{}) + unsafe.Sizeof(node256{}))))
+	n256 := (*node256)(unsafe.Pointer(uintptr(unsafe.Pointer(n)) + unsafe.Sizeof(artNode{})))
+	//n256 := (*node256)(unsafe.Pointer(memory.AllocZeroed(unsafe.Sizeof(node256{}))))
 	n.kind = Node256
-	n.ref = unsafe.Pointer(n256)
+	n.ref = uintptr(unsafe.Pointer(n256))
 	return n
 }
 
 func (f *objFactory) newLeaf(key Key, value interface{}) *artNode {
 	clonedKey := key.Clone()
-	n := (*artNode)(unsafe.Pointer(memory.AllocZeroed(unsafe.Sizeof(artNode{}))))
-	l := (*leaf)(unsafe.Pointer(memory.AllocZeroed(unsafe.Sizeof(leaf{}))))
+	n := (*artNode)(unsafe.Pointer(memory.AllocZeroed(unsafe.Sizeof(artNode{}) + unsafe.Sizeof(leaf{}))))
+	l := (*leaf)(unsafe.Pointer(uintptr(unsafe.Pointer(n)) + unsafe.Sizeof(artNode{})))
+	//l := (*leaf)(unsafe.Pointer(memory.AllocZeroed(unsafe.Sizeof(leaf{}))))
 	n.kind = Leaf
 	l.key = clonedKey
 	l.value = value
-	n.ref = unsafe.Pointer(l)
+	n.ref = uintptr(unsafe.Pointer(l))
 	//clonedKey := make(Key, len(key))
 	//copy(clonedKey, key)
-	return &artNode{
-		kind: Leaf,
-		ref:  unsafe.Pointer(&leaf{key: clonedKey, value: value}),
-	}
+	return n
+	//return &artNode{
+	//	kind: Leaf,
+	//	ref:  unsafe.Pointer(&leaf{key: clonedKey, value: value}),
+	//}
 }

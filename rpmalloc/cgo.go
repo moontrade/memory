@@ -3,7 +3,9 @@
 
 package rpmalloc
 
-// #include "rpmalloc.h"
+/*
+#include "rpmalloc.h"
+*/
 import "C"
 import (
 	"unsafe"

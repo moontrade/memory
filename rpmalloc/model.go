@@ -19,7 +19,7 @@ type Config struct {
 	MemoryMap uintptr
 	//! Unmap the memory pages starting at address and spanning the given number of bytes.
 	//  If release is set to non-zero, the unmap is for an entire span range as returned by
-	//  a previous call to memory_map and that the entire range should be released. The
+	//  a previous libfuzzerCall to memory_map and that the entire range should be released. The
 	//  release argument holds the size of the entire span range. If release is set to 0,
 	//  the unmap is a partial decommit of a subset of the mapped memory range.
 	//  If you set a memory_unmap function, you must also set a memory_map function or
@@ -28,10 +28,10 @@ type Config struct {
 	//! Called when an assert fails, if asserts are enabled. Will use the standard assert()
 	//  if this is not set.
 	ErrorCallback uintptr
-	//! Called when a call to map memory pages fails (out of memory). If this callback is
+	//! Called when a libfuzzerCall to map memory pages fails (out of memory). If this callback is
 	//  not set or returns zero the library will return a null pointer in the allocation
-	//  call. If this callback returns non-zero the map call will be retried. The argument
-	//  passed is the number of bytes that was requested in the map call. Only used if
+	//  libfuzzerCall. If this callback returns non-zero the map libfuzzerCall will be retried. The argument
+	//  passed is the number of bytes that was requested in the map libfuzzerCall. Only used if
 	//  the default system memory map function is used (memory_map callback is not set).
 	MapFailCallback uintptr
 	//! Size of memory pages. The page size MUST be a power of two. All memory mapping
@@ -43,7 +43,7 @@ type Config struct {
 	//  is defined to 1.
 	SpanSize uintptr
 	//! Number of spans to map at each request to map new virtual memory blocks. This can
-	//  be used to minimize the system call overhead at the cost of virtual memory address
+	//  be used to minimize the system libfuzzerCall overhead at the cost of virtual memory address
 	//  space. The extra mapped pages will not be written until actually used, so physical
 	//  committed memory should not be affected in the default implementation. Will be
 	//  aligned to a multiple of spans that match memory page size in case of huge pages.

@@ -6,21 +6,22 @@ package rpmalloc
 /*
 #include <rpmalloc.h>
 #include <stdlib.h>
+#include <inttypes.h>
 
 typedef struct {
 	size_t size;
 	size_t ptr;
 } malloc_t;
 
-void do_malloc(size_t arg0, size_t arg1) {
+void do_malloc(uintptr_t arg0, uintptr_t arg1) {
 	malloc_t* args = (malloc_t*)arg0;
 	args->ptr = (size_t)malloc((size_t)args->size);
 }
-void do_free(size_t ptr, size_t arg1) {
+void do_free(size_t ptr, size_t arg1, uintptr_t arg2, uintptr_t arg3) {
 	free((void*)ptr);
 }
 
-void do_rpmalloc_thread_statistics(size_t arg0, size_t arg1) {
+void do_rpmalloc_thread_statistics(uintptr_t arg0, uintptr_t arg1) {
 	rpmalloc_thread_statistics((rpmalloc_thread_statistics_t*)(void*)arg0);
 }
 
@@ -230,7 +231,7 @@ func libfuzzerCall(fn *byte, arg0, arg1 uintptr)
 
 // ReadThreadStats get thread statistics
 func ReadThreadStats(stats *ThreadStats) {
-	libfuzzerCall((*byte)(C.do_rpmalloc_thread_statistics), uintptr(unsafe.Pointer(stats)), 0)
+	libfuzzerCall((*byte)(C.rpmalloc_thread_statistics), uintptr(unsafe.Pointer(stats)), 0)
 }
 
 // ReadGlobalStats get global statistics

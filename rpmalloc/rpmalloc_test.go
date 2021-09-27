@@ -10,8 +10,13 @@ import (
 	"time"
 )
 
+func TestCall(t *testing.T) {
+
+}
+
 func TestAlloc(t *testing.T) {
 
+	Malloc(128)
 	var wg = &sync.WaitGroup{}
 
 	wg.Add(100)
@@ -94,7 +99,7 @@ func BenchmarkCGO(b *testing.B) {
 		b.ResetTimer()
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
-			ptr, c = MallocCap(32)
+			ptr, c = MallocCap(8)
 			_ = c
 			Free(ptr)
 		}
@@ -270,7 +275,7 @@ func randomRange(min, max int) int {
 func BenchmarkAllocator_Alloc(b *testing.B) {
 	var (
 		min, max    = 36, 1024
-		runTLSF     = false
+		runTLSF     = true
 		showGCStats = false
 	)
 	doAfter := func(before, after runtime.MemStats) {
