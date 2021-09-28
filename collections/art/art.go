@@ -107,7 +107,7 @@ func (l *Leaf) Data() memory.Pointer {
 func (l *Leaf) Key() memory.FatPointer {
 	return memory.FatPointerOf(
 		memory.Pointer(uintptr(unsafe.Pointer(l))+unsafe.Sizeof(uintptr(0))+4),
-		*(*uint32)(unsafe.Pointer(uintptr(unsafe.Pointer(l)) + unsafe.Sizeof(uintptr(0)))))
+		uintptr(*(*uint32)(unsafe.Pointer(uintptr(unsafe.Pointer(l)) + unsafe.Sizeof(uintptr(0))))))
 }
 
 type artNewT struct {

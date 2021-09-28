@@ -23,19 +23,28 @@ type lockFreeNode struct {
 
 //goland:noinspection GoVetUnsafePointer
 func AllocLockFreeQueue() *LockFree {
-	q := (*LockFree)(unsafe.Pointer(memory.AllocZeroed(unsafe.Sizeof(LockFree{}))))
-	n := memory.AllocZeroed(unsafe.Sizeof(lockFreeNode{}))
+	q := (*LockFree)(unsafe.Pointer(memory.Alloc(unsafe.Sizeof(LockFree{}))))
+	n := memory.Alloc(unsafe.Sizeof(lockFreeNode{}))
+	node := (*lockFreeNode)(unsafe.Pointer(n))
+	node.value = memory.Bytes{}
+	node.next = 0
 	q.head = uintptr(n)
 	q.tail = uintptr(n)
+	q.length = 0
 	return q
+}
+
+func (l *LockFree) Free() {
+	memory.Free(memory.Pointer(unsafe.Pointer(l)))
 }
 
 // Enqueue puts the given value v at the tail of the queue.
 //goland:noinspection GoVetUnsafePointer
 func (q *LockFree) Enqueue(task memory.Bytes) {
-	n := uintptr(memory.AllocZeroed(unsafe.Sizeof(lockFreeNode{})))
+	n := uintptr(memory.Alloc(unsafe.Sizeof(lockFreeNode{})))
 	node := (*lockFreeNode)(unsafe.Pointer(n))
 	node.value = task
+	node.next = 0
 retry:
 	last := atomic.LoadUintptr(&q.tail)
 	lastV := (*lockFreeNode)(unsafe.Pointer(last))
@@ -95,11 +104,3 @@ retry:
 func (q *LockFree) Empty() bool {
 	return atomic.LoadInt32(&q.length) == 0
 }
-
-//func load(p *uintptr) uintptr {
-//	return (*node)(unsafe.Pointer(atomic.LoadUintptr(p)))
-//}
-//
-//func cas(p *uintptr, old, new uintptr) bool {
-//	return atomic.CompareAndSwapUintptr(p, old, new)
-//}

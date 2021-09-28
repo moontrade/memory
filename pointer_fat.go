@@ -4,14 +4,14 @@ import "unsafe"
 
 type FatPointer struct {
 	Pointer
-	len uint32
+	len uintptr
 }
 
-func (fp *FatPointer) Len() int {
-	return int(fp.len)
+func (fp *FatPointer) Len() uintptr {
+	return fp.len
 }
 
-func FatPointerOf(p Pointer, length uint32) FatPointer {
+func FatPointerOf(p Pointer, length uintptr) FatPointer {
 	return FatPointer{Pointer: p, len: length}
 }
 

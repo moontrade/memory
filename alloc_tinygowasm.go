@@ -4,7 +4,7 @@
 package memory
 
 import (
-	"github.com/moontrade/memory/tlsf"
+	"github.com/moontrade/memory/alloc/tlsf"
 	"unsafe"
 )
 

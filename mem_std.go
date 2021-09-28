@@ -9,28 +9,12 @@ import (
 )
 
 func Compare(a, b unsafe.Pointer, n uintptr) int {
-	if a == nil {
-		if b == nil {
-			return 0
-		}
-		return -1
-	}
-	ab := *(*string)(unsafe.Pointer(&reflect.SliceHeader{
-		Data: uintptr(a),
-		Len:  int(n),
-	}))
-	bb := *(*string)(unsafe.Pointer(&reflect.SliceHeader{
-		Data: uintptr(b),
-		Len:  int(n),
-	}))
-	if ab < bb {
-		return -1
-	}
-	if ab == bb {
-		return 0
-	}
-	return 1
+	return Cmp(*(*string)(unsafe.Pointer(&reflect.StringHeader{Data: uintptr(a), Len: int(n)})),
+		*(*string)(unsafe.Pointer(&reflect.StringHeader{Data: uintptr(b), Len: int(n)})))
 }
+
+//go:linkname Cmp runtime.cmpstring
+func Cmp(a, b string) int
 
 func Copy(dst, src unsafe.Pointer, n uintptr) {
 	Move(dst, src, n)
@@ -51,9 +35,9 @@ func memcpySlow(dst, src unsafe.Pointer, n uintptr) {
 	//copy(dstB, srcB)
 }
 
-// Memmove copies n bytes from "from" to "to".
+// Move copies n bytes from "from" to "to".
 //
-// Memmove ensures that any pointer in "from" is written to "to" with
+// Move ensures that any pointer in "from" is written to "to" with
 // an indivisible write, so that racy reads cannot observe a
 // half-written pointer. This is necessary to prevent the garbage
 // collector from observing invalid pointers, and differs from Memmove
@@ -66,11 +50,6 @@ func memcpySlow(dst, src unsafe.Pointer, n uintptr) {
 //go:noescape
 //go:linkname Move runtime.memmove
 func Move(to, from unsafe.Pointer, n uintptr)
-
-func Zero(ptr unsafe.Pointer, n uintptr) {
-	memclrNoHeapPointers(ptr, n)
-	//zeroSlow(ptr, n)
-}
 
 func zeroSlow(ptr unsafe.Pointer, size uintptr) {
 	b := *(*[]byte)(unsafe.Pointer(&reflect.SliceHeader{
@@ -96,7 +75,12 @@ func zeroSlow(ptr unsafe.Pointer, size uintptr) {
 	}
 }
 
-// memclrNoHeapPointers clears n bytes starting at ptr.
+//func Zero(ptr unsafe.Pointer, n uintptr) {
+//	memclrNoHeapPointers(ptr, n)
+//	//zeroSlow(ptr, n)
+//}
+
+// Zero clears n bytes starting at ptr.
 //
 // Usually you should use typedmemclr. memclrNoHeapPointers should be
 // used only when the caller knows that *ptr contains no heap pointers
@@ -117,8 +101,8 @@ func zeroSlow(ptr unsafe.Pointer, size uintptr) {
 // The (CPU-specific) implementations of this function are in memclr_*.s.
 //
 //go:noescape
-//go:linkname memclrNoHeapPointers runtime.memclrNoHeapPointers
-func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
+//go:linkname Zero runtime.memclrNoHeapPointers
+func Zero(ptr unsafe.Pointer, n uintptr)
 
 //func Memequal(a, b unsafe.Pointer, n uintptr) bool {
 //	if a == nil {

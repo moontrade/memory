@@ -2,7 +2,6 @@ package memory
 
 import (
 	"github.com/moontrade/memory/hash"
-	"math"
 	"unsafe"
 )
 
@@ -12,21 +11,21 @@ import (
 //}
 
 const (
-	//_SDSType5 = 0
-	_Type8    = 1
-	_Type16   = 2
-	_Type32   = 3
-	_Type64   = 4
-	_TypeMask = 7
-	_TypeBits = 3
-
-	_8HeaderSize  = 3
-	_16HeaderSize = 4
-	_32HeaderSize = 6
-	_64HeaderSize = 10
-	_Max8Size     = math.MaxUint8 - _8HeaderSize
-	_Max16Size    = math.MaxUint16 - _16HeaderSize
-	_Max32Size    = math.MaxUint32 - _32HeaderSize
+//_SDSType5 = 0
+//_Type8    = 1
+//_Type16   = 2
+//_Type32   = 3
+//_Type64   = 4
+//_TypeMask = 7
+//_TypeBits = 3
+//
+//_8HeaderSize  = 3
+//_16HeaderSize = 4
+//_32HeaderSize = 6
+//_64HeaderSize = 10
+//_Max8Size     = math.MaxUint8 - _8HeaderSize
+//_Max16Size    = math.MaxUint16 - _16HeaderSize
+//_Max32Size    = math.MaxUint32 - _32HeaderSize
 )
 
 // Bytes is a compact single dynamic allocation to be used as an unsafe replacement for string.
@@ -35,34 +34,46 @@ type Bytes struct {
 }
 
 func AllocBytes(size uintptr) Bytes {
-	return newString(size)
+	return newBytesZeroed(size)
 }
 
 func WrapString(s string) Bytes {
-	str := newString(uintptr(len(s)))
+	str := newBytesZeroed(uintptr(len(s)))
 	str.Pointer.SetString(0, s)
 	str.setLen(len(s))
 	return str
 }
 
 func WrapBytes(b []byte) Bytes {
-	str := newString(uintptr(len(b)))
+	str := newBytesZeroed(uintptr(len(b)))
 	str.Pointer.SetBytes(0, b)
 	str.setLen(len(b))
 	return str
 }
 
-func newString(size uintptr) Bytes {
-	p, c := AllocCap(size + 4)
+func newBytesZeroed(size uintptr) Bytes {
+	p, c := AllocZeroedCap(size + 8)
 	if p == 0 {
 		return Bytes{0}
 	}
-	*(*uint32)(unsafe.Pointer(p)) = 0
-	*(*uint32)(unsafe.Pointer(p + 4)) = uint32(c)
+	// Set cap
+	*(*uint32)(unsafe.Pointer(p)) = uint32(c)
+	*(*uint32)(unsafe.Pointer(p + 4)) = 0
 	return Bytes{p + 8}
 }
 
-//func newString(size uintptr) Bytes {
+func newBytes(size uintptr) Bytes {
+	p, c := AllocCap(size + 8)
+	if p == 0 {
+		return Bytes{0}
+	}
+	// Set cap
+	*(*uint32)(unsafe.Pointer(p)) = uint32(c)
+	*(*uint32)(unsafe.Pointer(p + 4)) = 0
+	return Bytes{p + 8}
+}
+
+//func newBytesZeroed(size uintptr) Bytes {
 //	switch {
 //	case size <= _Max8Size:
 //		p, c := AllocCap(size)
@@ -187,16 +198,16 @@ func (b Bytes) Len() int {
 	if b.Pointer == 0 {
 		return 0
 	}
-	return int(*(*uint32)(unsafe.Pointer(b.Pointer - 8)))
-}
-func (b Bytes) setLen(l int) {
-	*(*uint32)(unsafe.Pointer(b.Pointer - 8)) = uint32(l)
-}
-func (b Bytes) Cap() int {
 	return int(*(*uint32)(unsafe.Pointer(b.Pointer - 4)))
 }
-func (b Bytes) setCap(l int) {
+func (b Bytes) setLen(l int) {
 	*(*uint32)(unsafe.Pointer(b.Pointer - 4)) = uint32(l)
+}
+func (b Bytes) Cap() int {
+	return int(*(*uint32)(unsafe.Pointer(b.Pointer - 8)))
+}
+func (b Bytes) setCap(l int) {
+	*(*uint32)(unsafe.Pointer(b.Pointer - 8)) = uint32(l)
 }
 func (s Bytes) allocationPointer() Pointer {
 	return s.Pointer - 8

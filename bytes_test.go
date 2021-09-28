@@ -5,15 +5,15 @@ import (
 )
 
 func TestSDS(t *testing.T) {
-	str := newString(32)
+	str := newBytesZeroed(32)
 	println("size 32", "cap", str.Cap())
-	str = newString(8)
+	str = newBytesZeroed(8)
 	println("size 8", "cap", str.Cap())
-	str = newString(37)
+	str = newBytesZeroed(37)
 	println("size 37", "cap", str.Cap())
-	str = newString(39)
+	str = newBytesZeroed(39)
 	println("size 39", "cap", str.Cap())
-	str = newString(41)
+	str = newBytesZeroed(41)
 	println("size 41", "cap", str.Cap())
 }
 
@@ -25,10 +25,10 @@ func BenchmarkBytes(b *testing.B) {
 		}
 	})
 
-	str := newString(32)
+	str := newBytesZeroed(32)
 	str.Cap()
-	str = newString(39)
-	str = newString(41)
+	str = newBytesZeroed(39)
+	str = newBytesZeroed(41)
 	b.Run("Bytes.len", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			_ = str.Len()

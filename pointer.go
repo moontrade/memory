@@ -10,7 +10,7 @@ import (
 type Pointer uintptr
 
 func (p Pointer) ToFat(length int) FatPointer {
-	return FatPointer{Pointer: p, len: uint32(length)}
+	return FatPointer{Pointer: p, len: uintptr(length)}
 }
 
 //goland:noinspection GoVetUnsafePointer
@@ -23,9 +23,54 @@ func (p Pointer) Add(offset int) Pointer {
 	return Pointer(uintptr(int(p) + offset))
 }
 
+// Free deallocates memory pointed by Pointer
+func (p *Pointer) Free() {
+	if p == nil || *p == 0 {
+		return
+	}
+	Free(*p)
+	*p = 0
+}
+
+// SizeOf returns the size of the allocation provided by the platform allocator.
+func (p Pointer) SizeOf() uintptr {
+	return SizeOf(p)
+}
+
+// Clone the memory starting at offset for size number of bytes and return the new Pointer.
+func (p Pointer) Clone(offset, size int) Pointer {
+	clone := Alloc(uintptr(size))
+	p.Copy(offset, size, clone)
+	return clone
+}
+
 // Zero zeroes out the entire allocation.
 func (p Pointer) Zero(size uintptr) {
 	Zero(p.Unsafe(), size)
+}
+
+// Move does a memmove
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) Move(offset, size int, to Pointer) {
+	Move(unsafe.Pointer(to), unsafe.Pointer(uintptr(int(p)+offset)), uintptr(size))
+}
+
+// Copy does a memcpy
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) Copy(offset, size int, to Pointer) {
+	Copy(unsafe.Pointer(to), unsafe.Pointer(uintptr(int(p)+offset)), uintptr(size))
+}
+
+// Equals does a memequal
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) Equals(offset, size int, to Pointer) bool {
+	return Equals(unsafe.Pointer(to), unsafe.Pointer(uintptr(int(p)+offset)), uintptr(size))
+}
+
+// Compare does a memcmp
+//goland:noinspection GoVetUnsafePointer
+func (p Pointer) Compare(offset, size int, to Pointer) int {
+	return Compare(unsafe.Pointer(to), unsafe.Pointer(uintptr(int(p)+offset)), uintptr(size))
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////

@@ -2,7 +2,7 @@ package rpmalloc
 
 import (
 	"fmt"
-	"github.com/moontrade/memory/tlsf"
+	"github.com/moontrade/memory/alloc/tlsf"
 	"math/rand"
 	"runtime"
 	"sync"

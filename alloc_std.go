@@ -4,7 +4,7 @@
 package memory
 
 import (
-	"github.com/moontrade/memory/rpmalloc"
+	"github.com/moontrade/memory/alloc/rpmalloc"
 )
 
 func Init() {}
