@@ -7,6 +7,30 @@ import (
 	"unsafe"
 )
 
+func Compare(a, b unsafe.Pointer, n uintptr) int {
+	if a == nil {
+		if b == nil {
+			return 0
+		}
+		return -1
+	}
+	ab := *(*string)(unsafe.Pointer(&_bytes{
+		Data: uintptr(a),
+		Len:  int(n),
+	}))
+	bb := *(*string)(unsafe.Pointer(&_bytes{
+		Data: uintptr(b),
+		Len:  int(n),
+	}))
+	if ab < bb {
+		return -1
+	}
+	if ab == bb {
+		return 0
+	}
+	return 1
+}
+
 ////go:linkname gcMemcpy runtime.gcMemcpy
 //func gcMemcpy(dst, src unsafe.Pointer, n uintptr)
 
@@ -26,12 +50,6 @@ func Zero(ptr unsafe.Pointer, size uintptr)
 //func Memzero(ptr unsafe.Pointer, size uintptr) {
 //	gcZero(ptr, size)
 //}
-
-type _bytes struct {
-	Data uintptr
-	Len  int
-	Cap  int
-}
 
 func zeroSlow(ptr unsafe.Pointer, size uintptr) {
 	b := *(*[]byte)(unsafe.Pointer(&_bytes{

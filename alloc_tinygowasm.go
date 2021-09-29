@@ -13,7 +13,6 @@ import (
 ////////////////////////////////////////////////////////////////////////////////////
 
 var allocator *tlsf.Heap
-var allocator_ Allocator
 
 func HeapInstance() *tlsf.Heap {
 	return allocator
@@ -28,15 +27,15 @@ func Alloc(size uintptr) Pointer {
 	return Pointer(allocator.Alloc(size))
 }
 func AllocCap(size uintptr) (Pointer, uintptr) {
-	ptr := Pointer(allocator.Alloc(size))
-	return ptr, tlsf.SizeOf(ptr)
+	ptr := allocator.Alloc(size)
+	return Pointer(ptr), tlsf.SizeOf(ptr)
 }
 func AllocZeroed(size uintptr) Pointer {
 	return Pointer(allocator.AllocZeroed(size))
 }
 func AllocZeroedCap(size uintptr) (Pointer, uintptr) {
-	ptr := Pointer(allocator.AllocZeroed(size))
-	return ptr, tlsf.SizeOf(ptr)
+	ptr := allocator.AllocZeroed(size)
+	return Pointer(ptr), tlsf.SizeOf(ptr)
 }
 
 // Alloc calls Alloc on the system allocator
@@ -45,8 +44,8 @@ func Calloc(num, size uintptr) Pointer {
 	return Pointer(allocator.AllocZeroed(num * size))
 }
 func CallocCap(num, size uintptr) (Pointer, uintptr) {
-	ptr := Pointer(allocator.AllocZeroed(num * size))
-	return ptr, tlsf.SizeOf(ptr)
+	ptr := allocator.AllocZeroed(num * size)
+	return Pointer(ptr), tlsf.SizeOf(ptr)
 }
 
 // Realloc calls Realloc on the system allocator
@@ -55,8 +54,8 @@ func Realloc(p Pointer, size uintptr) Pointer {
 	return Pointer(allocator.Realloc(uintptr(p), size))
 }
 func ReallocCap(p Pointer, size uintptr) (Pointer, uintptr) {
-	newPtr := Pointer(allocator.Realloc(uintptr(p), size))
-	return newPtr, tlsf.SizeOf(newPtr)
+	newPtr := allocator.Realloc(uintptr(p), size)
+	return Pointer(newPtr), tlsf.SizeOf(newPtr)
 }
 
 // Free calls Free on the system allocator
@@ -92,38 +91,6 @@ func extalloc(size uintptr) unsafe.Pointer {
 func extfree(ptr unsafe.Pointer) {
 	//println("extfree", uint(uintptr(ptr)))
 	allocator.Free(uintptr(ptr))
-}
-
-////////////////////////////////////////////////////////////////////////////////////
-// Allocator facade
-////////////////////////////////////////////////////////////////////////////////////
-
-func (a Allocator) Alloc(size uintptr) Pointer {
-	return Pointer((*tlsf.Heap)(unsafe.Pointer(a)).Alloc(size))
-}
-
-func (a Allocator) AllocZeroed(size uintptr) Pointer {
-	return Pointer((*tlsf.Heap)(unsafe.Pointer(a)).AllocZeroed(size))
-}
-
-func (a Allocator) Realloc(ptr Pointer, size uintptr) Pointer {
-	return Pointer((*tlsf.Heap)(unsafe.Pointer(a)).Realloc(uintptr(ptr), size))
-}
-
-func (a Allocator) Free(ptr Pointer) {
-	(*tlsf.Heap)(unsafe.Pointer(a)).Free(uintptr(ptr))
-}
-
-func (a Allocator) Str(size uintptr) Bytes {
-	return AllocBytes(size)
-}
-
-func (a Allocator) SizeOf(ptr Pointer) uintptr {
-	return tlsf.SizeOf(uintptr(ptr))
-}
-
-func (a Allocator) Stats() HeapStats {
-	return *(*HeapStats)(unsafe.Pointer(&(*tlsf.Heap)(unsafe.Pointer(a)).Stats))
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -186,7 +153,6 @@ func initAllocator(heapStart, heapEnd uintptr) {
 		1,
 		GrowMin,
 	)
-	allocator_ = Allocator(unsafe.Pointer(allocator))
 }
 
 func SetGrow(grow tlsf.Grow) {

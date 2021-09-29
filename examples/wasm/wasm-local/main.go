@@ -35,6 +35,7 @@ func main() {
 				b = make([]byte, 128)
 				b[0] = 10
 			}
+			b = make([]byte, 65536)
 			println(time.Now().UnixNano())
 			//start := time.Now().UnixNano()
 			runtime.GC()

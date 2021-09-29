@@ -19,7 +19,7 @@ func gcInitHeap(heapStart, heapEnd uintptr) {
 	if allocator == nil {
 		initAllocator(heapStart, heapEnd)
 	}
-	collector = newGC(allocator, 64, doMarkGlobals, doMarkStack)
+	collector = newGC(64, doMarkGlobals, doMarkStack)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////
