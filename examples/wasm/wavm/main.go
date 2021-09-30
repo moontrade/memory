@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"time"
+	//"github.com/moontrade/wavm-go"
 )
 
 func main() {

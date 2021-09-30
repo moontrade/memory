@@ -124,6 +124,6 @@ func ParseRequest(args *Request) int {
 	//args := Request{}
 	args.numHeaders = args.maxHeaders
 	ptr := uintptr(unsafe.Pointer(args))
-	unsafecgo.Call((*byte)(C.do_phr_parse_request), ptr, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_phr_parse_request), ptr, 0)
 	return int(args.result)
 }

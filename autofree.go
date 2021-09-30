@@ -4,24 +4,24 @@ import (
 	"unsafe"
 )
 
-// Auto is a singly linked list (Stack) of nodes which contain pointers
+// AutoFree is a singly linked list (Stack) of nodes which contain pointers
 // that will all free when Free is called. uintptr is used to ensure the
 // compiler doesn't confuse it for a Go GC managed pointer.
-type Auto uintptr
+type AutoFree uintptr
 
 //goland:noinspection GoVetUnsafePointer
-func (a Auto) Count() uintptr {
-	return ((*autoHead)(unsafe.Pointer(a))).count
+func (af AutoFree) Count() uintptr {
+	return ((*autoHead)(unsafe.Pointer(af))).count
 }
 
 //goland:noinspection GoVetUnsafePointer
-func (a Auto) Size() uintptr {
-	return ((*autoHead)(unsafe.Pointer(a))).bytes
+func (af AutoFree) Size() uintptr {
+	return ((*autoHead)(unsafe.Pointer(af))).bytes
 }
 
 //goland:noinspection GoVetUnsafePointer
-func (a Auto) Max() uintptr {
-	return ((*autoHead)(unsafe.Pointer(a))).max
+func (af AutoFree) Max() uintptr {
+	return ((*autoHead)(unsafe.Pointer(af))).max
 }
 
 type autoHead struct {
@@ -38,7 +38,7 @@ type autoNode struct {
 }
 
 //goland:noinspection GoVetUnsafePointer
-func NewAuto(nodeSize uintptr) Auto {
+func NewAuto(nodeSize uintptr) AutoFree {
 	if nodeSize == 0 {
 		nodeSize = 32
 	}
@@ -51,57 +51,68 @@ func NewAuto(nodeSize uintptr) Auto {
 	n := (*autoNode)(unsafe.Pointer(h.head))
 	n.len = 0
 	n.next = 0
-	return Auto(p)
+	return AutoFree(p)
 }
 
-func (au *Auto) Scope(fn func(Auto)) {
+func (af *AutoFree) Scope(fn func(AutoFree)) {
 	if fn != nil {
-		fn(*au)
+		fn(*af)
 	}
-	au.Free()
+	af.Free()
 }
 
 //goland:noinspection GoVetUnsafePointer
-func (au *Auto) HasNext() bool {
-	return *(*uintptr)(unsafe.Pointer(*au)) != 0
+func (af *AutoFree) HasNext() bool {
+	return *(*uintptr)(unsafe.Pointer(*af)) != 0
 }
 
 //goland:noinspection GoVetUnsafePointer
-func (au *Auto) Next() Auto {
-	if au == nil {
+func (af *AutoFree) Next() AutoFree {
+	if af == nil {
 		return 0
 	}
-	p := uintptr(*au)
-	return Auto(*(*uintptr)(unsafe.Pointer(p)))
+	p := uintptr(*af)
+	return AutoFree(*(*uintptr)(unsafe.Pointer(p)))
 }
 
 //goland:noinspection GoVetUnsafePointer
-func (au Auto) Alloc(size uintptr) Pointer {
-	if au == 0 {
+func (af AutoFree) Alloc(size uintptr) Pointer {
+	if af == 0 {
 		return Pointer(0)
 	}
 	p := Alloc(size)
-	au.add(p)
+	af.add(p)
 	return p
 }
 
-//goland:noinspection GoVetUnsafePointer
-func (au Auto) Str(size uintptr) Bytes {
-	if au == 0 {
-		return Bytes{}
+func (af AutoFree) AllocCap(size uintptr) FatPointer {
+	p, c := AllocCap(size)
+	if p == 0 {
+		return FatPointer{}
 	}
-	//p := h.alloc.Str(size)
-	//au.add(p.allocationPointer())
-	//return p
-	return Bytes{}
+	af.add(p)
+	return FatPointer{
+		Pointer: p,
+		len:     c,
+	}
 }
 
 //goland:noinspection GoVetUnsafePointer
-func (au *Auto) add(ptr Pointer) {
-	if au == nil {
+func (af AutoFree) Bytes(size uintptr) Bytes {
+	if af == 0 {
+		return Bytes{}
+	}
+	b := AllocBytes(size)
+	af.add(b.allocationPointer())
+	return b
+}
+
+//goland:noinspection GoVetUnsafePointer
+func (af *AutoFree) add(ptr Pointer) {
+	if af == nil {
 		return
 	}
-	h := (*autoHead)(unsafe.Pointer(*au))
+	h := (*autoHead)(unsafe.Pointer(*af))
 	n := (*autoNode)(unsafe.Pointer(h.head))
 	if n == nil {
 		return
@@ -129,21 +140,21 @@ func (au *Auto) add(ptr Pointer) {
 }
 
 // Close releases / frees every allocation
-func (au *Auto) Close() error {
-	if au == nil {
+func (af *AutoFree) Close() error {
+	if af == nil {
 		return nil
 	}
-	au.Free()
+	af.Free()
 	return nil
 }
 
 // Free releases every allocation
 //goland:noinspection GoVetUnsafePointer
-func (au *Auto) Free() {
-	if au == nil {
+func (af *AutoFree) Free() {
+	if af == nil {
 		return
 	}
-	head := (*autoHead)(unsafe.Pointer(*au))
+	head := (*autoHead)(unsafe.Pointer(*af))
 	n := (*autoNode)(unsafe.Pointer(head.head))
 	if n == nil {
 		return
@@ -171,18 +182,18 @@ func (au *Auto) Free() {
 		Free(Pointer(unsafe.Pointer(n)))
 		n = (*autoNode)(unsafe.Pointer(n.next))
 	}
-	*au = 0
+	*af = 0
 }
 
 //goland:noinspection GoVetUnsafePointer
-func (au *Auto) Print() {
-	head := (*autoHead)(unsafe.Pointer(*au))
+func (af *AutoFree) Print() {
+	head := (*autoHead)(unsafe.Pointer(*af))
 	n := (*autoNode)(unsafe.Pointer(head.head))
 	if n == nil {
 		return
 	}
 
-	println("Auto =>", " count:", head.count, " bytes:", head.bytes, " addr:", uint(Pointer(unsafe.Pointer(head))))
+	println("AutoFree =>", " count:", head.count, " bytes:", head.bytes, " addr:", uint(Pointer(unsafe.Pointer(head))))
 	count := -1
 	for n != nil {
 		count++

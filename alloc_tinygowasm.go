@@ -23,6 +23,7 @@ func HeapInstance() *tlsf.Heap {
 ////////////////////////////////////////////////////////////////////////////////////
 
 // Alloc calls Alloc on the system allocator
+//export malloc
 func Alloc(size uintptr) Pointer {
 	return Pointer(allocator.Alloc(size))
 }
@@ -39,7 +40,7 @@ func AllocZeroedCap(size uintptr) (Pointer, uintptr) {
 }
 
 // Alloc calls Alloc on the system allocator
-//export alloc
+//export calloc
 func Calloc(num, size uintptr) Pointer {
 	return Pointer(allocator.AllocZeroed(num * size))
 }
@@ -64,19 +65,20 @@ func Free(p Pointer) {
 	allocator.Free(uintptr(p))
 }
 
+////export malloc_usable_size
 func SizeOf(p Pointer) uintptr {
 	return uintptr(tlsf.SizeOf(uintptr(p)))
 }
 
-func Scope(fn func(a Auto)) {
+func Scope(fn func(a AutoFree)) {
 	a := NewAuto(32)
 	fn(a)
 	a.Free()
 }
 
-//// Scope creates an Auto free list that automatically reclaims memory
+//// Scope creates an AutoFree free list that automatically reclaims memory
 //// after callback finishes.
-//func (a *Heap) Scope(fn func(a Auto)) {
+//func (a *Heap) Scope(fn func(a AutoFree)) {
 //	auto := NewAuto(a.AsAllocator(), 32)
 //	fn(auto)
 //	auto.Free()

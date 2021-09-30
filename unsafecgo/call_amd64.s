@@ -22,8 +22,17 @@
 #define RARG1 SI
 #endif
 
-// WARNING!!! This is sketchy AF
-// Safer to add build tag "libfuzzer" to hook into the auto-generated "go_asm.h"
+// WARNING!!!
+// Go doesn't allow packages outside of runtime to include "go_asm.h" so the below
+// defines required were pulled from generated "go_asm.h" by running make in the
+// cmd sub-directory of this package. Navigate into the build (WORK) directory and
+// look for a go_asm.h file that's big (>10kb). The below defines will be in there.
+// The below defines have been observed to be the same across both linux and darwin
+// given it appears to be CPU arch based (amd64) only. The below defines are also
+// the same for arm64.
+//
+// Safer to add build tag "libfuzzer" to hook into the auto-generated "go_asm.h".
+// However, it's about ~1ns slower per call because of linking overhead somehow.
 
 #define g_m 48
 #define g_sched 56
@@ -32,7 +41,7 @@
 
 // void runtime·libfuzzerCall(fn, arg0, arg1 uintptr)
 // Calls C function fn from libFuzzer and passes 2 arguments to it.
-TEXT ·Call(SB), NOSPLIT, $0-24
+TEXT ·NonBlocking(SB), NOSPLIT, $0-24
 	MOVQ	fn+0(FP), AX
 	MOVQ	arg0+8(FP), RARG0
 	MOVQ	arg1+16(FP), RARG1
@@ -51,4 +60,7 @@ call:
 	ANDQ	$~15, SP	// alignment for gcc ABI
 	CALL	AX
 	MOVQ	R12, SP
+	// Back to Go world, set special registers.
+    // The g register (R14) is preserved in C.
+    //XORPS	X15, X15
 	RET

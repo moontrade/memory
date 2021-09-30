@@ -9,11 +9,11 @@ import (
 
 func Init() {}
 
-func Scope(fn func(a Auto)) {
+func Scope(fn func(a AutoFree)) {
 	scope(fn)
 }
 
-func scope(fn func(a Auto)) {
+func scope(fn func(a AutoFree)) {
 	a := NewAuto(32)
 	defer a.Free()
 	fn(a)

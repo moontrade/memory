@@ -1,5 +1,6 @@
-//go:build tinygo && (darwin || (linux && !baremetal && !wasi) || (freebsd && !baremetal)) && !nintendoswitch
+//go:build tinygo && !tiny.wasm && (darwin || (linux && !baremetal && !wasi) || (freebsd && !baremetal)) && !nintendoswitch
 // +build tinygo
+// +build !tiny.wasm
 // +build darwin linux,!baremetal,!wasi freebsd,!baremetal
 // +build !nintendoswitch
 
@@ -70,15 +71,15 @@ func SizeOf(p Pointer) uintptr {
 	return uintptr(tlsf.SizeOf(uintptr(p)))
 }
 
-func Scope(fn func(a Auto)) {
+func Scope(fn func(a AutoFree)) {
 	a := NewAuto(32)
 	fn(a)
 	a.Free()
 }
 
-//// Scope creates an Auto free list that automatically reclaims memory
+//// Scope creates an AutoFree free list that automatically reclaims memory
 //// after callback finishes.
-//func (a *Heap) Scope(fn func(a Auto)) {
+//func (a *Heap) Scope(fn func(a AutoFree)) {
 //	auto := NewAuto(a.AsAllocator(), 32)
 //	fn(auto)
 //	auto.Free()

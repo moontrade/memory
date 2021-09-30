@@ -31,6 +31,6 @@ type rhNewT struct {
 func New() *Tree {
 	args := rhNewT{}
 	ptr := uintptr(unsafe.Pointer(&args))
-	unsafecgo.Call((*byte)(C.do_robinhood_hello), ptr, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_robinhood_hello), ptr, 0)
 	return (*Tree)(unsafe.Pointer(args.ptr))
 }

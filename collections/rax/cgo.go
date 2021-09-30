@@ -77,13 +77,13 @@ type rax_new_t struct {
 func New() *Rax {
 	args := rax_new_t{}
 	ptr := uintptr(unsafe.Pointer(&args))
-	unsafecgo.Call((*byte)(C.do_rax_new), ptr, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_rax_new), ptr, 0)
 	return (*Rax)(unsafe.Pointer(args.ptr))
 }
 
 func (r *Rax) Free() {
 	ptr := uintptr(unsafe.Pointer(r))
-	unsafecgo.Call((*byte)(C.do_rax_free), ptr, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_rax_free), ptr, 0)
 }
 
 type rax_size_t struct {
@@ -94,12 +94,12 @@ type rax_size_t struct {
 func (r *Rax) Size() int {
 	args := rax_size_t{ptr: uintptr(unsafe.Pointer(r))}
 	ptr := uintptr(unsafe.Pointer(&args))
-	unsafecgo.Call((*byte)(C.do_rax_size), ptr, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_rax_size), ptr, 0)
 	return int(args.size)
 }
 
 func (r *Rax) Print() {
-	unsafecgo.Call((*byte)(C.do_rax_show), uintptr(unsafe.Pointer(r)), 0)
+	unsafecgo.NonBlocking((*byte)(C.do_rax_show), uintptr(unsafe.Pointer(r)), 0)
 }
 
 type rax_insert_t struct {
@@ -119,7 +119,7 @@ func (r *Rax) Insert(key memory.Pointer, size int, data memory.Pointer) (int, me
 		data: uintptr(data),
 	}
 	ptr := uintptr(unsafe.Pointer(&args))
-	unsafecgo.Call((*byte)(C.do_rax_insert), ptr, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_rax_insert), ptr, 0)
 	return int(args.result), memory.Pointer(args.old)
 }
 
@@ -131,7 +131,7 @@ func (r *Rax) InsertBytes(key memory.Bytes, data memory.Pointer) (int, memory.Po
 		data: uintptr(data),
 	}
 	ptr := uintptr(unsafe.Pointer(&args))
-	unsafecgo.Call((*byte)(C.do_rax_insert), ptr, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_rax_insert), ptr, 0)
 	return int(args.result), memory.Pointer(args.old)
 }
 
@@ -149,7 +149,7 @@ func (r *Rax) Find(key memory.Pointer, size int) memory.Pointer {
 		len: uintptr(size),
 	}
 	ptr := uintptr(unsafe.Pointer(&args))
-	unsafecgo.Call((*byte)(C.do_rax_find), ptr, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_rax_find), ptr, 0)
 	return memory.Pointer(args.result)
 }
 
@@ -160,6 +160,6 @@ func (r *Rax) FindBytes(key memory.Bytes) memory.Pointer {
 		len: uintptr(key.Len()),
 	}
 	ptr := uintptr(unsafe.Pointer(&args))
-	unsafecgo.Call((*byte)(C.do_rax_find), ptr, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_rax_find), ptr, 0)
 	return memory.Pointer(args.result)
 }

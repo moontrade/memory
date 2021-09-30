@@ -246,25 +246,25 @@ import (
 
 // ReadThreadStats get thread statistics
 func ReadThreadStats(stats *ThreadStats) {
-	unsafecgo.Call((*byte)(C.rpmalloc_thread_statistics), uintptr(unsafe.Pointer(stats)), 0)
+	unsafecgo.NonBlocking((*byte)(C.rpmalloc_thread_statistics), uintptr(unsafe.Pointer(stats)), 0)
 }
 
 // ReadGlobalStats get global statistics
 func ReadGlobalStats(stats *GlobalStats) {
-	unsafecgo.Call((*byte)(C.do_rpmalloc_global_statistics), uintptr(unsafe.Pointer(stats)), 0)
+	unsafecgo.NonBlocking((*byte)(C.do_rpmalloc_global_statistics), uintptr(unsafe.Pointer(stats)), 0)
 }
 
 // Malloc allocate a memory block of at least the given size
 func StdMalloc(size uintptr) uintptr {
 	args := malloc_t{size: size}
 	ptr := uintptr(unsafe.Pointer(&args))
-	unsafecgo.Call((*byte)(C.do_malloc), ptr, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_malloc), ptr, 0)
 	return args.ptr
 }
 
 // Free the given memory block
 func StdFree(ptr uintptr) {
-	unsafecgo.Call((*byte)(C.do_free), ptr, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_free), ptr, 0)
 }
 
 type malloc_t struct {
@@ -276,7 +276,7 @@ type malloc_t struct {
 func Malloc(size uintptr) uintptr {
 	args := malloc_t{size: size}
 	ptr := uintptr(unsafe.Pointer(&args))
-	unsafecgo.Call((*byte)(C.do_rpmalloc), ptr, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_rpmalloc), ptr, 0)
 	return args.ptr
 }
 
@@ -284,7 +284,7 @@ func Malloc(size uintptr) uintptr {
 func MallocZeroed(size uintptr) uintptr {
 	args := malloc_t{size: size}
 	ptr := uintptr(unsafe.Pointer(&args))
-	unsafecgo.Call((*byte)(C.do_rpmalloc_zero), ptr, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_rpmalloc_zero), ptr, 0)
 	return args.ptr
 }
 
@@ -298,7 +298,7 @@ type malloc_cap_t struct {
 func MallocCap(size uintptr) (uintptr, uintptr) {
 	args := malloc_cap_t{size: size}
 	ptr := uintptr(unsafe.Pointer(&args))
-	unsafecgo.Call((*byte)(C.do_rpmalloc_cap), ptr, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_rpmalloc_cap), ptr, 0)
 	return args.ptr, args.cap
 }
 
@@ -306,7 +306,7 @@ func MallocCap(size uintptr) (uintptr, uintptr) {
 func MallocZeroedCap(size uintptr) (uintptr, uintptr) {
 	args := malloc_cap_t{size: size}
 	ptr := uintptr(unsafe.Pointer(&args))
-	unsafecgo.Call((*byte)(C.do_rpmalloc_zero_cap), ptr, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_rpmalloc_zero_cap), ptr, 0)
 	return args.ptr, args.cap
 }
 
@@ -323,7 +323,7 @@ func Calloc(num, size uintptr) uintptr {
 		size: size,
 	}
 	ptr := uintptr(unsafe.Pointer(&args))
-	unsafecgo.Call((*byte)(C.do_rpcalloc), ptr, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_rpcalloc), ptr, 0)
 	return args.ptr
 }
 
@@ -341,7 +341,7 @@ func CallocCap(num, size uintptr) (uintptr, uintptr) {
 		size: size,
 	}
 	ptr := uintptr(unsafe.Pointer(&args))
-	unsafecgo.Call((*byte)(C.do_rpcalloc_cap), ptr, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_rpcalloc_cap), ptr, 0)
 	return args.ptr, args.cap
 }
 
@@ -358,7 +358,7 @@ func Realloc(ptr, size uintptr) uintptr {
 		size: size,
 	}
 	p := uintptr(unsafe.Pointer(&args))
-	unsafecgo.Call((*byte)(C.do_rprealloc), p, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_rprealloc), p, 0)
 	return args.newptr
 }
 
@@ -376,7 +376,7 @@ func ReallocCap(ptr, size uintptr) (uintptr, uintptr) {
 		size: size,
 	}
 	p := uintptr(unsafe.Pointer(&args))
-	unsafecgo.Call((*byte)(C.do_rprealloc_cap), p, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_rprealloc_cap), p, 0)
 	return args.newptr, args.cap
 }
 
@@ -389,13 +389,13 @@ type usable_size_t struct {
 func UsableSize(ptr uintptr) uintptr {
 	args := usable_size_t{ptr: ptr}
 	p := uintptr(unsafe.Pointer(&args))
-	unsafecgo.Call((*byte)(C.do_rpmalloc_usable_size), p, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_rpmalloc_usable_size), p, 0)
 	return args.ret
 }
 
 // Free the given memory block
 func Free(ptr uintptr) {
-	unsafecgo.Call((*byte)(C.do_rpfree), ptr, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_rpfree), ptr, 0)
 }
 
 func InitThread() {
@@ -409,7 +409,7 @@ type acquire_heap_t struct {
 func AcquireHeap() *Heap {
 	args := acquire_heap_t{}
 	ptr := uintptr(unsafe.Pointer(&args))
-	unsafecgo.Call((*byte)(C.do_rpmalloc_heap_acquire), ptr, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_rpmalloc_heap_acquire), ptr, 0)
 	return (*Heap)(unsafe.Pointer(args.ptr))
 }
 
@@ -420,7 +420,7 @@ type release_heap_t struct {
 func (h *Heap) Release() {
 	args := release_heap_t{heap: uintptr(unsafe.Pointer(h))}
 	ptr := uintptr(unsafe.Pointer(&args))
-	unsafecgo.Call((*byte)(C.do_rpmalloc_heap_release), ptr, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_rpmalloc_heap_release), ptr, 0)
 }
 
 type heap_alloc_t struct {
@@ -433,7 +433,7 @@ type heap_alloc_t struct {
 func (h *Heap) Alloc(size uintptr) uintptr {
 	args := heap_alloc_t{heap: uintptr(unsafe.Pointer(h)), size: size}
 	ptr := uintptr(unsafe.Pointer(&args))
-	unsafecgo.Call((*byte)(C.do_rpmalloc_heap_alloc), ptr, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_rpmalloc_heap_alloc), ptr, 0)
 	return args.ptr
 }
 
@@ -448,7 +448,7 @@ type heap_alloc_cap_t struct {
 func (h *Heap) AllocCap(size uintptr) (uintptr, uintptr) {
 	args := heap_alloc_cap_t{heap: uintptr(unsafe.Pointer(h)), size: size}
 	ptr := uintptr(unsafe.Pointer(&args))
-	unsafecgo.Call((*byte)(C.do_rpmalloc_heap_alloc), ptr, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_rpmalloc_heap_alloc), ptr, 0)
 	return args.ptr, args.cap
 }
 
@@ -463,7 +463,7 @@ type heap_calloc_t struct {
 func (h *Heap) Calloc(num, size uintptr) uintptr {
 	args := heap_calloc_t{heap: uintptr(unsafe.Pointer(h)), num: num, size: size}
 	ptr := uintptr(unsafe.Pointer(&args))
-	unsafecgo.Call((*byte)(C.do_rpmalloc_heap_calloc), ptr, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_rpmalloc_heap_calloc), ptr, 0)
 	return args.ptr
 }
 
@@ -479,7 +479,7 @@ type heap_calloc_cap_t struct {
 func (h *Heap) CallocCap(num, size uintptr) (uintptr, uintptr) {
 	args := heap_calloc_cap_t{heap: uintptr(unsafe.Pointer(h)), num: num, size: size}
 	ptr := uintptr(unsafe.Pointer(&args))
-	unsafecgo.Call((*byte)(C.do_rpmalloc_heap_calloc_cap), ptr, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_rpmalloc_heap_calloc_cap), ptr, 0)
 	return args.ptr, args.cap
 }
 
@@ -496,7 +496,7 @@ type heap_realloc_t struct {
 func (h *Heap) Realloc(ptr, size uintptr, flags int32) uintptr {
 	args := heap_realloc_t{heap: uintptr(unsafe.Pointer(h)), ptr: ptr, size: size, flags: flags}
 	p := uintptr(unsafe.Pointer(&args))
-	unsafecgo.Call((*byte)(C.do_rpmalloc_heap_realloc), p, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_rpmalloc_heap_realloc), p, 0)
 	return args.newptr
 }
 
@@ -514,7 +514,7 @@ type heap_realloc_cap_t struct {
 func (h *Heap) ReallocCap(ptr, size uintptr, flags int32) (uintptr, uintptr) {
 	args := heap_realloc_cap_t{heap: uintptr(unsafe.Pointer(h)), ptr: ptr, size: size, flags: flags}
 	p := uintptr(unsafe.Pointer(&args))
-	unsafecgo.Call((*byte)(C.do_rpmalloc_heap_realloc_cap), p, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_rpmalloc_heap_realloc_cap), p, 0)
 	return args.newptr, args.cap
 }
 
@@ -528,7 +528,7 @@ type heap_free_t struct {
 func (h *Heap) Free(ptr uintptr) {
 	args := heap_free_t{heap: uintptr(unsafe.Pointer(h)), ptr: ptr}
 	p := uintptr(unsafe.Pointer(&args))
-	unsafecgo.Call((*byte)(C.do_rpmalloc_heap_free), p, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_rpmalloc_heap_free), p, 0)
 }
 
 type heap_free_all_t struct {
@@ -539,5 +539,5 @@ type heap_free_all_t struct {
 func (h *Heap) FreeAll() {
 	args := heap_free_all_t{heap: uintptr(unsafe.Pointer(h))}
 	p := uintptr(unsafe.Pointer(&args))
-	unsafecgo.Call((*byte)(C.do_rpmalloc_heap_free_all), p, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_rpmalloc_heap_free_all), p, 0)
 }

@@ -48,7 +48,7 @@ func (o GCObject) Ptr() Pointer {
 // it with a simple design and extremely quick operation for small object graphs.
 //
 // Large object graphs should be manually allocated and use the various tools available
-// like Auto and Ref containers. GC supports a manual free as well as provided by
+// like AutoFree and Ref containers. GC supports a manual free as well as provided by
 // the TinyGo compiler. TinyGo LLVM coroutines utilize this feature for internal coroutine
 // lifecycle objects. It's quite simple to write Go programs with goroutines and channels
 // that never require a GC cycle / sweep.

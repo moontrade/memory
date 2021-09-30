@@ -26,7 +26,7 @@ func main() {
 
 	go func() {
 		for {
-			memory.Scope(func(a memory.Auto) {
+			memory.Scope(func(a memory.AutoFree) {
 				a.Alloc(512)
 			})
 			if b == nil {

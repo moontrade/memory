@@ -1,6 +1,8 @@
 package robinhood
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestNew(t *testing.T) {
 	New()

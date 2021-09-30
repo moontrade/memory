@@ -118,13 +118,13 @@ type artNewT struct {
 func New() *Tree {
 	args := artNewT{}
 	ptr := uintptr(unsafe.Pointer(&args))
-	unsafecgo.Call((*byte)(C.do_art_new), ptr, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_art_new), ptr, 0)
 	return (*Tree)(unsafe.Pointer(args.ptr))
 }
 
 func (r *Tree) Free() {
 	ptr := uintptr(unsafe.Pointer(r))
-	unsafecgo.Call((*byte)(C.do_art_destroy), ptr, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_art_destroy), ptr, 0)
 }
 
 type artSizeT struct {
@@ -135,12 +135,12 @@ type artSizeT struct {
 func (r *Tree) Size() int {
 	args := artSizeT{ptr: uintptr(unsafe.Pointer(r))}
 	ptr := uintptr(unsafe.Pointer(&args))
-	unsafecgo.Call((*byte)(C.do_art_size), ptr, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_art_size), ptr, 0)
 	return int(args.size)
 }
 
 //func (r *Art) Print() {
-//	unsafecgo.Call((*byte)(C.do_rax_show), uintptr(unsafe.Pointer(r)), 0)
+//	unsafecgo.NonBlocking((*byte)(C.do_rax_show), uintptr(unsafe.Pointer(r)), 0)
 //}
 
 type artInsertT struct {
@@ -159,7 +159,7 @@ func (r *Tree) Insert(key memory.Pointer, size int, value memory.Pointer) memory
 		value: uintptr(value),
 	}
 	ptr := uintptr(unsafe.Pointer(&args))
-	unsafecgo.Call((*byte)(C.do_art_insert), ptr, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_art_insert), ptr, 0)
 	return memory.Pointer(args.old)
 }
 
@@ -185,7 +185,7 @@ func (r *Tree) InsertNoReplace(key memory.Pointer, size int, value memory.Pointe
 		value: uintptr(value),
 	}
 	ptr := uintptr(unsafe.Pointer(&args))
-	unsafecgo.Call((*byte)(C.do_art_insert_no_replace), ptr, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_art_insert_no_replace), ptr, 0)
 	return memory.Pointer(args.old)
 }
 
@@ -217,7 +217,7 @@ func (r *Tree) Delete(key memory.Pointer, size int) memory.Pointer {
 		len:  uintptr(size),
 	}
 	ptr := uintptr(unsafe.Pointer(&args))
-	unsafecgo.Call((*byte)(C.do_art_delete), ptr, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_art_delete), ptr, 0)
 	return memory.Pointer(args.item)
 }
 
@@ -239,7 +239,7 @@ func (r *Tree) Find(key memory.Pointer, size int) memory.Pointer {
 		len:  uintptr(size),
 	}
 	ptr := uintptr(unsafe.Pointer(&args))
-	unsafecgo.Call((*byte)(C.do_art_search), ptr, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_art_search), ptr, 0)
 	return memory.Pointer(args.result)
 }
 
@@ -257,7 +257,7 @@ func (r *Tree) Minimum() *Leaf {
 		tree: uintptr(unsafe.Pointer(r)),
 	}
 	ptr := uintptr(unsafe.Pointer(&args))
-	unsafecgo.Call((*byte)(C.do_art_minimum), ptr, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_art_minimum), ptr, 0)
 	return (*Leaf)(unsafe.Pointer(args.result))
 }
 
@@ -268,6 +268,6 @@ func (r *Tree) Maximum() *Leaf {
 		tree: uintptr(unsafe.Pointer(r)),
 	}
 	ptr := uintptr(unsafe.Pointer(&args))
-	unsafecgo.Call((*byte)(C.do_art_maximum), ptr, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_art_maximum), ptr, 0)
 	return (*Leaf)(unsafe.Pointer(args.result))
 }

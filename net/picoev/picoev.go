@@ -169,7 +169,7 @@ func Init(maxFd int) int {
 	}
 	args := initT{maxFd: int32(maxFd)}
 	ptr := uintptr(unsafe.Pointer(&args))
-	unsafecgo.Call((*byte)(C.do_picoev_init), ptr, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_picoev_init), ptr, 0)
 
 	if args.result == 0 {
 		initialized = true
@@ -192,7 +192,7 @@ func Deinit() int {
 	}
 	args := deinitT{}
 	ptr := uintptr(unsafe.Pointer(&args))
-	unsafecgo.Call((*byte)(C.do_picoev_deinit), ptr, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_picoev_deinit), ptr, 0)
 	return int(args.result)
 }
 
@@ -211,7 +211,7 @@ func New(maxTimeout int) *Loop {
 
 	args := createLoop{maxTimeout: uintptr(maxTimeout)}
 	ptr := uintptr(unsafe.Pointer(&args))
-	unsafecgo.Call((*byte)(C.do_picoev_create_loop), ptr, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_picoev_create_loop), ptr, 0)
 	return (*Loop)(unsafe.Pointer(args.loop))
 }
 
@@ -253,7 +253,7 @@ var (
 func (l *Loop) BindAcceptor(port int) error {
 	args := bindAcceptorT{port: int32(port)}
 	ptr := uintptr(unsafe.Pointer(&args))
-	unsafecgo.Call((*byte)(C.do_bind_acceptor), ptr, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_bind_acceptor), ptr, 0)
 	if args.fd < 0 {
 		return ErrFD
 	}
@@ -286,7 +286,7 @@ type destroyLoop struct {
 func (l *Loop) Destroy() int {
 	args := destroyLoop{loop: uintptr(unsafe.Pointer(l))}
 	ptr := uintptr(unsafe.Pointer(&args))
-	unsafecgo.Call((*byte)(C.do_picoev_destroy_loop), ptr, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_picoev_destroy_loop), ptr, 0)
 	return int(args.result)
 }
 
@@ -303,7 +303,7 @@ func (l *Loop) SetTimeout(fd, secs int32) {
 		secs: secs,
 	}
 	ptr := uintptr(unsafe.Pointer(&args))
-	unsafecgo.Call((*byte)(C.do_picoev_set_timeout_loop), ptr, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_picoev_set_timeout_loop), ptr, 0)
 }
 
 //func (l *Loop) Add(fd, events, timeoutInSecs)
@@ -317,7 +317,7 @@ type loopOnceT struct {
 func (l *Loop) Once(maxWait int) int {
 	args := loopOnceT{loop: uintptr(unsafe.Pointer(l)), maxWait: int32(maxWait)}
 	ptr := uintptr(unsafe.Pointer(&args))
-	unsafecgo.Call((*byte)(C.do_picoev_loop_once), ptr, 0)
+	unsafecgo.NonBlocking((*byte)(C.do_picoev_loop_once), ptr, 0)
 	return int(args.result)
 }
 
@@ -327,6 +327,6 @@ func (l *Loop) run() {
 		ptr  = uintptr(unsafe.Pointer(&args))
 	)
 	for {
-		unsafecgo.Call((*byte)(C.do_picoev_loop_once), ptr, 0)
+		unsafecgo.NonBlocking((*byte)(C.do_picoev_loop_once), ptr, 0)
 	}
 }
