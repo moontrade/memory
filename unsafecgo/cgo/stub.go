@@ -29,15 +29,16 @@ func CGO() {
 }
 
 func NonBlocking(fn *byte, arg0, arg1 uintptr) {
-	libcCall(unsafe.Pointer(fn), unsafe.Pointer(arg0))
+	Blocking(fn, arg0, arg1)
+	//libcCall(unsafe.Pointer(fn), unsafe.Pointer(arg0))
 }
 
 func Blocking(fn *byte, arg0, arg1 uintptr) {
 	C.unsafecgo_cgo_call((C.size_t)(uintptr(unsafe.Pointer(fn))), (C.size_t)(arg0), (C.size_t)(arg1))
 }
 
-//go:linkname libcCall runtime.libcCall
-func libcCall(fn, arg unsafe.Pointer) int32
+////go:linkname libcCall runtime.libcCall
+//func libcCall(fn, arg unsafe.Pointer) int32
 
 func DoUsleep(useconds int64) {
 	C.do_usleep((C.size_t)(useconds), (C.size_t)(0))
