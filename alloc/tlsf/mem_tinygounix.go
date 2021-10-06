@@ -10,7 +10,7 @@ import "unsafe"
 //go:linkname Malloc runtime.malloc
 func Malloc(size uintptr) unsafe.Pointer
 
-//go:linkname Copy runtime.Memcpy
+//go:linkname Copy runtime.gcMemcpy
 func Copy(dst, src unsafe.Pointer, n uintptr)
 
 //go:linkname Zero runtime.gcZero

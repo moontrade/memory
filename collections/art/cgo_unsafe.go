@@ -1,3 +1,7 @@
+//go:build !tinygo && (amd64 || arm64)
+// +build !tinygo
+// +build amd64 arm64
+
 package art
 
 /*
@@ -115,11 +119,11 @@ type artNewT struct {
 	code uintptr
 }
 
-func New() *Tree {
+func New() (*Tree, int) {
 	args := artNewT{}
 	ptr := uintptr(unsafe.Pointer(&args))
 	unsafecgo.NonBlocking((*byte)(C.do_art_new), ptr, 0)
-	return (*Tree)(unsafe.Pointer(args.ptr))
+	return (*Tree)(unsafe.Pointer(args.ptr)), int(args.code)
 }
 
 func (r *Tree) Free() {
@@ -127,16 +131,20 @@ func (r *Tree) Free() {
 	unsafecgo.NonBlocking((*byte)(C.do_art_destroy), ptr, 0)
 }
 
-type artSizeT struct {
-	ptr  uintptr
-	size uintptr
-}
+//type artSizeT struct {
+//	ptr  uintptr
+//	size uintptr
+//}
+//
+//func (r *Tree) Size() int {
+//	args := artSizeT{ptr: uintptr(unsafe.Pointer(r))}
+//	ptr := uintptr(unsafe.Pointer(&args))
+//	unsafecgo.NonBlocking((*byte)(C.do_art_size), ptr, 0)
+//	return int(args.size)
+//}
 
-func (r *Tree) Size() int {
-	args := artSizeT{ptr: uintptr(unsafe.Pointer(r))}
-	ptr := uintptr(unsafe.Pointer(&args))
-	unsafecgo.NonBlocking((*byte)(C.do_art_size), ptr, 0)
-	return int(args.size)
+func (t *Tree) Size() int {
+	return int(*(*uintptr)(unsafe.Pointer(uintptr(unsafe.Pointer(t)) + unsafe.Sizeof(uintptr(0)))))
 }
 
 //func (r *Art) Print() {
@@ -169,12 +177,12 @@ func (r *Tree) InsertBytes(key memory.Bytes, value memory.Pointer) memory.Pointe
 
 func (r *Tree) InsertString(key string, value memory.Pointer) memory.Pointer {
 	k := (*reflect.StringHeader)(unsafe.Pointer(&key))
-	return r.Insert(memory.Pointer(k.Data), k.Len, value)
+	return r.Insert(memory.Pointer(k.Data), int(k.Len), value)
 }
 
 func (r *Tree) InsertSlice(key []byte, value memory.Pointer) memory.Pointer {
 	k := (*reflect.SliceHeader)(unsafe.Pointer(&key))
-	return r.Insert(memory.Pointer(k.Data), k.Len, value)
+	return r.Insert(memory.Pointer(k.Data), int(k.Len), value)
 }
 
 func (r *Tree) InsertNoReplace(key memory.Pointer, size int, value memory.Pointer) memory.Pointer {
@@ -195,12 +203,12 @@ func (r *Tree) InsertNoReplaceBytes(key memory.Bytes, value memory.Pointer) memo
 
 func (r *Tree) InsertNoReplaceString(key string, value memory.Pointer) memory.Pointer {
 	k := (*reflect.StringHeader)(unsafe.Pointer(&key))
-	return r.InsertNoReplace(memory.Pointer(k.Data), k.Len, value)
+	return r.InsertNoReplace(memory.Pointer(k.Data), int(k.Len), value)
 }
 
 func (r *Tree) InsertNoReplaceSlice(key []byte, value memory.Pointer) memory.Pointer {
 	k := (*reflect.SliceHeader)(unsafe.Pointer(&key))
-	return r.InsertNoReplace(memory.Pointer(k.Data), k.Len, value)
+	return r.InsertNoReplace(memory.Pointer(k.Data), int(k.Len), value)
 }
 
 type artDeleteT struct {

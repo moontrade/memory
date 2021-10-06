@@ -7,74 +7,73 @@
 package memory
 
 import (
-	"github.com/moontrade/memory/alloc/tlsf"
+	"github.com/moontrade/memory/alloc/rpmalloc"
 	"unsafe"
 )
-
-////////////////////////////////////////////////////////////////////////////////////
-// Global Allocator
-////////////////////////////////////////////////////////////////////////////////////
-
-var allocator *tlsf.Heap
-
-func HeapInstance() *tlsf.Heap {
-	return allocator
-}
 
 ////////////////////////////////////////////////////////////////////////////////////
 // Global allocator convenience
 ////////////////////////////////////////////////////////////////////////////////////
 
-// Alloc calls Alloc on the system allocator
-func Alloc(size uintptr) Pointer {
-	return Pointer(allocator.Alloc(size))
+func Init() {}
+
+func Scope(fn func(a AutoFree)) {
+	scope(fn)
 }
-func AllocCap(size uintptr) (Pointer, uintptr) {
-	ptr := allocator.Alloc(size)
-	return Pointer(ptr), tlsf.SizeOf(ptr)
-}
-func AllocZeroed(size uintptr) Pointer {
-	return Pointer(allocator.AllocZeroed(size))
-}
-func AllocZeroedCap(size uintptr) (Pointer, uintptr) {
-	ptr := allocator.AllocZeroed(size)
-	return Pointer(ptr), tlsf.SizeOf(ptr)
+
+func scope(fn func(a AutoFree)) {
+	a := NewAuto(32)
+	defer a.Free()
+	fn(a)
+	a.Print()
 }
 
 // Alloc calls Alloc on the system allocator
-//export alloc
-func Calloc(num, size uintptr) Pointer {
-	return Pointer(allocator.AllocZeroed(num * size))
+func Alloc(size uintptr) Pointer {
+	return Pointer(rpmalloc.Malloc(size))
 }
+
+func AllocCap(size uintptr) (Pointer, uintptr) {
+	p, c := rpmalloc.MallocCap(size)
+	return Pointer(p), c
+}
+
+func AllocZeroed(size uintptr) Pointer {
+	return Pointer(rpmalloc.MallocZeroed(size))
+}
+
+func AllocZeroedCap(size uintptr) (Pointer, uintptr) {
+	p, c := rpmalloc.MallocZeroedCap(size)
+	return Pointer(p), c
+}
+
+// Alloc calls Alloc on the system allocator
+func Calloc(num, size uintptr) Pointer {
+	return Pointer(rpmalloc.Calloc(num, size))
+}
+
 func CallocCap(num, size uintptr) (Pointer, uintptr) {
-	ptr := allocator.AllocZeroed(num * size)
-	return Pointer(ptr), tlsf.SizeOf(ptr)
+	p, c := rpmalloc.CallocCap(num, size)
+	return Pointer(p), c
 }
 
 // Realloc calls Realloc on the system allocator
-//export realloc
 func Realloc(p Pointer, size uintptr) Pointer {
-	return Pointer(allocator.Realloc(uintptr(p), size))
+	return Pointer(rpmalloc.Realloc(uintptr(p), size))
 }
+
 func ReallocCap(p Pointer, size uintptr) (Pointer, uintptr) {
-	newPtr := allocator.Realloc(uintptr(p), size)
-	return Pointer(newPtr), tlsf.SizeOf(newPtr)
+	newPtr, c := rpmalloc.ReallocCap(uintptr(p), size)
+	return Pointer(newPtr), c
 }
 
 // Free calls Free on the system allocator
-//export free
 func Free(p Pointer) {
-	allocator.Free(uintptr(p))
+	rpmalloc.Free(uintptr(p))
 }
 
-func SizeOf(p Pointer) uintptr {
-	return uintptr(tlsf.SizeOf(uintptr(p)))
-}
-
-func Scope(fn func(a AutoFree)) {
-	a := NewAuto(32)
-	fn(a)
-	a.Free()
+func SizeOf(ptr Pointer) uintptr {
+	return rpmalloc.UsableSize(uintptr(ptr))
 }
 
 //// Scope creates an AutoFree free list that automatically reclaims memory
@@ -85,103 +84,15 @@ func Scope(fn func(a AutoFree)) {
 //	auto.Free()
 //}
 
+func initAllocator() {}
+
 func extalloc(size uintptr) unsafe.Pointer {
-	ptr := unsafe.Pointer(allocator.Alloc(size))
+	ptr := unsafe.Pointer(Alloc(size))
 	//println("extalloc", uint(uintptr(ptr)))
 	return ptr
 }
 
 func extfree(ptr unsafe.Pointer) {
 	//println("extfree", uint(uintptr(ptr)))
-	allocator.Free(uintptr(ptr))
-}
-
-////////////////////////////////////////////////////////////////////////////////////
-// tinygo hooks
-////////////////////////////////////////////////////////////////////////////////////
-
-const PageSize = 64 * 1024
-
-func newTLSF(pages int32, grow tlsf.Grow) *tlsf.Heap {
-	if pages <= 0 {
-		pages = 1
-	}
-	size := uintptr(pages * PageSize)
-	segment := uintptr(malloc(uintptr(size)))
-	return tlsf.Bootstrap(segment, segment+size, pages, grow)
-}
-
-//go:linkname initAllocator runtime.initAllocator
-func initAllocator(heapStart, heapEnd uintptr) {
-	if allocator != nil {
-		return
-	}
-	allocator = newTLSF(1, GrowMin)
-}
-
-func SetGrow(grow tlsf.Grow) {
-	if allocator == nil {
-		initAllocator(0, 0)
-	}
-	if allocator != nil {
-		allocator.Grow = grow
-	}
-}
-
-// GrowByDouble will double the heap on each Grow
-func GrowByDouble(pagesBefore, pagesNeeded int32, minSize uintptr) (pagesAdded int32, start, end uintptr) {
-	if pagesBefore > pagesNeeded {
-		pagesAdded = pagesBefore
-	} else {
-		pagesAdded = pagesNeeded
-	}
-	ptr := uintptr(malloc(uintptr(pagesAdded) * uintptr(PageSize)))
-	if ptr == 0 {
-		pagesAdded = pagesNeeded
-		ptr = uintptr(malloc(uintptr(pagesAdded) * uintptr(PageSize)))
-		if ptr == 0 {
-			return 0, 0, 0
-		}
-	}
-	start = ptr
-	end = start + (uintptr(pagesAdded) * PageSize)
-	return
-}
-
-var (
-	growByPages int32 = 1
-)
-
-// GrowBy will Grow by the number of pages specified or by the minimum needed, whichever is greater.
-func GrowBy(pages int32) tlsf.Grow {
-	growByPages = pages
-	return doGrowByPages
-}
-
-func doGrowByPages(pagesBefore, pagesNeeded int32, minSize uintptr) (pagesAdded int32, start, end uintptr) {
-	if pagesBefore > pagesNeeded {
-		pagesAdded = pagesBefore
-	} else {
-		pagesAdded = pagesNeeded
-	}
-	ptr := uintptr(malloc(uintptr(pagesAdded) * uintptr(PageSize)))
-	if ptr == 0 {
-		pagesAdded = pagesNeeded
-		ptr = uintptr(malloc(uintptr(pagesAdded) * uintptr(PageSize)))
-		if ptr == 0 {
-			return 0, 0, 0
-		}
-	}
-	start = ptr
-	end = start + (uintptr(pagesAdded) * PageSize)
-	return
-}
-
-// GrowByMin will Grow by a single page or by the minimum needed, whichever is greater.
-func GrowMin(pagesBefore, pagesNeeded int32, minSize uintptr) (int32, uintptr, uintptr) {
-	ptr := uintptr(malloc(uintptr(pagesNeeded) * uintptr(PageSize)))
-	if ptr == 0 {
-		return 0, 0, 0
-	}
-	return pagesNeeded, ptr, uintptr(ptr) + (uintptr(pagesNeeded) * PageSize)
+	Free(Pointer(ptr))
 }

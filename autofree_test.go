@@ -29,7 +29,7 @@ func TestAuto_Scope(t *testing.T) {
 	Scope(func(a AutoFree) {
 		for i := 0; i < 100; i++ {
 			a.Alloc(64)
-			a.Str(128)
+			// a.Str(128)
 		}
 	})
 	//if a.Stats().Allocs != 0 {

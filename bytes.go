@@ -33,6 +33,10 @@ type Bytes struct {
 	Pointer // Use for unchecked unsafe access
 }
 
+func BytesRef(ptr Pointer) *Bytes {
+	return &Bytes{Pointer: ptr}
+}
+
 func AllocBytes(size uintptr) Bytes {
 	return newBytesZeroed(size)
 }

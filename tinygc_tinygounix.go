@@ -19,9 +19,9 @@ var collector *gc
 //go:linkname gcInitHeap runtime.gcInitHeap
 func gcInitHeap(heapStart, heapEnd uintptr) {
 	println("gcInitHeap", uint(heapStart), uint(heapEnd))
-	if allocator == nil {
-		initAllocator(heapStart, heapEnd)
-	}
+	//if allocator == nil {
+	//	initAllocator(heapStart, heapEnd)
+	//}
 	collector = newGC(64, doMarkGlobals, doMarkStack)
 }
 
@@ -51,7 +51,7 @@ func gcFree(ptr unsafe.Pointer) {
 	}
 	println("gcFree", uint(uintptr(ptr)))
 	if !collector.Free(uintptr(ptr)) {
-		allocator.Free(uintptr(ptr))
+		Free(Pointer(ptr))
 	}
 }
 
@@ -159,6 +159,6 @@ func markScheduler()
 
 //go:linkname gcMarkTask runtime.gcMarkTask
 func gcMarkTask(runQueuePtr, taskPtr uintptr) {
-	println("gcMarkTask", uint(allocator.HeapStart), uint(runQueuePtr), uint(taskPtr))
+	println("gcMarkTask", uint(runQueuePtr), uint(taskPtr))
 	collector.markRoot(taskPtr)
 }

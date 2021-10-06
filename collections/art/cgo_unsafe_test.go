@@ -1,6 +1,3 @@
-//go:build !tinygo
-// +build !tinygo
-
 package art
 
 import (
@@ -12,7 +9,7 @@ import (
 
 func TestNew(t *testing.T) {
 	println("sizeof Leaf", unsafe.Sizeof(Leaf{}))
-	art := New()
+	art, _ := New()
 	art.InsertBytes(memory.WrapString("hello"), 1000)
 	art.InsertBytes(memory.WrapString("below"), 5000)
 	art.InsertString("hello01", 8700)
@@ -28,7 +25,7 @@ func TestNew(t *testing.T) {
 
 func BenchmarkTree_Insert(b *testing.B) {
 	b.Run("insert int32BE", func(b *testing.B) {
-		tree := New()
+		tree, _ := New()
 		key := memory.AllocBytes(4)
 
 		//println(tree.String())
@@ -43,7 +40,7 @@ func BenchmarkTree_Insert(b *testing.B) {
 		key.Free()
 	})
 	b.Run("insert int32LE", func(b *testing.B) {
-		tree := New()
+		tree, _ := New()
 		key := memory.AllocBytes(4)
 
 		//println(tree.String())
@@ -58,7 +55,7 @@ func BenchmarkTree_Insert(b *testing.B) {
 		key.Free()
 	})
 	b.Run("insert int64BE", func(b *testing.B) {
-		tree := New()
+		tree, _ := New()
 		key := memory.AllocBytes(8)
 
 		//println(tree.String())
@@ -73,7 +70,7 @@ func BenchmarkTree_Insert(b *testing.B) {
 		key.Free()
 	})
 	b.Run("insert int64LE", func(b *testing.B) {
-		tree := New()
+		tree, _ := New()
 		key := memory.AllocBytes(8)
 
 		//println(tree.String())
@@ -105,7 +102,7 @@ func BenchmarkTree_Insert(b *testing.B) {
 
 func BenchmarkTree_Find(b *testing.B) {
 	runInt64BE := func(entries int) {
-		tree := New()
+		tree, _ := New()
 		key := memory.AllocBytes(8)
 		for i := 0; i < entries; i++ {
 			key.SetInt64LE(0, int64(i))

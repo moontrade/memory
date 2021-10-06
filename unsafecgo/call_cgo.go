@@ -1,15 +1,14 @@
-//go:build !amd64 && !arm64
-// +build !amd64,!arm64
+//go:build !amd64 && !arm64 && !tinygo
+// +build !amd64,!arm64,!tinygo
 
 package unsafecgo
 
 import (
 	"github.com/moontrade/memory/unsafecgo/cgo"
-	"unsafe"
 )
 
 func NonBlocking(fn *byte, arg0, arg1 uintptr) {
-	cgo.Blocking(uintptr(unsafe.Pointer(f)))
+	cgo.Blocking(fn, arg0, arg1)
 }
 
 func Blocking(fn *byte, arg0, arg1 uintptr) {

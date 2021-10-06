@@ -1,0 +1,6 @@
+{
+    "go.toolsEnvVars": {
+        "GOROOT": "/Users/cmo/Library/Caches/tinygo/goroot-go1.16.6-5815202fd2b33f18b12dc5b142ade8e23451d40f4bf6cbe268515fb8b9b562de-syscall",
+        "GOFLAGS": "-tags=tinygo.wasm,wasi,tinygo,gc.conservative,scheduler.coroutines,serial.none"
+    }
+}

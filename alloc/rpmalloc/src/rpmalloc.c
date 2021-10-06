@@ -2188,6 +2188,7 @@ _rpmalloc_allocate_huge(heap_t* heap, size_t size) {
 //! Allocate a block of the given size
 static void*
 _rpmalloc_allocate(heap_t* heap, size_t size) {
+//	fprintf(stderr, "rpmalloc_allocate\n");
 	_rpmalloc_stat_add64(&_allocation_counter, 1);
 	if (EXPECTED(size <= SMALL_SIZE_LIMIT))
 		return _rpmalloc_allocate_small(heap, size);

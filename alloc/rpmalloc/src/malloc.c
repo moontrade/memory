@@ -380,6 +380,7 @@ pthread_create_proxy(pthread_t* thread,
                      void* (*start_routine)(void*),
                      void* arg) {
 	rpmalloc_initialize();
+//	fprintf(stderr, "pthread_create_proxy\n");
 	thread_starter_arg* starter_arg = rpmalloc(sizeof(thread_starter_arg));
 	starter_arg->real_start = start_routine;
 	starter_arg->real_arg = arg;

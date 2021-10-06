@@ -1,0 +1,28 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/Users/cmo/repos/moontrade/memory/rax/src/rax.c
+stdlib.h
+-
+string.h
+-
+assert.h
+-
+stdio.h
+-
+errno.h
+-
+math.h
+-
+rax.h
+/Users/cmo/repos/moontrade/memory/rax/src/rax.h
+
+/Users/cmo/repos/moontrade/memory/rax/src/rax.h
+stdint.h
+-
+
