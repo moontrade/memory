@@ -2,12 +2,13 @@ package rpmalloc
 
 import (
 	"fmt"
-	"github.com/moontrade/memory/alloc/tlsf"
 	"math/rand"
 	"runtime"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/moontrade/memory/alloc/tlsf"
 )
 
 func TestCall(t *testing.T) {
@@ -152,6 +153,7 @@ func Test_AllocatorThrash(t *testing.T) {
 	var statsAfter runtime.MemStats
 	runtime.ReadMemStats(&statsAfter)
 	//fmt.Println("SysAllocator Size", a.Size())
+
 	fmt.Println("GCStats Before", statsBefore)
 	fmt.Println("GCStats After", statsAfter)
 
